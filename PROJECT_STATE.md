@@ -44,6 +44,8 @@ be *ethically* generated, the better.
 |----|------|--------|-------|
 | R-01 | Trading (two tracks) | **ACTIVE — R&D (paper only)** | `workstreams/R-01_systematic_trading/` — Track 1: discretionary opportunity journal + checklist ruleset (primary, per Nick Jul 18). Track 2: backtest harness as support tooling. No capital deployed; Rule 3 gate not yet passed |
 | R-03 | Sellable product | parked | Revisit after R-01 R&D settles into low-maintenance rhythm |
+| R-04 | Content channel | candidate | Document gearbox/actuator builds; Bee entirely out of frame. Demand engine for R-03/R-05 |
+| R-05 | SCP actuators | candidate | Nick's white whale — TCP polymer muscles + fabrication tooling as product. Sequenced after CEV v0.5 |
 
 ## Capital Ledger
 | Date | Workstream | In | Out | Net to date | Notes |
@@ -79,6 +81,14 @@ be *ethically* generated, the better.
   line reconfirmed as a hard boundary, not a preference. Also agreed:
   any R-03 design sold to others requires intensive testing at a
   HIGHER bar than personal use (full build from published files alone).
+- **Jul 18, 2026** — Ruleset approved with Nick's limits; $250 working
+  capital allocated (see ledger).
+- **Jul 18, 2026** — Two new research candidates filed at Nick's
+  interest: R-04 (content channel — gearbox/actuator documentation,
+  Bee out of frame, separate from any personal CNS/psychedelic channel)
+  and R-05 (supercoiled polymer actuators — Nick's white whale, ChemE
+  home turf, tooling-as-product thesis). Neither active; R-05 sequenced
+  after CEV v0.5.
 
 ## Next Actions
 - [x] Nick: set limits — DONE Jul 18 ($250 capital, 2% risk/trade,
