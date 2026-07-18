@@ -1,13 +1,30 @@
-# R-01 — Systematic Trading Workstream
+# R-01 — Trading Workstream (two tracks)
 
-**Status:** ACTIVE (selected Jul 17, 2026). R&D phase — paper only.
-No real capital until Standing Rule 3 is satisfied (written ruleset +
-backtest/paper record committed here).
+**Status:** ACTIVE (selected Jul 17, 2026; restructured to two tracks
+Jul 18 per Nick). No real capital until Standing Rule 3 is satisfied
+(written ruleset + record committed here).
+
+## Track 1 — Discretionary (primary)
+
+Ad hoc opportunity-hunting: Nick brings ideas (or asks for research),
+FAT supplies pros/cons analysis and data checks — never a verdict or a
+buy/sell call — limits are set before entry, and every outcome is
+recorded. Lives in `discretionary/`:
+- `RULESET.md` — the pre-entry checklist and position limits (DRAFT
+  until Nick redlines the bracketed limits)
+- `JOURNAL.md` — the opportunity journal; the non-negotiable discipline
+
+## Track 2 — Systematic (support tooling)
+
+The backtest harness. Used to pressure-test discretionary theses
+against history ("does buying X after Y actually work?") and to develop
+rules-based strategies if any idea graduates to full automation.
 
 ## What's here
 
 ```
-harness/          the backtest harness (pure Python + requests, no other deps)
+discretionary/    track 1: ruleset + opportunity journal
+harness/          track 2: backtest harness (pure Python + requests, no other deps)
   data.py         OHLCV fetcher (Coinbase Exchange public API) + local CSV cache
   strategy.py     Strategy interface + reference strategies (SMA cross, buy & hold)
   backtest.py     event-loop backtester: next-bar fills, fees, slippage, metrics

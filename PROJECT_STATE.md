@@ -42,7 +42,7 @@ be *ethically* generated, the better.
 ## Workstreams
 | ID | Name | Status | Notes |
 |----|------|--------|-------|
-| R-01 | Systematic trading | **ACTIVE — R&D (paper only)** | `workstreams/R-01_systematic_trading/` — harness built Jul 18, walk-forward validated on BTC-USD daily. No capital deployed; Rule 3 gate not yet passed |
+| R-01 | Trading (two tracks) | **ACTIVE — R&D (paper only)** | `workstreams/R-01_systematic_trading/` — Track 1: discretionary opportunity journal + checklist ruleset (primary, per Nick Jul 18). Track 2: backtest harness as support tooling. No capital deployed; Rule 3 gate not yet passed |
 | R-03 | Sellable product | parked | Revisit after R-01 R&D settles into low-maintenance rhythm |
 
 ## Capital Ledger
@@ -70,13 +70,22 @@ be *ethically* generated, the better.
   on BTC-USD daily returns +18.4% OOS vs +114.2% buy & hold over the
   same span, with unstable chosen params — i.e., no edge, correctly
   detected. The harness's job is to say no; it says no.
+- **Jul 18, 2026** — R-01 restructured to two tracks per Nick:
+  **discretionary is primary** (Nick brings opportunities, FAT gives
+  pros/cons analysis — never verdicts or buy/sell calls — limits set
+  pre-entry, everything journaled), systematic harness becomes support
+  tooling for pressure-testing theses. FAT's no-individual-trade-calls
+  line reconfirmed as a hard boundary, not a preference. Also agreed:
+  any R-03 design sold to others requires intensive testing at a
+  HIGHER bar than personal use (full build from published files alone).
 
 ## Next Actions
-- [ ] FAT: candidate strategy pipeline — implement 2-3 strategies with
-      a real hypothesis (e.g., volatility-filtered trend, donchian
-      breakout, cross-sectional momentum across a few majors) and put
-      them through the same walk-forward bar
-- [ ] FAT: add a paper-trade mode (daily signal emitter Nick can
-      sanity-check live) once any strategy clears walk-forward
-- [ ] Nick: none blocking — review `results/` reports at leisure
-- [ ] Rule 3 gate: written ruleset + paper record before any capital
+- [ ] Nick: redline `discretionary/RULESET.md` — set the bracketed
+      limits (per-position cap, total at risk, max positions, cooldown)
+- [ ] Nick: bring the first opportunity to the table (or name a
+      market/asset for FAT to research first)
+- [ ] Nick: thinking on R-03 product directions (parked, no action)
+- [ ] FAT: on request — research briefs, thesis pressure-tests via the
+      harness, more strategies through walk-forward as ideas arise
+- [ ] Rule 3 gate: RULESET.md approved + journal running before any
+      real capital
