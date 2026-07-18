@@ -1,8 +1,8 @@
 # Discretionary Track — Ruleset
 
-**Status: DRAFT — Nick to redline.** Bracketed values are placeholders;
-nothing in this track touches real money until Nick has set them and
-marked this file APPROVED (Standing Rule 3).
+**Status: APPROVED — limits set by Nick, Jul 18 2026.** FAT's job
+includes holding Nick to these; a trade that violates them gets flagged
+in the journal even if it wins.
 
 ## How this track works
 
@@ -28,19 +28,30 @@ Ad hoc opportunity-hunting, done with discipline:
       how would I notice?
 - [ ] Position size within cap (below)
 - [ ] Max acceptable loss in dollars written down
-- [ ] Exit conditions decided: profit target and/or invalidation level
-      and/or time stop — chosen NOW, not after entry
+- [ ] Exit conditions decided: stop loss AND take profit set NOW, not
+      after entry (risk rule below is defined off the stop distance)
+- [ ] Time stop respected: position closes by day 7 regardless
 - [ ] Not revenge-trading a recent loss; not FOMO on a move already made
 - [ ] Venue/custody risk considered (exchange, counterparty, chain)
 
-## Limits (Nick to set)
+## Limits (set by Nick, Jul 18 2026)
 
-- Per-position cap: **[$___]** (suggested starting point: small enough
-  that a 100% loss is annoying, not painful — Standing Rule 1)
-- Total discretionary capital at risk simultaneously: **[$___]**
-- Max positions open at once: **[___]**
-- Cooldown after [2] consecutive losing trades: **[___ days]** of
-  journal review before the next entry
+- **Working capital: $250.** Nick reports capital changes after each
+  trade; ledger in PROJECT_STATE.md tracks it.
+- **Max risk per trade: 2% of current capital** — measured as the loss
+  taken if the stop is hit (entry-to-stop distance × position size),
+  not as position size. At $250 that's $5. Nick may tighten this as
+  capital grows; never loosens without a ruleset revision.
+- **Max deployment per trade: 50% of current capital** ($125 at $250).
+  Implication worth knowing: at full 50% deployment, the 2% risk rule
+  means the stop can sit at most ~4% from entry. Wider stop → smaller
+  position.
+- **Max holding period: 7 days.** This account is short-term only —
+  99+% of Nick's money lives elsewhere (HYSA, index funds, long-term).
+  Anything that wants to be a long-term hold belongs in his personal
+  finance stack, not here.
+- Not yet set (add if experience shows they're needed): max
+  simultaneous positions; cooldown after consecutive losses.
 
 ## Journal discipline (the non-negotiable part)
 

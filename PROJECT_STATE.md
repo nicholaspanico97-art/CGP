@@ -49,6 +49,7 @@ be *ethically* generated, the better.
 | Date | Workstream | In | Out | Net to date | Notes |
 |------|-----------|----|-----|-------------|-------|
 | — | — | — | — | $0.00 | Opening balance |
+| Jul 18, 2026 | R-01 discretionary | $250.00 | — | $250.00 | Working capital allocated by Nick. Limits: 2% risk/trade, 50% max deployment, ≤7-day holds (see R-01 RULESET.md). Nick reports changes per trade |
 
 ## Decision Log
 - **Jul 17, 2026** — Project created as its own repo, outside the
@@ -80,8 +81,8 @@ be *ethically* generated, the better.
   HIGHER bar than personal use (full build from published files alone).
 
 ## Next Actions
-- [ ] Nick: redline `discretionary/RULESET.md` — set the bracketed
-      limits (per-position cap, total at risk, max positions, cooldown)
+- [x] Nick: set limits — DONE Jul 18 ($250 capital, 2% risk/trade,
+      50% max deployment, ≤7-day holds). RULESET.md APPROVED
 - [ ] Nick: bring the first opportunity to the table (or name a
       market/asset for FAT to research first)
 - [ ] Nick: thinking on R-03 product directions (parked, no action)
