@@ -57,10 +57,13 @@ be *ethically* generated, the better.
   Freelance ruled out. Markets-first, product-maybe.
 - **Jul 17, 2026** — GitHub remote created by Nick:
   `nicholaspanico97-art/CGP`.
+- **Jul 17, 2026** — R-02 (low-variance yield) rejected: Nick is
+  already well invested in personal-finance terms; no need to
+  duplicate it here. Remaining candidates: R-01, R-03.
 
 ## Next Actions
-- [ ] Nick: read `research/R-01..R-03`, redline the Standing Rules,
-      pick the first workstream to develop
+- [ ] Nick: redline the Standing Rules, pick the first workstream
+      to develop (R-01 systematic trading vs R-03 sellable product)
 - [ ] FAT: once picked, build the first concrete artifact (for R-01
       that's the backtest harness; for R-03 a product shortlist)
 - [ ] Establish the paper-trade / R&D period before any real capital

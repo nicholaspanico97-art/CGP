@@ -1,6 +1,8 @@
 # R-02 — Low-Variance Yield / Market-Neutral Approaches
 
-**Status:** candidate — not active
+**Status:** REJECTED (Nick, Jul 17 2026) — already well covered in his
+personal-finance investing; CGP doesn't need a parked-cash baseline.
+File kept per research/ policy.
 **Fit:** the "boring baseline" — low effort, low variance, and the
 honest benchmark every other workstream has to beat.
 
