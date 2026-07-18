@@ -1,6 +1,7 @@
 # R-01 — Systematic (Rules-Based) Trading
 
-**Status:** candidate — not active
+**Status:** SELECTED (Nick, Jul 17 2026) — active workstream at
+`workstreams/R-01_systematic_trading/`
 **Fit:** best match for the stated scope ("markets with strict trading
 guidelines") and for an engineer's temperament: the whole point is
 replacing discretion with written, testable rules.
