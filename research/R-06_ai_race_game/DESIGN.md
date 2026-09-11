@@ -1,7 +1,9 @@
 # R-06 — *Frontier*: an AI-race business simulation, 2020–2030
 
-**Status:** design approved by Nick, Sep 11 2026. P0 paper prototype is
-the live next step — see `PAPER_PROTOTYPE.md` in this folder.
+**Status:** design approved by Nick, Sep 11 2026. Build approach revised the
+same day: simulation-first, real units, calibrated against the 2020-2026
+record. The live artifact is `WORLD_MODEL.md` and the running model in
+`sim/`. `PAPER_PROTOTYPE.md` is superseded.
 **Filed:** Sep 11, 2026
 **Working title:** *Frontier* (alt: *Scaling Laws*, *Compute*, *The Race*)
 
@@ -16,6 +18,8 @@ the live next step — see `PAPER_PROTOTYPE.md` in this folder.
 | Players | **Single player, always** | No hot-seat, no netcode, ever. Rival AI can be as expensive as it needs to be |
 | Scope | **Lab only** | No chip-vendor or regulator modes. Those actors stay as world systems, never playable |
 | Tone | **Gritty economic sim** | Explicitly not the lighter 45-minute version. Depth over reach |
+| Method | **Simulation-first, real units** | Model the world well, run the sims, and let the game be the player's window onto it. No abstract resource units anywhere: FLOP, watts, tokens, dollars |
+| Start | **2020, as originally planned** | The 2020-21 opening is kept; the model is calibrated from Jan 2020 |
 | Target feeling | *"Staring at benchmarks, pissed you lost on AA by two points; seeing how long you can burn cash on inference"* | Promotes two systems to first-class: the **published benchmark index** (§6) and **the burn** (§6). Both were flavor in v1 of this plan; they are now load-bearing |
 
 The target feeling is the design's acceptance test. Any mechanic that

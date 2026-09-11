@@ -1,3 +1,11 @@
+> **SUPERSEDED — Sep 11, 2026.** Nick's direction changed the approach:
+> model the world at high fidelity in real units first, run the simulation,
+> and make the game a window onto it. See `WORLD_MODEL.md`. This document is
+> kept because its kill-gate discipline and its demand/incident structure
+> still apply, but its abstract "compute units" do not — that abstraction was
+> exactly the thing that could not express a decade spanning six orders of
+> magnitude.
+
 # Frontier — P0 Paper Prototype
 ### 12 turns · one charter · two rivals · pencil, paper, two d10
 

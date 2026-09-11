@@ -1,0 +1,86 @@
+  calibration error, mean |log10(model/actual)| per family:
+    revenue        0.554   (3.58x typical error)
+    capex          0.379   (2.39x typical error)
+    power          0.692   (4.92x typical error)
+    frontier_flop  0.320   (2.09x typical error)
+    WEIGHTED       0.472   (2.97x)
+
+  revenue $B      model   actual
+    2020            0.00     0.05
+    2021            0.01     0.15
+    2022            0.14     0.40
+    2023            1.38     2.60
+    2024            6.76     7.00
+    2025           36.27    26.00
+    2026          203.74    62.00
+  sector GW       model   actual
+    2023            0.33     1.50
+    2024            0.76     4.00
+    2025            1.42     9.00
+    2026            4.39    17.00
+  capex $B        model   actual
+    2020             3.5      2.0
+    2021             4.1      5.0
+    2022             3.8     12.0
+    2023             6.2     30.0
+    2024            30.3     95.0
+    2025            81.9    220.0
+    2026           236.4    380.0
+  frontier run    model   actual
+    2020-06     7.80e+23 3.10e+23  GPT-3 class
+    2021-12     3.95e+24 6.30e+23  Gopher class
+    2022-04     5.92e+24 2.50e+24  PaLM class
+    2023-03     2.00e+25 2.10e+25  GPT-4 class
+    2024-07     6.75e+25 3.80e+25  Llama 3.1 405B
+    2024-12     1.01e+26 1.00e+26  o1 class
+    2025-06     2.28e+26 4.00e+26  2025 frontier
+    2026-03     5.12e+26 1.50e+27  2026 frontier
+CAPABILITY CURVE FIT  (fitted parameters)
+   MMLU   midpoint at C=24.682  (4.8e+24 effective FLOP)   width=1.045 OOM
+   GPQA   midpoint at C=27.947  (8.9e+27 effective FLOP)   width=0.661 OOM
+   SWE    midpoint at C=28.622  (4.2e+28 effective FLOP)   width=0.766 OOM
+
+BENCHMARK ANCHORS  vs  MODEL
+   date      suite    model  actual     err       C  source
+   2020-06   MMLU      43.7    43.9    -0.2   23.69  GPT-3 [HIGH]
+   2022-04   MMLU      70.0    69.3    +0.7   25.43  PaLM 540B [HIGH]
+   2023-03   MMLU      84.4    86.4    -2.0   26.83  GPT-4 [HIGH]
+   2024-03   MMLU      88.5    86.8    +1.7   27.70  Claude 3 Opus [HIGH]
+   2025-06   MMLU      91.6    90.5    +1.1   30.02  frontier [MED]
+   2023-03   GPQA      35.2    35.7    -0.5   26.83  GPT-4 [HIGH]
+   2024-03   GPQA      51.4    50.4    +1.0   27.70  Claude 3 Opus [HIGH]
+   2024-12   GPQA      76.3    78.0    -1.7   28.82  o1 [HIGH]
+   2025-06   GPQA      87.3    83.0    +4.3   30.02  frontier [MED]
+   2026-03   GPQA      89.7    88.0    +1.7   31.42  frontier [LOW]
+   2023-03   SWE        7.6     1.7    +5.9   26.83  GPT-4 [MED]
+   2024-06   SWE       24.3    26.0    -1.7   27.91  Claude 3.5 S [HIGH]
+   2024-12   SWE       48.6    49.0    -0.4   28.82  o1/3.5 S v2 [HIGH]
+   2025-06   SWE       74.1    72.0    +2.1   30.02  frontier [MED]
+   2026-03   SWE       83.8    80.0    +3.8   31.42  frontier [LOW]
+   mean absolute error: 1.91 benchmark points
+
+FRONTIER TRAINING RUN  vs  MODEL TRACK
+   date       actual FLOP   model FLOP      err  label
+   2020-06       3.10e+23     3.10e+23    1.00x  GPT-3 class
+   2021-12       6.30e+23     6.30e+23    1.00x  Gopher class
+   2022-04       2.50e+24     2.50e+24    1.00x  PaLM class
+   2022-04       5.80e+23     2.50e+24    4.31x  Chinchilla
+   2023-03       2.10e+25     2.10e+25    1.00x  GPT-4 class
+   2024-07       3.80e+25     3.80e+25    1.00x  Llama 3.1 405B
+   2024-12       1.00e+26     1.00e+26    1.00x  o1 class
+   2025-06       4.00e+26     4.00e+26    1.00x  2025 frontier
+   2026-03       1.50e+27     1.50e+27    1.00x  2026 frontier
+
+EFFECTIVE-COMPUTE DECOMPOSITION (frontier)
+   date        pretrain    algo x  reason x   effective      C
+   2020-06      3.1e+23         2         1     4.9e+23  23.69
+   2021-06      5.0e+23         5         1     2.3e+24  24.36
+   2022-06      3.7e+24        13         1     4.7e+25  25.67
+   2023-06      2.3e+25        34         1     1.1e+27  27.05
+   2024-06      3.7e+25        86         3     8.1e+27  27.91
+   2025-06      4.0e+26       208        13     1.0e+30  30.02
+   2026-06      2.3e+27       479        67     7.4e+31  31.87
+   2027-06      1.4e+28      1048       234     3.3e+33  33.52
+   2028-06      7.9e+28      2168       394     6.8e+34  34.83
+   2029-06      4.6e+29      4230       584     1.1e+36  36.06
+   2030-06      2.7e+30      7752       787     1.6e+37  37.21

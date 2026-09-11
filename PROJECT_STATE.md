@@ -1,6 +1,6 @@
 # CGP PROJECT STATE
 *Maintained by FAT (Fable Architect — engineering sessions).
-Last updated: Sep 11, 2026 — R-06 design approved; P0 paper prototype written.*
+Last updated: Sep 11, 2026 — R-06 world model v0.1 running and calibrated.*
 
 This repo is deliberately self-contained: a session opened here should
 need nothing from any other project. Keep it that way.
@@ -46,7 +46,7 @@ be *ethically* generated, the better.
 | R-03 | Sellable product | parked | Revisit after R-01 R&D settles into low-maintenance rhythm |
 | R-04 | Content channel | candidate | Document gearbox/actuator builds; Bee entirely out of frame. Demand engine for R-03/R-05 |
 | R-05 | SCP actuators | candidate | Nick's white whale — TCP polymer muscles + fabrication tooling as product. Sequenced after CEV v0.5 |
-| R-06 | *Frontier* — AI race sim game | **ACTIVE — P0 prototype** | `research/R-06_ai_race_game/` — business sim, 2020–2030, one frontier lab. Design approved Sep 11; paper prototype written and waiting to be played. Personal project, explicitly NOT a capital workstream |
+| R-06 | *Frontier* — AI race sim game | **ACTIVE — P0 prototype** | `research/R-06_ai_race_game/` — business sim, 2020–2030, one frontier lab. Design approved Sep 11; approach revised same day to simulation-first. World model v0.1 running in `sim/`, calibrated to the 2020-2026 record at ~3x typical error. Personal project, explicitly NOT a capital workstream |
 
 ## Capital Ledger
 | Date | Workstream | In | Out | Net to date | Notes |
@@ -113,6 +113,23 @@ be *ethically* generated, the better.
   tables, event deck, and a four-part kill gate that includes testing
   the two-point-loss feeling directly. Still no code, by design.
 
+- **Sep 11, 2026** — R-06 approach revised by Nick: the paper prototype
+  was the wrong instrument. Direction is now *model the world really
+  well, run the sims, and make the game a window into that simulation*,
+  starting in 2020 and using real units throughout — abstract compute
+  units cannot express a decade that spans six orders of magnitude.
+  Built `sim/`: a zero-dependency Python world model, monthly ticks
+  2020-2030, calibrated against a committed record of public estimates
+  (`sim/anchors.py`). Scaling-law arithmetic independently reproduces
+  GPT-3's and Llama-3-405B's shapes, cluster sizes and run durations.
+  Weighted calibration error ~3x across frontier run size, capex,
+  revenue and power; benchmark curves fit to ~1.9 points. Power is the
+  weakest family at ~4.9x and is the top fix. Three modeling errors
+  found and corrected along the way, each real: labs using training
+  recipes that did not exist yet, runs 15x larger than anyone could
+  engineer, and consumer subscriptions before a chat product existed.
+  See `research/R-06_ai_race_game/WORLD_MODEL.md`.
+
 ## Next Actions
 - [x] Nick: set limits — DONE Jul 18 ($250 capital, 2% risk/trade,
       50% max deployment, ≤7-day holds). RULESET.md APPROVED
@@ -123,7 +140,11 @@ be *ethically* generated, the better.
       harness, more strategies through walk-forward as ideas arise
 - [x] Nick: review R-06 design plan — DONE Sep 11, approved, scope
       locked (see decision log)
-- [ ] Nick: play the R-06 P0 paper prototype and keep the playtest log
-      (§12). Four kill-gate criteria in §10 decide whether P1 happens
+- [ ] R-06: fix the power model (site-level contracting, real queue) —
+      worst-calibrated family at ~4.9x
+- [ ] R-06: add enterprise adoption friction to kill the 2025 revenue
+      overshoot; then talent, safety and regulation
+- [ ] Nick: review `WORLD_MODEL.md` §3 residuals and §4 back-half
+      output — especially the 2027-30 spend ceiling assumption
 - [ ] Rule 3 gate: RULESET.md approved + journal running before any
       real capital
