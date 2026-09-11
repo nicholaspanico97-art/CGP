@@ -1,6 +1,6 @@
 # CGP PROJECT STATE
 *Maintained by FAT (Fable Architect — engineering sessions).
-Last updated: Sep 11, 2026 — R-06 world model v0.1 running and calibrated.*
+Last updated: Sep 11, 2026 — R-06 world model v0.2: domains, data, segmented markets.*
 
 This repo is deliberately self-contained: a session opened here should
 need nothing from any other project. Keep it that way.
@@ -46,7 +46,7 @@ be *ethically* generated, the better.
 | R-03 | Sellable product | parked | Revisit after R-01 R&D settles into low-maintenance rhythm |
 | R-04 | Content channel | candidate | Document gearbox/actuator builds; Bee entirely out of frame. Demand engine for R-03/R-05 |
 | R-05 | SCP actuators | candidate | Nick's white whale — TCP polymer muscles + fabrication tooling as product. Sequenced after CEV v0.5 |
-| R-06 | *Frontier* — AI race sim game | **ACTIVE — P0 prototype** | `research/R-06_ai_race_game/` — business sim, 2020–2030, one frontier lab. Design approved Sep 11; approach revised same day to simulation-first. World model v0.1 running in `sim/`, calibrated to the 2020-2026 record at ~3x typical error. Personal project, explicitly NOT a capital workstream |
+| R-06 | *Frontier* — AI race sim game | **ACTIVE — P0 prototype** | `research/R-06_ai_race_game/` — business sim, 2020–2030, one frontier lab. Design approved Sep 11; approach revised same day to simulation-first. World model v0.2 running in `sim/`: multi-domain capability, data as a purchasable market, nine gated segments. Calibrated to the 2020-2026 record at ~1.6x typical error. Personal project, explicitly NOT a capital workstream |
 
 ## Capital Ledger
 | Date | Workstream | In | Out | Net to date | Notes |
@@ -130,6 +130,25 @@ be *ethically* generated, the better.
   engineer, and consumer subscriptions before a chat product existed.
   See `research/R-06_ai_race_game/WORLD_MODEL.md`.
 
+- **Sep 11, 2026** — R-06 v0.2 at Nick's direction: models are not one
+  number, data is valuable, and marketability should depend on which
+  skills a model actually has. Added eight capability domains, each
+  bought with a mixture of compute AND data; ten data sources with real
+  volumes, licence costs, lead times and exclusivity; and nine market
+  segments each gated on a domain. Below a gate a lab has no product,
+  not a worse one. Exclusive corpora are auctioned on strategic value
+  rather than size, so a specialist can outbid a giant for the corpus
+  its business depends on; product telemetry accrues only to whoever has
+  users, in the domains those users use. Verified against Nick's stated
+  test: a media specialist starting with 3,500 accelerators against a
+  hyperscaler's 26,000 ends 2030 at $47B/yr leading video and image with
+  zero revenue in language, coding or agents — AGI-grade coding
+  elsewhere does not touch it. Calibration IMPROVED from 2.6x to 1.58x
+  typical error: segmentation made the economics more accurate, because
+  demand now opens when products open. Biggest remaining gap: five of
+  eight domains have hand-set capability curves with no public score
+  history behind them.
+
 ## Next Actions
 - [x] Nick: set limits — DONE Jul 18 ($250 capital, 2% risk/trade,
       50% max deployment, ≤7-day holds). RULESET.md APPROVED
@@ -140,10 +159,10 @@ be *ethically* generated, the better.
       harness, more strategies through walk-forward as ideas arise
 - [x] Nick: review R-06 design plan — DONE Sep 11, approved, scope
       locked (see decision log)
-- [ ] R-06: fix the power model (site-level contracting, real queue) —
-      worst-calibrated family at ~4.9x
-- [ ] R-06: add enterprise adoption friction to kill the 2025 revenue
-      overshoot; then talent, safety and regulation
+- [ ] R-06: anchor the five unanchored domains (image, video, audio,
+      agentic, embodied) against real score histories — biggest gap
+- [ ] R-06: fix the power model (site-level contracting, real queue);
+      add enterprise adoption friction; then talent, safety, regulation
 - [ ] Nick: review `WORLD_MODEL.md` §3 residuals and §4 back-half
       output — especially the 2027-30 spend ceiling assumption
 - [ ] Rule 3 gate: RULESET.md approved + journal running before any

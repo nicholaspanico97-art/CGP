@@ -85,21 +85,35 @@ def _sigmoid(x):
     return 1.0 / (1.0 + math.exp(-x))
 
 
+# Domains with no public score history get hand-set curves. These are
+# ASSUMPTIONS, not fits, and are flagged as such in every report - the
+# anchored domains (MMLU/GPQA/SWE) are the only calibrated ones.
+UNANCHORED_CURVES = {
+    "AGENT": (29.00, 1.00, 0.0, 90.0),
+    "IMAGE": (25.80, 0.90, 0.0, 95.0),
+    "VIDEO": (27.60, 0.85, 0.0, 92.0),
+    "AUDIO": (26.30, 0.80, 0.0, 95.0),
+    "ROBOT": (29.20, 1.10, 0.0, 88.0),
+}
+
+
 class BenchmarkModel:
     """One saturating curve per suite, fitted to the historical anchors."""
 
     def __init__(self):
         self.params = {}
+        self.bounds = {}
 
     def fit(self, verbose=False):
         frontier = FrontierHistory()
         for suite in ("MMLU", "GPQA", "SWE"):
             pts = []
+            dom = DOMAIN_OF_SUITE[suite]
             for date, s, score, _model, conf in A.BENCHMARKS:
                 if s != suite:
                     continue
                 m = A.month_index(date)
-                c = frontier.capability_at(m)
+                c = frontier.domain_capability_at(m, dom)
                 pts.append((c, score, CONF_WEIGHT[conf]))
             lo, hi = A.BENCHMARK_FLOOR[suite], A.BENCHMARK_CEILING[suite]
             best, bestp = None, None
@@ -122,16 +136,51 @@ class BenchmarkModel:
                 c50_lo, c50_hi = c50 - 6 * step_c, c50 + 6 * step_c
                 w_lo, w_hi = max(0.05, w - 6 * step_w), w + 6 * step_w
             self.params[suite] = bestp
+            self.bounds[suite] = (lo, hi)
             if verbose:
                 rmse = math.sqrt(best / sum(p[2] for p in pts))
                 print(f"  {suite:5s} c50={bestp[0]:6.3f}  w={bestp[1]:5.3f}  "
                       f"weighted RMSE={rmse:5.2f} pts  (n={len(pts)})")
+        for suite, (c50, w, lo, hi) in UNANCHORED_CURVES.items():
+            self.params[suite] = (c50, w)
+            self.bounds[suite] = (lo, hi)
         return self
 
     def score(self, suite, capability):
         c50, w = self.params[suite]
-        lo, hi = A.BENCHMARK_FLOOR[suite], A.BENCHMARK_CEILING[suite]
+        lo, hi = self.bounds[suite]
         return lo + (hi - lo) * _sigmoid((capability - c50) / w)
+
+
+def domain_capability(effective_flop, mixture, run_tokens, stock, domains):
+    """
+    Capability per domain. Compute is split by the training mixture; data
+    decides how much of that compute actually lands. A domain you pointed
+    half your compute at but have no data for is compute you set on fire.
+    """
+    from .domains import data_sufficiency
+    out = {}
+    for d in domains:
+        w = mixture.get(d, 0.0)
+        if w <= 0:
+            out[d] = 0.0
+            continue
+        flop_d = effective_flop * w
+        wanted = run_tokens * w
+        suff = data_sufficiency(stock.effective(d), wanted)
+        qual = stock.quality(d)
+        out[d] = (math.log10(max(flop_d, 1.0))
+                  + math.log10(max(suff, 1e-3))
+                  + 0.6 * math.log10(max(qual, 0.05)))
+    return out
+
+
+# The mixture a frontier text model of the 2020-2025 era was actually
+# trained on, near enough. Used only to calibrate the anchored curves
+# against DOMAIN capability rather than against a scalar.
+HISTORICAL_MIXTURE = {"LANG": 0.56, "REASON": 0.16, "CODE": 0.20,
+                      "AGENT": 0.05, "IMAGE": 0.03}
+DOMAIN_OF_SUITE = {"MMLU": "LANG", "GPQA": "REASON", "SWE": "CODE"}
 
 
 class FrontierHistory:
@@ -175,3 +224,18 @@ class FrontierHistory:
         if month > m_rl:
             tt = min(2.5, (month - m_rl) / 12.0)   # test-time compute ramp
         return capability_index(self.flop_at(month), month, 1.0, 1.0, tt)
+
+    def domain_capability_at(self, month, domain):
+        """Frontier capability in one domain, on the era's typical mixture."""
+        from .domains import DataStock, acquire, DOMAIN_KEYS
+        if not hasattr(self, "_stock"):
+            self._stock = DataStock()
+            for k in ("web_crawl", "code_repos", "books_papers"):
+                acquire(self._stock, k, month)
+        eff = 10 ** self.capability_at(month)
+        flop = self.flop_at(month)
+        # compute-optimal token budget for a run that size
+        run_tokens = math.sqrt(flop / 6.0 * 20.0)
+        caps = domain_capability(eff, HISTORICAL_MIXTURE, run_tokens,
+                                 self._stock, DOMAIN_KEYS)
+        return caps.get(domain, 0.0)

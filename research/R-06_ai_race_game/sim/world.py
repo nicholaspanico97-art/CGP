@@ -9,18 +9,28 @@ import math
 from . import constants as K
 from . import anchors as A
 from . import economics as E
+from . import domains as D
 from .capability import (BenchmarkModel, algo_efficiency, reasoning_multiplier,
-                         capability_index)
+                         capability_index, domain_capability)
 
 
 class Model:
-    """A shipped model: what it can do and what it costs to serve."""
+    """A shipped model: what it can do, in each domain, and what it costs."""
 
-    def __init__(self, name, capability, active_params, month):
+    def __init__(self, name, capability, active_params, month, caps=None):
         self.name = name
-        self.capability = capability
+        self.capability = capability          # headline, for reporting only
+        self.caps = caps or {}                # the real answer: per domain
         self.active_params = active_params
         self.shipped = month
+
+    def can_serve(self, segment):
+        return all(self.caps.get(d, 0.0) >= th
+                   for d, th in D.SEGMENTS[segment]["gates"].items())
+
+    def quality_for(self, segment):
+        return sum(w * self.caps.get(d, 0.0)
+                   for d, w in D.SEGMENTS[segment]["weight_domains"].items())
 
 
 class Lab:
@@ -49,6 +59,9 @@ class Lab:
         self.capex_by_year = {}
         self.arr = 0.0                    # annualized revenue run-rate
         self.valuation = 1.0e9
+        self.data = D.DataStock()
+        self.mixture = dict(doctrine.get("mixture", {"LANG": 1.0}))
+        self.seg_revenue = {}
         self.safety_debt = 0.0
         self.trust = 50.0
         self.revenue_m = 0.0
@@ -108,7 +121,10 @@ class Lab:
         tt = self.doctrine.get("test_time_oom", 0.0)
         cap = capability_index(self.train_bank, month, self.algo_mult,
                                self.rl_investment, tt)
-        self.model = Model(f"{self.name}-{month}", cap, shape["active_params"], month)
+        caps = domain_capability(10 ** cap, self.mixture, shape["tokens"],
+                                 self.data, D.DOMAIN_KEYS)
+        self.model = Model(f"{self.name}-{month}", cap, shape["active_params"],
+                           month, caps)
         if not self.doctrine.get("always_eval", True):
             self.safety_debt += 2.0
         self.largest_run = max(self.largest_run, self.train_bank)
@@ -148,6 +164,97 @@ class Lab:
             self.algo_mult += (frontier_algo - self.algo_mult) * k
         else:
             self.algo_mult -= (self.algo_mult - 1.0) * k * K.LEADER_EDGE_DECAY
+
+    # ----------------------------------------------------------------- data
+    def strategic_value(self, source_key):
+        """
+        How much this corpus is worth to THIS lab: the overlap between what
+        the source contains and what the lab is actually training for. A
+        catalogue of stock footage is worth far more to a media specialist
+        than to a generalist who would spend 7% of a run on it.
+        """
+        src = D.DATA_SOURCES[source_key]
+        overlap = sum(self.mixture.get(dom, 0.0) * w
+                      for dom, w in src["mix"].items())
+        return 1.0 + 7.0 * overlap
+
+    def data_bid(self, source_key, month):
+        """What this lab will pay for an exclusive licence, or None."""
+        if source_key in self.data.sources:
+            return None
+        if source_key not in self.doctrine.get("data_priority", []):
+            return None
+        src = D.DATA_SOURCES[source_key]
+        if A.month_index(src["available"]) > month:
+            return None
+        ask = (src["annual_cost"]
+               + src["one_off_cost_per_btok"] * src["volume"]
+               * self.doctrine.get("data_share", 0.6) / 1e9)
+        if ask <= 0:
+            return None
+        # a licence is an annual commitment, not a lump of cash, so revenue
+        # matters as much as the balance sheet
+        budget = max(self.cash * 0.20, self.arr * 0.18)
+        ceiling = min(budget, ask * self.strategic_value(source_key))
+        return ceiling if ceiling >= ask else None
+
+    def take_data(self, source_key, month, price):
+        share = self.doctrine.get("data_share", 0.6)
+        res = D.acquire(self.data, source_key, month, share)
+        if res is None:
+            return
+        _dollars, flop = res
+        self.cash -= price
+        self.data_flop_debt = getattr(self, "data_flop_debt", 0.0) + flop
+        src = D.DATA_SOURCES[source_key]
+        self.annual_data_cost = (getattr(self, "annual_data_cost", 0.0)
+                                 + src["annual_cost"])
+
+    def buy_data(self, month, claimed):
+        """Non-exclusive sources only; exclusives are auctioned by the World."""
+        for key in self.doctrine.get("data_priority", []):
+            if key in self.data.sources:
+                continue
+            src = D.DATA_SOURCES[key]
+            if src["exclusive"]:
+                continue
+            if A.month_index(src["available"]) > month:
+                continue
+            share = self.doctrine.get("data_share", 0.6)
+            tokens = src["volume"] * share
+            price = (src["annual_cost"]
+                     + src["one_off_cost_per_btok"] * tokens / 1e9)
+            if price > self.cash * 0.18:
+                continue
+            res = D.acquire(self.data, key, month, share)
+            if res is None:
+                continue
+            dollars, flop = res
+            self.cash -= dollars
+            self.data_flop_debt = getattr(self, "data_flop_debt", 0.0) + flop
+            self.annual_data_cost = (getattr(self, "annual_data_cost", 0.0)
+                                     + src["annual_cost"])
+            break      # one deal a month; these take negotiating
+
+    def accrue_telemetry(self, month):
+        """
+        Usage becomes training data, in the domains your customers actually
+        use. Nobody can buy this, which is why an incumbent's lead compounds
+        in exactly the segments it already leads.
+        """
+        total = sum(self.seg_revenue.values())
+        if total <= 0:
+            return
+        served = getattr(self, "served_mtok", 0.0)
+        tokens = served * D.TELEMETRY_TOKENS_PER_MTOK_SERVED
+        if tokens <= 0:
+            return
+        for seg, rev in self.seg_revenue.items():
+            if rev <= 0:
+                continue
+            frac = rev / total
+            for dom, w in D.SEGMENTS[seg]["weight_domains"].items():
+                self.data.add(dom, tokens * frac * w, D.TELEMETRY_QUALITY)
 
     # --------------------------------------------------------- power & price
     def deliver_power(self, month):
@@ -224,10 +331,16 @@ class World:
         m = self.month
         frontier_algo = max(l.algo_mult for l in self.labs)
 
+        if not hasattr(self, "claimed_exclusives"):
+            self.claimed_exclusives = set()
         for lab in self.labs:
             lab.deliver(m)
             lab.deliver_power(m)
             lab.fleet.retire(m)
+            lab.buy_data(m, self.claimed_exclusives)
+        self._data_auction(m)
+
+        for lab in self.labs:
             d = lab.doctrine
             spare = lab.train_step(m, d["train"])
             # capacity the current run cannot absorb is turned to serving,
@@ -265,78 +378,84 @@ class World:
         return min(by_fleet, ceiling)
 
     def _resolve_market(self, m):
+        """
+        Markets are segmented and each segment is gated on a domain. A lab
+        that cannot clear a segment's gate does not compete there at all - it
+        has no product - and a lab that leads one segment keeps it even if a
+        rival is a full order of magnitude ahead somewhere else.
+        """
         serving = [l for l in self.labs if l.model]
+        for l in self.labs:
+            l.revenue_m = 0.0
+            l.seg_revenue = {}
         if not serving:
-            for l in self.labs:
-                l.revenue_m = 0.0
             return
-        fcap = self.frontier_capability()
 
-        # sector demand: consumer seats and API tokens
-        tam = E.consumer_tam(m)
-        pot = E.adoption_potential(fcap) * tam
-        avg_price = sum(l.price_per_mtok for l in serving) / len(serving)
-        api_total = E.api_demand_mtok(m, avg_price, fcap)
-
-        # price setting: count rivals within half an OOM of capability
         for l in serving:
             close = sum(1 for o in serving
                         if o is not l and abs(o.model.capability - l.model.capability) < 0.5)
             l.set_price(close, m)
         avg_price = sum(l.price_per_mtok for l in serving) / len(serving)
-        api_total = E.api_demand_mtok(m, avg_price, fcap)
 
-        # Budgets bind before capability does. Unconstrained demand is what
-        # buyers would want; the ceiling is what they can pay for this year.
-        year = 2020 + m // 12
-        ceiling_month = K.SECTOR_SPEND_CEILING.get(year, 2.6e12) / 12.0
-        wanted_spend = api_total * avg_price + pot * 20.0
-        if wanted_spend > 0:
-            realized = ceiling_month * (1.0 - math.exp(-wanted_spend / ceiling_month))
-            throttle = realized / wanted_spend
-            api_total *= throttle
-            pot *= throttle
+        demand_dollars = {l: 0.0 for l in serving}
+        self.segment_state = {}
 
-        # attractiveness: capability dominates, price matters, trust modulates
-        # Attractiveness. Capability dominates, but its advantage SATURATES:
-        # past roughly an order of magnitude of effective compute the extra
-        # is not perceptible to most buyers, and switching costs, procurement
-        # policy, data residency and second-source rules keep rivals alive.
-        # Without this the model collapses to one lab, which is neither what
-        # happens nor a game.
-        scores = []
-        for l in serving:
-            gap = max(-K.CAPABILITY_PERCEPTION_OOM,
-                      min(0.0, l.model.capability - fcap))
-            s = (2.2 * gap
-                 - 0.55 * math.log10(max(l.price_per_mtok, 0.01) / max(avg_price, 0.01))
-                 + 0.9 * math.log10(max(l.trust, 5) / 50.0))
-            scores.append(s)
-        shares = E.logit_share(scores, temperature=0.85)
-        # no buyer puts every workload with one vendor
-        floor = K.MIN_VIABLE_SHARE
-        shares = [max(sh, floor) for sh in shares]
-        tot = sum(shares)
-        shares = [sh / tot for sh in shares]
+        for seg_key, seg in D.SEGMENTS.items():
+            eligible = [l for l in serving if l.model.can_serve(seg_key)]
+            if not eligible:
+                self.segment_state[seg_key] = (0.0, [])
+                continue
+            qual = {l: l.model.quality_for(seg_key) for l in eligible}
+            best = max(qual.values())
 
-        for lab, share in zip(serving, shares):
-            # consumer subscriptions, with diffusion inertia
-            target = pot * share
-            lab.subscribers += (target - lab.subscribers) * 0.055
-            sub_rev = lab.subscribers * lab.sub_price
+            # a segment barely past its gate captures only part of its budget;
+            # buyers pay for capability they can actually use
+            gate = max(seg["gates"].values())
+            fill = 1.0 / (1.0 + math.exp(-(best - gate) / 0.75))
+            tam = D.segment_tam(seg_key, m) * fill
 
-            # API tokens, capped by what the fleet can actually serve
-            want = api_total * share
+            scores = []
+            for l in eligible:
+                gap = max(-K.CAPABILITY_PERCEPTION_OOM, min(0.0, qual[l] - best))
+                scores.append(
+                    2.2 * (1.0 - seg.get("differentiation", 0.0)) * gap
+                    - 0.55 * math.log10(max(l.price_per_mtok, 0.01) / max(avg_price, 0.01))
+                    + 0.9 * seg["brand_weight"] * math.log10(max(l.trust, 5) / 50.0))
+            shares = E.logit_share(scores, temperature=seg["temperature"])
+            shares = [max(sh, K.MIN_VIABLE_SHARE) for sh in shares]
+            tot = sum(shares)
+            shares = [sh / tot for sh in shares]
+
+            for l, sh in zip(eligible, shares):
+                demand_dollars[l] += tam * sh
+                l.seg_revenue[seg_key] = tam * sh
+            self.segment_state[seg_key] = (tam, [(l.name, sh) for l, sh in
+                                                 zip(eligible, shares)])
+
+        # ---- can you actually serve what you sold?
+        for lab in serving:
+            want_dollars = demand_dollars[lab]
+            price = max(lab.price_per_mtok, 0.01)
+            # consumer subscriptions are flat-rate, so those customers consume
+            # far more tokens per dollar than an API buyer does. This is where
+            # a loss-making consumer business comes from.
+            consumer_frac = (lab.seg_revenue.get("consumer_chat", 0.0)
+                             / want_dollars if want_dollars > 0 else 0.0)
+            usage_mult = 1.0 + consumer_frac * (K.CONSUMER_USAGE_MULT - 1.0)
+            want_mtok = want_dollars / price * usage_mult
+
             cap_mtok = E.serving_capacity_mtok(
                 lab.fleet, lab.model.active_params,
                 getattr(lab, "serve_frac", lab.doctrine["serve"]))
-            served = min(want, cap_mtok)
+            served = min(want_mtok, cap_mtok)
             lab.served_mtok = served
-            lab.unmet = max(0.0, want - served)
-            api_rev = served * lab.price_per_mtok
-
-            lab.revenue_m = sub_rev + api_rev
-            lab.share = share
+            lab.unmet = max(0.0, want_mtok - served)
+            fulfilled = served / want_mtok if want_mtok > 0 else 0.0
+            lab.revenue_m = want_dollars * fulfilled
+            lab.seg_revenue = {k: v * fulfilled for k, v in lab.seg_revenue.items()}
+            lab.share = (lab.revenue_m
+                         / max(sum(demand_dollars.values()), 1.0))
+            lab.accrue_telemetry(m)
 
     def _finance(self, m):
         for lab in self.labs:
@@ -345,6 +464,7 @@ class World:
                      + lab.engineers * K.ENGINEER_COST_PER_YEAR) / 12.0
             other = 0.25 * staff
             fleet_cost += getattr(lab, "leased_mw", 0.0) * K.LEASE_OPEX_PER_MW_MONTH
+            other += getattr(lab, "annual_data_cost", 0.0) / 12.0
             net = lab.revenue_m - fleet_cost - staff - other
             lab.cash += net
             lab.last_net = net
@@ -358,6 +478,30 @@ class World:
                 "subs": lab.subscribers,
                 "algo": lab.algo_mult, "largest": lab.largest_run,
             })
+
+    def _data_auction(self, m):
+        """
+        Exclusive corpora go to whoever values them most, not to whoever is
+        biggest. A rights holder takes the higher bid, and a specialist's bid
+        for the corpus its whole business depends on beats a generalist's
+        bid for something it would weight at seven per cent.
+        """
+        for key, src in D.DATA_SOURCES.items():
+            if not src["exclusive"] or key in self.claimed_exclusives:
+                continue
+            bids = []
+            for lab in self.labs:
+                b = lab.data_bid(key, m)
+                if b:
+                    bids.append((b, lab))
+            if not bids:
+                continue
+            bids.sort(key=lambda x: -x[0])
+            price = bids[0][0] if len(bids) == 1 else bids[1][0] * 1.05
+            winner = bids[0][1]
+            winner.take_data(key, m, min(price, bids[0][0]))
+            self.claimed_exclusives.add(key)
+            winner.won_data = getattr(winner, "won_data", []) + [key]
 
     def _capital_market(self, m):
         """

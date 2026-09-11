@@ -1,0 +1,21 @@
+2030 segment leaders
+  Consumer assistant         $  300.0B/yr  Tessellate 40% · Helion 34% · Redshift 12%
+  General API                $  160.0B/yr  Tessellate 53% · Helion 39% · Redshift 3%
+  Coding & software agents   $  220.0B/yr  Tessellate 55% · Helion 38% · Redshift 4%
+  Enterprise agents          $  140.0B/yr  Tessellate 50% · Helion 33% · Redshift 10%
+  Scientific & technical     $   50.0B/yr  Tessellate 52% · Helion 35% · Redshift 8%
+  Image generation           $   50.0B/yr  Tessellate 43% · Helion 31% · Lumen 25%
+  Video generation           $   50.0B/yr  Tessellate 56% · Lumen 34% · Redshift 10%
+  Voice & audio              $   20.0B/yr  Tessellate 75% · Lumen 25%
+  Embodied & robotics        $   10.0B/yr  Redshift 100%
+
+2030 lab outcomes
+  Helion      $   328.1B/yr  0 exclusive corpora  leads: Consumer assistant, Coding & software agents
+  Tessellate  $   327.4B/yr  4 exclusive corpora  leads: Coding & software agents, Consumer assistant
+  Redshift    $    82.3B/yr  0 exclusive corpora  leads: Consumer assistant, Enterprise agents
+  Lumen       $    46.9B/yr  0 exclusive corpora  leads: Video generation, Image generation
+  Vantor      $    24.8B/yr  1 exclusive corpora  leads: Consumer assistant, Enterprise agents
+  Meridian    $    17.3B/yr  1 exclusive corpora  leads: Consumer assistant, Enterprise agents
+  Openwater   $     0.0B/yr  0 exclusive corpora  leads: —
+
+  sector 2030: 157 GW, frontier run 1.1e+29 FLOP, $827B revenue

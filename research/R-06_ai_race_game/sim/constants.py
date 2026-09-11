@@ -126,7 +126,7 @@ RECIPE_ERA_MOE = {                # (year, month): sector-best sparsity factor
 # Engineering, not physics: the largest run a lab can actually land grows
 # with experience. Runs in the real record grew ~3-5x per generation, never
 # 100x, because the failure modes at each new scale have to be learned.
-MAX_RUN_GROWTH_PER_SHIP = 1.5   # calibrated, not assumed: see sim/score.py
+MAX_RUN_GROWTH_PER_SHIP = 2.4   # calibrated, not assumed: see sim/score.py
 
 # Mass-market adoption needed a conversational product, which needed a
 # capability level that arrived in late 2022 - not a moment earlier.
@@ -157,6 +157,9 @@ SECTOR_SPEND_CEILING = {      # $ per year the world will pay, sector-wide
     2025: 4.5e10, 2026: 1.1e11, 2027: 2.0e11, 2028: 3.6e11,
     2029: 6.2e11, 2030: 1.0e12,
 }
+
+CONSUMER_USAGE_MULT = 2.6    # flat-rate consumers burn this many times the
+                             # tokens per dollar that an API buyer does (LOW)
 
 RESEARCHER_COST_PER_YEAR = 900_000  # fully loaded frontier researcher (MED)
 ENGINEER_COST_PER_YEAR = 420_000    # everyone else                    (MED)

@@ -18,7 +18,8 @@ def report():
     errs = []
     for date, suite, actual, model_name, conf in A.BENCHMARKS:
         m = A.month_index(date)
-        c = fh.capability_at(m)
+        from .capability import DOMAIN_OF_SUITE
+        c = fh.domain_capability_at(m, DOMAIN_OF_SUITE[suite])
         pred = bm.score(suite, c)
         errs.append(abs(pred - actual))
         print(f"   {date[0]}-{date[1]:02d}   {suite:6s} {pred:7.1f} {actual:7.1f} "
