@@ -1,8 +1,26 @@
 # R-06 — *Frontier*: an AI-race business simulation, 2020–2030
 
-**Status:** design plan, pre-build. Nothing coded. For Nick's review.
+**Status:** design approved by Nick, Sep 11 2026. P0 paper prototype is
+the live next step — see `PAPER_PROTOTYPE.md` in this folder.
 **Filed:** Sep 11, 2026
 **Working title:** *Frontier* (alt: *Scaling Laws*, *Compute*, *The Race*)
+
+---
+
+## 0. Decisions locked (Nick, Sep 11 2026)
+
+| Question | Answer | What it changes |
+|---|---|---|
+| Audience | **Personal project.** Not an R-03 candidate for now; revisit only if it comes out genuinely good | Polish bar is "good enough for Nick to enjoy," not shippable. No marketing, no onboarding tutorial in early phases |
+| First step | **P0 paper prototype** | Approved. Written up separately |
+| Players | **Single player, always** | No hot-seat, no netcode, ever. Rival AI can be as expensive as it needs to be |
+| Scope | **Lab only** | No chip-vendor or regulator modes. Those actors stay as world systems, never playable |
+| Tone | **Gritty economic sim** | Explicitly not the lighter 45-minute version. Depth over reach |
+| Target feeling | *"Staring at benchmarks, pissed you lost on AA by two points; seeing how long you can burn cash on inference"* | Promotes two systems to first-class: the **published benchmark index** (§6) and **the burn** (§6). Both were flavor in v1 of this plan; they are now load-bearing |
+
+The target feeling is the design's acceptance test. Any mechanic that
+doesn't feed the benchmark table or the runway clock is a candidate for
+cutting.
 
 ---
 
@@ -161,6 +179,59 @@ roughly CAP 50 → 220, gated into milestones (§7).
   national standing and security posture.
 - **Capex:** clusters depreciate on a ~4-year curve and a chip generation
   behind is a real handicap. Buy vs. rent is a live decision all game.
+
+### Benchmarks & the published index
+
+The world does not see your capability. It sees **AA — the Aggregate
+Assessment**, a public composite index published every quarter for every
+lab, and AA is what the market prices.
+
+```
+AA_true = (CAP − 60) × 0.8 + reliability × 2 + modality_coverage
+AA_pub  = AA_true + noise          noise ∈ [−2, +2]
+```
+
+Four consequences, all deliberate:
+
+- **The published number carries the noise.** You know your true
+  capability; the world reads the scoreboard. Losing a quarter by two
+  points to a rival you are genuinely better than is a *designed*
+  outcome, not a bug — and it costs real market share, because demand
+  keys off published rank.
+- **Rank is worth more than points.** Demand weights are ranked, with a
+  bonus for a clear lead (≥6 points). Second place by two points and
+  second place by twelve feel different but both hurt.
+- **Benchmarks saturate.** Each era retires suites that everyone has
+  maxed and introduces harder ones. A lab that optimized hard for the
+  retiring suite takes a visible fall when the new one lands.
+- **Contamination is a live risk.** Train on the eval and score jumps;
+  get caught and Public Trust craters and the suite is re-run under
+  supervision. A genuine tradeoff with a real tail.
+
+The quarterly benchmark table — every lab, every suite, deltas from last
+quarter — is the second most important screen in the game after the
+compute split.
+
+### The burn
+
+Gross margin on inference is the game's clock.
+
+```
+margin_per_unit = price_per_unit − serving_cost_per_unit
+runway_quarters = cash / (opex + capex + max(0, −gross_margin))
+```
+
+Serving cost per unit falls with efficiency and chip generation; price
+falls faster whenever a rival open-releases or starts a price war.
+Serving below cost to hold rank is a legitimate strategy and is meant to
+be tempting: you are buying benchmark-adjacent market presence with
+runway. The dashboard shows quarters of runway at all times and never
+tells you whether the trade is worth it.
+
+The three pricing postures — premium, standard, aggressive — trade
+revenue per unit against demand share directly. Aggressive at scale can
+take you negative on gross margin, which is the "how long can I burn
+cash on inference" dial the design is built around.
 
 ### Incidents
 ```
@@ -344,22 +415,25 @@ with news headlines taped on. P0 answers that for a weekend of work.
 
 ---
 
-## 16. Open questions for Nick
+## 16. Answered — and what's still open
 
-1. **Audience:** personal project for its own sake, or is this a live
-   R-03 candidate (something sellable)? That changes the polish bar a
-   lot more than it changes the design.
-2. **Scale:** one lab (this plan), or also a mode where you play the
-   chip vendor / a nation-state regulator? Tempting, and a trap for v1.
-3. **Depth vs. reach:** hardcore econ sim (my default here) or something
-   lighter that a non-technical player finishes in 45 minutes?
-4. **Multiplayer:** out of scope for v1 in this plan. Say if it isn't —
-   hot-seat is cheap to keep on the table, networked is not.
-5. **The 2026–2030 half:** grounded extrapolation, or willing to get
-   weird (recursive self-improvement, hard takeoff, treaties)?
-6. **Kill gate:** is P0 (paper prototype, one weekend) the right next
-   step, or do you want the headless sim skeleton first?
+All six opening questions were answered on Sep 11 2026; see §0. What
+remains genuinely undecided, to be settled by playing P0 rather than by
+arguing:
+
+1. **Campaign length.** Forty-four turns may be too many for a sim this
+   dense. If P0's twelve turns feel long, the shipping version may run
+   on half-years in the early eras and quarters later.
+2. **How hard the endgame bites.** Era V (automation of research) could
+   either be the best part of the game or a ten-turn victory lap. P0
+   does not test it; P1's headless runs must.
+3. **Whether rivals need personality beyond doctrine.** Cheap to add
+   (named leadership, public statements, feuds), easy to overdo.
+4. **Benchmark noise magnitude.** ±2 is the starting value. Too small
+   and the scoreboard is deterministic; too large and it reads as unfair
+   rather than tense. This is a tuning question with a real answer, and
+   the headless simulator can find it.
 
 ---
 
-*No code written. Awaiting review.*
+*Design approved Sep 11 2026. Next artifact: `PAPER_PROTOTYPE.md`.*

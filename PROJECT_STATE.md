@@ -1,6 +1,6 @@
 # CGP PROJECT STATE
 *Maintained by FAT (Fable Architect — engineering sessions).
-Last updated: Sep 11, 2026 — R-06 game design plan filed for review.*
+Last updated: Sep 11, 2026 — R-06 design approved; P0 paper prototype written.*
 
 This repo is deliberately self-contained: a session opened here should
 need nothing from any other project. Keep it that way.
@@ -46,7 +46,7 @@ be *ethically* generated, the better.
 | R-03 | Sellable product | parked | Revisit after R-01 R&D settles into low-maintenance rhythm |
 | R-04 | Content channel | candidate | Document gearbox/actuator builds; Bee entirely out of frame. Demand engine for R-03/R-05 |
 | R-05 | SCP actuators | candidate | Nick's white whale — TCP polymer muscles + fabrication tooling as product. Sequenced after CEV v0.5 |
-| R-06 | *Frontier* — AI race sim game | candidate (design only) | `research/R-06_ai_race_game.md` — business sim, 2020–2030, one frontier lab. Design plan awaiting Nick's review. Personal-interest first; R-03-adjacent if it ever ships |
+| R-06 | *Frontier* — AI race sim game | **ACTIVE — P0 prototype** | `research/R-06_ai_race_game/` — business sim, 2020–2030, one frontier lab. Design approved Sep 11; paper prototype written and waiting to be played. Personal project, explicitly NOT a capital workstream |
 
 ## Capital Ledger
 | Date | Workstream | In | Out | Net to date | Notes |
@@ -99,6 +99,20 @@ be *ethically* generated, the better.
   before anything is built. Open questions for Nick in §16 — including
   whether this is personal-interest only or a live R-03 candidate.
 
+- **Sep 11, 2026** — R-06 design approved by Nick without changes.
+  Scope locked: personal project (not an R-03 candidate), single-player
+  always, lab-only (no chip-vendor or regulator modes), gritty economic
+  sim over broad reach, paper prototype first. Stated target feeling —
+  *"staring at benchmarks, pissed you lost on AA by two points; seeing
+  how long you can burn cash on inference"* — promoted two systems to
+  first-class in `DESIGN.md` §6: the **published benchmark index** (AA,
+  with ±2 noise, where the market prices the published number and not
+  your true capability) and **the burn** (gross margin and a runway
+  clock, with serving below cost as a legitimate play). `PAPER_PROTOTYPE.md`
+  written: 12 turns, Q1 2022–Q4 2024, one charter, two rivals, full
+  tables, event deck, and a four-part kill gate that includes testing
+  the two-point-loss feeling directly. Still no code, by design.
+
 ## Next Actions
 - [x] Nick: set limits — DONE Jul 18 ($250 capital, 2% risk/trade,
       50% max deployment, ≤7-day holds). RULESET.md APPROVED
@@ -107,7 +121,9 @@ be *ethically* generated, the better.
 - [ ] Nick: thinking on R-03 product directions (parked, no action)
 - [ ] FAT: on request — research briefs, thesis pressure-tests via the
       harness, more strategies through walk-forward as ideas arise
-- [ ] Nick: review R-06 design plan — answer the §16 questions,
-      decide go / no-go on the P0 paper prototype
+- [x] Nick: review R-06 design plan — DONE Sep 11, approved, scope
+      locked (see decision log)
+- [ ] Nick: play the R-06 P0 paper prototype and keep the playtest log
+      (§12). Four kill-gate criteria in §10 decide whether P1 happens
 - [ ] Rule 3 gate: RULESET.md approved + journal running before any
       real capital
