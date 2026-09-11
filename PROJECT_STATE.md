@@ -1,6 +1,6 @@
 # CGP PROJECT STATE
 *Maintained by FAT (Fable Architect — engineering sessions).
-Last updated: July 18, 2026 — R-01 selected, backtest harness built.*
+Last updated: Sep 11, 2026 — R-06 game design plan filed for review.*
 
 This repo is deliberately self-contained: a session opened here should
 need nothing from any other project. Keep it that way.
@@ -46,6 +46,7 @@ be *ethically* generated, the better.
 | R-03 | Sellable product | parked | Revisit after R-01 R&D settles into low-maintenance rhythm |
 | R-04 | Content channel | candidate | Document gearbox/actuator builds; Bee entirely out of frame. Demand engine for R-03/R-05 |
 | R-05 | SCP actuators | candidate | Nick's white whale — TCP polymer muscles + fabrication tooling as product. Sequenced after CEV v0.5 |
+| R-06 | *Frontier* — AI race sim game | candidate (design only) | `research/R-06_ai_race_game.md` — business sim, 2020–2030, one frontier lab. Design plan awaiting Nick's review. Personal-interest first; R-03-adjacent if it ever ships |
 
 ## Capital Ledger
 | Date | Workstream | In | Out | Net to date | Notes |
@@ -90,6 +91,14 @@ be *ethically* generated, the better.
   home turf, tooling-as-product thesis). Neither active; R-05 sequenced
   after CEV v0.5.
 
+- **Sep 11, 2026** — R-06 filed at Nick's request: *Frontier*, a
+  business-management simulation of the AI race, 2020–2030. Full design
+  plan committed (`research/R-06_ai_race_game.md`); no code by
+  instruction. Core mechanic is the three-way compute split
+  (train / serve / experiment). Proposed kill gate is a paper prototype
+  before anything is built. Open questions for Nick in §16 — including
+  whether this is personal-interest only or a live R-03 candidate.
+
 ## Next Actions
 - [x] Nick: set limits — DONE Jul 18 ($250 capital, 2% risk/trade,
       50% max deployment, ≤7-day holds). RULESET.md APPROVED
@@ -98,5 +107,7 @@ be *ethically* generated, the better.
 - [ ] Nick: thinking on R-03 product directions (parked, no action)
 - [ ] FAT: on request — research briefs, thesis pressure-tests via the
       harness, more strategies through walk-forward as ideas arise
+- [ ] Nick: review R-06 design plan — answer the §16 questions,
+      decide go / no-go on the P0 paper prototype
 - [ ] Rule 3 gate: RULESET.md approved + journal running before any
       real capital
