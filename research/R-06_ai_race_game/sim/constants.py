@@ -95,7 +95,7 @@ ALGO_DIFFUSION_HALFLIFE_M = 11  # months for a follower to close half the
 POST_TRAIN_ERA_START = (2022, 11)
 POST_TRAIN_RL_ERA_START = (2024, 9)
 RLHF_ERA_TOTAL_GAIN = 3.0      # effective-compute multiple by the RL era
-REASONING_OOM_PER_YEAR = 0.42  # lowered when per-model x.5 releases
+REASONING_OOM_PER_YEAR = 0.36  # lowered when per-model x.5 releases
                                # were added: they now carry part of what
                                # this sector-wide term used to absorb  # RL-era post-training gains, OOM/yr    (LOW)
 REASONING_DECAY_YEARS = 2.5    # halving time of that rate

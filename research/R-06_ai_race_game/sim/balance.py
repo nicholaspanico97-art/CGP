@@ -11,17 +11,19 @@ import statistics
 from . import constants as K
 from . import domains as D
 from .world import World
-from .scenarios import historical_2020
+from .scenarios import historical_2020, randomized_2020
 
 
-def analyse(seed, months=132):
-    w = World(historical_2020(), seed=seed)
+def analyse(seed, months=132, randomized=True):
+    labs = randomized_2020(seed) if randomized else historical_2020()
+    w = World(labs, seed=seed)
     caps_hist = []
     for _ in range(months):
         w.step()
         caps_hist.append({l.name: (dict(l.model.caps) if l.model else {})
                           for l in w.labs})
-    out = {"domains": {}, "ships": {}, "shelved": {}, "breakthroughs": 0}
+    out = {"domains": {}, "ships": {}, "shelved": {}, "breakthroughs": 0,
+           "strategies": {}, "withheld": 0}
     for dom in D.DOMAIN_KEYS:
         seq = []
         for frame in caps_hist:
@@ -46,7 +48,14 @@ def analyse(seed, months=132):
             prev = x
             longest = max(longest, cur)
         out["domains"][dom] = (changes, top, longest)
+    tot_rev = sum(sum(x.seg_revenue.values()) for x in w.labs) or 1.0
     for l in w.labs:
+        out["strategies"][l.doctrine["strategy"]] = {
+            "rev_share": sum(l.seg_revenue.values()) / tot_rev,
+            "cap": l.model.capability if l.model else 0.0,
+            "ships": len([s for s in l.ships if s[1] == "pretrain"]),
+        }
+        out["withheld"] += l.withheld_months
         out["ships"][l.name] = len([s for s in l.ships if s[1] == "pretrain"])
         out["shelved"][l.name] = l.shelved
         out["breakthroughs"] += len([s for s in l.ships if s[2] == "breakthrough"])
@@ -80,6 +89,23 @@ def report(seeds=24, months=132):
           f"  range {min(tops)*100:.0f}-{max(tops)*100:.0f}%")
     print(f"  runs ending in a runaway   : {runaway*100:.0f}%  (top lab over 60%)")
     print(f"  labs still viable at 2030  : {statistics.mean([r['alive'] for r in rows]):.1f} of 7")
+    print("\n  STRATEGY OUTCOMES  (only counts games where the strategy was drawn)")
+    print(f"    {'strategy':14s}{'games':>7s}{'mean rev share':>16s}{'best':>8s}"
+          f"{'mean ships':>12s}")
+    agg = {}
+    for r in rows:
+        for k, v in r["strategies"].items():
+            a = agg.setdefault(k, {"n": 0, "rev": 0.0, "best": 0.0, "ships": 0})
+            a["n"] += 1
+            a["rev"] += v["rev_share"]
+            a["best"] = max(a["best"], v["rev_share"])
+            a["ships"] += v["ships"]
+    for k in sorted(agg, key=lambda x: -agg[x]["rev"] / max(agg[x]["n"], 1)):
+        a = agg[k]
+        print(f"    {k:14s}{a['n']:7d}{a['rev']/a['n']*100:15.0f}%"
+              f"{a['best']*100:7.0f}%{a['ships']/a['n']:12.1f}")
+    wh = statistics.mean([r["withheld"] for r in rows])
+    print(f"\n  months of capability deliberately withheld: {wh:.0f} per run")
     ships = [sum(r["ships"].values()) for r in rows]
     shelved = [sum(r["shelved"].values()) for r in rows]
     brk = [r["breakthroughs"] for r in rows]

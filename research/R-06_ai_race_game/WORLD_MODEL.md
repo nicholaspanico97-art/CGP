@@ -1,4 +1,4 @@
-# Frontier — World Model v0.4
+# Frontier — World Model v0.5
 
 **What changed:** the paper prototype (`PAPER_PROTOTYPE.md`) is superseded.
 Nick's direction, Sep 11 2026: *model the world really well, run the sims,
@@ -20,6 +20,11 @@ already sells, so that variance shows up as *flat stretches and jumps*,
 never as capability going down. Plus talent (v0.3), demand unlocked by
 capability rather than by the calendar (v0.3), and a `COMPETITIVENESS` dial
 that trades a little fidelity for a much more contested race.
+
+**v0.5, Sep 12 2026 — strategies.** A lab is no longer a parameter bundle,
+it is a set of intentions. Eleven strategies (fifteen counting the vertical
+specialist's focus variants), each with variation drawn per game, assigned
+at random and not disclosed. Some of them deliberately decline to ship.
 
 **Status:** running. `sim/` is a zero-dependency Python model, 2020→2030,
 monthly ticks. `python3 -m sim.score` prints the calibration error;
@@ -243,6 +248,63 @@ values choice, stated as one, and it is one line to change.
 At the default, across 20 seeds: 106 lead changes per run, the top lab
 averaging 46% of revenue (range 29–65%), 20% of runs ending with someone
 genuinely running away, and 4.7 of 7 labs still viable in 2030.
+
+## 2d. Strategies
+
+Each lab draws one of eleven strategies at the start of a game, with
+parameter variation inside it, so the same archetype is never quite the same
+twice. The player is not told who drew what — it has to be inferred from
+what a lab ships, what it charges, and what it is visibly not doing.
+
+| Strategy | What compute is for |
+|---|---|
+| **Scale maximalist** | Biggest runs in the field, terrible margins |
+| **Self-improvement racer** | Points compute at its own research and **hoards what it learns** |
+| **Efficiency leader** | Overtrained sparse models; wins on $/Mtok, not benchmarks |
+| **Open weights** | Publishes everything; lifts the whole field's efficiency |
+| **Vertical specialist** | One domain — robotics, media, code, science or voice |
+| **Enterprise & trust** | Slow, evaluated, expensive, and signable-off-on |
+| **Consumer land grab** | Prices below cost to own the default |
+| **Data monopolist** | Signs every exclusive, partly so nobody else can |
+| **Fast follower** | Spends nothing on research, copies, undercuts |
+| **Sovereign champion** | State capital, hard ceiling on silicon |
+| **Platform incumbent** | Funds itself from a business that already prints money |
+
+### Two mechanisms make strategies more than a parameter sheet
+
+**Withholding.** The self-improvement racer will not release a model it
+could release: shipping hands rivals a target to measure against and to
+distill from, and the plan is to compound privately. It releases when the
+money runs short. In a sample run one such lab **withheld for 50 months**
+across the decade and shipped 10 models against rivals' 13–19, with a
+visible two-year silence. While it sits, the open-weights lab racing it
+cannot catch up by copying — which is exactly the dynamic this is for.
+
+**Openness drives diffusion.** How fast algorithmic advantage spreads is now
+a property of *who is in the field*, weighted by capability. An open-weights
+lab lifts everyone; a field of secretive labs grinds diffusion down. That is
+what a hoarding strategy is buying, and it is why the same strategy plays
+differently depending on who else got drawn.
+
+### Strategy balance is NOT tuned yet
+`python3 -m sim.balance` reports mean revenue share per strategy across
+games. At present, over 30 games:
+
+| | mean share | best game |
+|---|---|---|
+| Platform incumbent | **45%** | 81% |
+| Data monopolist | 23% | 73% |
+| Sovereign champion | 22% | 56% |
+| Vertical specialist | 14% | 61% |
+| … | | |
+| Scale maximalist | 3% | 40% |
+| **Efficiency leader** | **2%** | 12% |
+
+That is not eleven viable strategies. It is partly real — matching
+history's capex means the platform incumbent's balance sheet dominates,
+because that is what happened — and partly unbalanced: the efficiency
+leader and the scale maximalist are not currently playable. Tuning this is
+the next chunk, and the instrument to tune against now exists.
 
 ## 3. Calibration
 

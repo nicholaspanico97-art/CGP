@@ -2,7 +2,7 @@
 import json, math
 from . import domains as D
 from .world import World
-from .scenarios import historical_2020
+from .scenarios import historical_2020, randomized_2020
 from .capability import BenchmarkModel
 
 
@@ -16,8 +16,9 @@ def r(x, n=3):
     return round(float(x), n)
 
 
-def run(months=132, seed=7):
-    w = World(historical_2020(), seed=seed)
+def run(months=132, seed=7, randomized=True):
+    labs = randomized_2020(seed) if randomized else historical_2020()
+    w = World(labs, seed=seed)
     bm = w.bm
     frames = []
     for m in range(months):
@@ -72,7 +73,17 @@ def run(months=132, seed=7):
                          "differentiation": v.get("differentiation", 0)}
                      for k, v in D.SEGMENTS.items()},
         "labs": [l.name for l in w.labs],
-        "doctrines": {l.name: {"mixture": l.mixture} for l in w.labs},
+        "doctrines": {l.name: {
+            "mixture": {k: round(v, 3) for k, v in l.mixture.items()},
+            "strategy": l.doctrine["strategy"],
+            "strategy_name": l.doctrine["strategy_name"],
+            "blurb": __import__("sim.strategy", fromlist=["STRATEGIES"])
+                     .STRATEGIES[l.doctrine["strategy"]]["blurb"],
+            "withheld": l.withheld_months,
+            "shelved": l.shelved,
+            "ships": len([x for x in l.ships if x[1] == "pretrain"]),
+        } for l in w.labs},
+        "seed": seed,
         "sources": {k: {"name": v["name"], "exclusive": v["exclusive"]}
                     for k, v in D.DATA_SOURCES.items()},
     }

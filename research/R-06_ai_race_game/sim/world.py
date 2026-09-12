@@ -12,6 +12,7 @@ from . import economics as E
 from . import domains as D
 from . import talent as T
 from . import release as REL
+from . import strategy as STRAT
 from .capability import (BenchmarkModel, algo_efficiency, reasoning_multiplier,
                          capability_index, domain_capability)
 
@@ -62,6 +63,8 @@ class Lab:
         self.post_gen = 0                 # post-training releases on this base
         self.post_timer = 0
         self.ships = []                   # (month, kind, tag, capability)
+        self.internal = None              # built, better, deliberately unreleased
+        self.withheld_months = 0
         self.rng = None                   # seeded by the World
         self.run_target = None
         self.model = None
@@ -120,7 +123,7 @@ class Lab:
             return 0.0
         return frac * (1.0 - used / capacity)
 
-    def maybe_ship(self, month, frontier_cap):
+    def maybe_ship(self, month, frontier_cap, world):
         """
         Finish a run, see how it went, and decide whether it is worth
         shipping. A run that lands below what the lab already sells is
@@ -165,8 +168,17 @@ class Lab:
             self.last_outcome = ("shelved", tag, cap)
             return None
 
-        self.model = Model(f"{self.name}-{month}", cap, shape["active_params"],
-                           month, caps, tag)
+        candidate = Model(f"{self.name}-{month}", cap, shape["active_params"],
+                          month, caps, tag)
+        if STRAT.withholds(self.doctrine, self, world, month, cap):
+            # better than what it sells, and deliberately not released
+            self.internal = candidate
+            self.withheld_months += 1
+            self.last_outcome = ("withheld", tag, cap)
+            return None
+
+        self.model = candidate
+        self.internal = None
         self.post_gen = 0
         self.post_budget = REL.post_train_budget(self.rng, self.researcher_quality)
         self.post_timer = K.POST_TRAIN_MONTHS + self.rng.randint(0, 2)
@@ -174,6 +186,26 @@ class Lab:
         self.last_outcome = ("shipped", tag, cap)
         if not self.doctrine.get("always_eval", True):
             self.safety_debt += 2.0
+        return self.model
+
+    def maybe_release_held(self, month, world):
+        """
+        A lab sitting on an unreleased model releases it the moment the
+        reason for sitting on it stops holding - usually when the money runs
+        short. Years of quiet, then a release that resets the board.
+        """
+        if self.internal is None:
+            return None
+        cap = self.internal.capability
+        if STRAT.withholds(self.doctrine, self, world, month, cap):
+            self.withheld_months += 1
+            return None
+        self.model = self.internal
+        self.internal = None
+        self.post_gen = 0
+        self.post_budget = REL.post_train_budget(self.rng, self.researcher_quality)
+        self.post_timer = K.POST_TRAIN_MONTHS
+        self.ships.append((month, "pretrain", "held", round(cap, 3)))
         return self.model
 
     # Post-training lifts these domains far more than the others: RL on
@@ -227,13 +259,18 @@ class Lab:
         self.algo_mult *= (1.0 + gain * headroom)
         self.algo_mult = min(self.algo_mult, K.MAX_ALGO_ADVANTAGE)
 
-    def diffuse(self, frontier_algo, months=1.0):
+    def diffuse(self, frontier_algo, months=1.0, openness=0.35):
         """
         Nobody stays ahead for free: papers, weights and people all leak.
         Followers are pulled up toward the best lab; the leader's private
         edge erodes as the techniques become common knowledge.
         """
-        k = 1 - 0.5 ** (months / K.ALGO_DIFFUSION_HALFLIFE_M)
+        # an open field diffuses fast; a field of closed labs barely diffuses
+        halflife = K.ALGO_DIFFUSION_HALFLIFE_M / max(0.25, 0.45 + 1.3 * openness)
+        rate = months / halflife
+        if self.algo_mult < frontier_algo:
+            rate *= self.doctrine.get("follow_bonus", 1.0)
+        k = 1 - 0.5 ** rate
         if self.algo_mult < frontier_algo:
             self.algo_mult += (frontier_algo - self.algo_mult) * k
         else:
@@ -379,8 +416,15 @@ class Lab:
         """
         cost = self.serving_cost_per_mtok()
         markup = 1.25 + 11.0 / (1.0 + 2.2 * close_rivals)
-        markup *= self.doctrine.get("price_stance", 1.0)
-        self.price_per_mtok = max(cost * markup, cost * 0.4)
+        # Price stance compresses the MARGIN, not the price through the floor.
+        # An efficiency strategy wins by having a lower cost and passing it
+        # on, which is a low absolute price and a positive margin - not by
+        # selling below what the iron costs it.
+        stance = self.doctrine.get("price_stance", 1.0)
+        markup = 1.0 + (markup - 1.0) * stance
+        # Deliberately selling below cost is a separate, explicit choice.
+        markup *= self.doctrine.get("loss_leader", 1.0)
+        self.price_per_mtok = max(cost * markup, cost * 0.35)
 
     # --------------------------------------------------------------- money
     def monthly_opex(self):
@@ -411,6 +455,13 @@ class World:
         for lab in self.labs:
             lab._month = m
         frontier_algo = max(l.algo_mult for l in self.labs)
+        # How freely ideas move this month. Open-weights labs lift it for
+        # everyone; a field of secretive labs grinds diffusion down, which is
+        # exactly what a hoarding strategy is buying.
+        wts = [(1.0 + max(0.0, (l.model.capability - 22.0)) if l.model else 1.0)
+               for l in self.labs]
+        self.openness = (sum(STRAT.openness(l.doctrine) * w
+                             for l, w in zip(self.labs, wts)) / max(sum(wts), 1e-9))
         self._talent_market(m)
 
         if not hasattr(self, "claimed_exclusives"):
@@ -429,9 +480,10 @@ class World:
             # which is what a lab with idle accelerators actually does
             lab.serve_frac = d["serve"] + spare
             lab.research_step(d["experiment"])
-            lab.diffuse(frontier_algo)
+            lab.diffuse(frontier_algo, openness=self.openness)
             fc = self.frontier_capability()
-            if lab.maybe_ship(m, fc) is not None:
+            lab.maybe_release_held(m, self)
+            if lab.maybe_ship(m, fc, self) is not None:
                 # the cooldown is where post-training, evals, safety review
                 # and launch prep happen - it is not idle time
                 base = lab.doctrine.get("ship_cooldown", 3)
@@ -521,10 +573,21 @@ class World:
             scores = []
             for l in eligible:
                 gap = max(-K.CAPABILITY_PERCEPTION_OOM, min(0.0, qual[l] - best))
+                # Price sensitivity is the mirror of differentiation: where
+                # buyers cannot tell two models apart they buy the cheaper
+                # one, and where taste matters they largely do not. Without
+                # this an efficiency strategy is strictly dominated, which is
+                # both wrong and boring.
+                diff = seg.get("differentiation", 0.0)
                 scores.append(
-                    2.2 * (1.0 - seg.get("differentiation", 0.0)) * gap
-                    - 0.55 * math.log10(max(l.price_per_mtok, 0.01) / max(avg_price, 0.01))
-                    + 0.9 * seg["brand_weight"] * math.log10(max(l.trust, 5) / 50.0))
+                    2.2 * (1.0 - diff) * gap
+                    - (0.35 + 1.55 * (1.0 - diff))
+                      * math.log10(max(l.price_per_mtok, 0.01) / max(avg_price, 0.01))
+                    + 0.9 * seg["brand_weight"] * math.log10(max(l.trust, 5) / 50.0)
+                    # open weights buy developer mindshare rather than revenue:
+                    # people build on what they can run themselves
+                    + (0.85 * STRAT.openness(l.doctrine)
+                       if seg_key in ("api_general", "coding") else 0.0))
             shares = E.logit_share(scores, temperature=seg["temperature"])
             shares = [max(sh, K.MIN_VIABLE_SHARE) for sh in shares]
             tot = sum(shares)
@@ -711,11 +774,14 @@ class World:
             parent = lab.doctrine.get("parent_cashflow_2020", 0.0)
             if parent:
                 growth = lab.doctrine.get("parent_growth", 1.55) ** (m / 12.0)
-                lab.cash += parent * growth / 12.0
+                annual = min(parent * growth,
+                             lab.doctrine.get("parent_cap", 1.5e11))
+                lab.cash += annual / 12.0
 
             # ---- raise, if the market will have you
             runway = lab.cash / max(lab.last_costs, 1.0)
-            if (runway < 14 and lab.doctrine.get("can_raise", True)
+            if (runway < lab.doctrine.get("raise_runway", 14)
+                    and lab.doctrine.get("can_raise", True)
                     and m - getattr(lab, "last_raise", -99) >= 11):
                 dilution = lab.doctrine.get("raise_fraction", 0.16)
                 amount = lab.valuation * dilution

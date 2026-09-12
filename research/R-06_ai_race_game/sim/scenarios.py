@@ -67,16 +67,76 @@ DOCTRINES = {
 }
 
 
+# Strategy assignment for the calibration roster: the archetypes that were
+# actually on the board in 2020, fixed so the calibration score stays
+# comparable across changes.
+CALIBRATION_ROSTER = [
+    ("Helion",     "CONSUMER",    1.0e9, 120, 11_000),
+    ("Vantor",     "SCALE",       0.8e9,  90,  9_000),
+    ("Tessellate", "HYPERSCALER", 4.0e9, 210, 26_000),
+    ("Meridian",   "ENTERPRISE",  0.3e9,  45,  3_000),
+    ("Openwater",  "OPEN",        0.5e9,  60,  6_000),
+    ("Redshift",   "SOVEREIGN",   1.5e9,  80,  7_000),
+    ("Lumen",      "VERTICAL",    0.4e9,  40,  3_500),
+]
+
+# Names a randomized game draws from.
+NAMES = ["Helion", "Vantor", "Tessellate", "Meridian", "Openwater", "Redshift",
+         "Lumen", "Corvid", "Aleph", "Northwind", "Sable", "Kestrel"]
+
+STARTS = [(4.0e9, 210, 26_000), (1.5e9, 110, 11_000), (1.0e9, 95, 9_000),
+          (0.8e9, 80, 7_000), (0.6e9, 60, 5_000), (0.45e9, 48, 3_500),
+          (0.3e9, 40, 2_500)]
+
+
+def randomized_2020(seed=0, n=7):
+    """
+    A fresh game. Every lab draws a strategy, with variation inside it, and
+    nobody is told who drew what.
+    """
+    import random
+    from . import strategy as STRAT
+    rng = random.Random(seed * 7717 + 101)
+    keys = list(STRAT.STRATEGIES)
+    rng.shuffle(keys)
+    picks = keys[:n] if n <= len(keys) else [rng.choice(keys) for _ in range(n)]
+    names = NAMES[:]
+    rng.shuffle(names)
+    starts = STARTS[:n]
+    rng.shuffle(starts)
+    labs = []
+    for i in range(n):
+        params = STRAT.draw(picks[i], rng)
+        cash, res, accels = starts[i]
+        params["first_run_flop"] = _FIRST_RUN * (0.5 + 1.5 * (accels / 26_000))
+        params["story_value"] = cash * 2.5
+        params["raise_fraction"] = 0.10 + 0.08 * rng.random()
+        params["researcher_quality"] = 0.85 + 0.35 * rng.random()
+        labs.append(Lab(names[i], params, cash, res, V100, accels))
+    return labs
+
+
 def historical_2020():
-    """Six labs, sized to the sector as it actually stood in January 2020."""
-    return [
-        Lab("Helion",     DOCTRINES["product"],      1.0e9, 120, V100, 11_000),
-        Lab("Vantor",     DOCTRINES["scaler"],       0.8e9,  90, V100,  9_000),
-        Lab("Tessellate", DOCTRINES["hyperscaler"],  4.0e9, 210, V100, 26_000),
-        Lab("Meridian",   DOCTRINES["safety"],       0.3e9,  45, V100,  3_000),
-        Lab("Openwater",  DOCTRINES["open"],         0.5e9,  60, V100,  6_000),
-        Lab("Redshift",   DOCTRINES["champion"],     1.5e9,  80, V100,  7_000),
-        # A creative-media specialist. Included deliberately as the test of
-        # whether a niche leader survives a frontier leap somewhere else.
-        Lab("Lumen",      DOCTRINES["media"],        0.40e9, 40, V100,  3_500),
-    ]
+    """
+    The calibration roster: seven labs sized to the sector as it stood in
+    January 2020, each running the strategy its real-world archetype ran.
+    Fixed on purpose - the calibration score has to stay comparable.
+    """
+    import random
+    from . import strategy as STRAT
+    rng = random.Random(4242)
+    labs = []
+    for name, key, cash, res, accels in CALIBRATION_ROSTER:
+        params = STRAT.draw(key, rng)
+        if key == "VERTICAL":                       # Lumen is the media house
+            mix, data = STRAT.FOCUS["media"]
+            params["mixture"] = dict(mix)
+            params["data_priority"] = list(data)
+            params["strategy_name"] = "Vertical specialist (media)"
+            params["focus"] = "media"
+        params["first_run_flop"] = _FIRST_RUN * (0.5 + 1.5 * (accels / 26_000))
+        params["story_value"] = cash * 2.5
+        params["raise_fraction"] = 0.14
+        params["researcher_quality"] = 1.0
+        labs.append(Lab(name, params, cash, res, V100, accels))
+    return labs

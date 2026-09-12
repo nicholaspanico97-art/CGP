@@ -1,20 +1,36 @@
-BALANCE over 20 seeds
+BALANCE over 30 seeds
 
   domain            lead changes    dominant holds  longest reign
-  LANG        20.6 (min 11, max 33)             53%          21 mo
-  REASON      20.0 (min 9, max 29)             53%          23 mo
-  CODE        19.9 (min 10, max 27)             56%          24 mo
-  AGENT       16.9 (min 8, max 26)             64%          29 mo
-  IMAGE       14.6 (min 3, max 23)             67%          39 mo
-  VIDEO        9.4 (min 4, max 18)             78%          58 mo
-  AUDIO        4.5 (min 0, max 12)             89%          98 mo
-  ROBOT        0.0 (min 0, max 0)            100%         131 mo
+  LANG        18.4 (min 5, max 29)             51%          27 mo
+  REASON      18.0 (min 6, max 25)             52%          31 mo
+  CODE        17.4 (min 5, max 29)             53%          30 mo
+  AGENT       17.3 (min 8, max 28)             52%          30 mo
+  IMAGE        7.9 (min 0, max 19)             73%          65 mo
+  VIDEO        9.3 (min 0, max 20)             71%          59 mo
+  AUDIO        7.5 (min 0, max 17)             76%          69 mo
+  ROBOT        0.4 (min 0, max 7)             65%          83 mo
 
-  total lead changes per run : mean 105.7  median 113  range 59-138
-  top lab's revenue share    : mean 46%  range 29-65%
-  runs ending in a runaway   : 20%  (top lab over 60%)
-  labs still viable at 2030  : 4.7 of 7
+  total lead changes per run : mean 96.1  median 94  range 38-141
+  top lab's revenue share    : mean 51%  range 28-81%
+  runs ending in a runaway   : 23%  (top lab over 60%)
+  labs still viable at 2030  : 4.2 of 7
 
-  pretrained models shipped  : 92 per run, all labs combined
-  runs shelved as not better : 17 per run (15% of runs)
-  breakthrough runs          : 20.8 per run
+  STRATEGY OUTCOMES  (only counts games where the strategy was drawn)
+    strategy        games  mean rev share    best  mean ships
+    HYPERSCALER        22             45%     81%        13.0
+    DATA               22             23%     73%        13.0
+    SOVEREIGN          19             22%     56%        12.3
+    VERTICAL           23             14%     61%        14.1
+    ENTERPRISE         14             10%     30%        11.8
+    FOLLOWER           16              9%     40%        16.2
+    OPEN               18              9%     26%        14.8
+    RSI                21              6%     22%        10.1
+    CONSUMER           19              5%     45%        14.8
+    SCALE              18              3%     40%        11.8
+    COST               18              2%     12%        15.2
+
+  months of capability deliberately withheld: 6 per run
+
+  pretrained models shipped  : 93 per run, all labs combined
+  runs shelved as not better : 27 per run (22% of runs)
+  breakthrough runs          : 22.2 per run

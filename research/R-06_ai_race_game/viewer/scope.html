@@ -126,6 +126,23 @@
   .grip.hot{border-color:var(--good);color:var(--good);}
   .grip.cold{border-color:var(--bad);color:var(--bad);}
 
+  /* ---- strategies ---- */
+  .strat{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(276px,1fr));}
+  .st{border:1px solid var(--rule-soft);background:var(--panel);padding:11px 12px;}
+  .st .sh{display:flex;align-items:center;gap:7px;margin-bottom:5px;}
+  .st .sh i{width:9px;height:9px;border-radius:50%;flex:none;}
+  .st .sh b{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600;}
+  .st .nm{font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--accent);
+    letter-spacing:.03em;margin-bottom:5px;}
+  .st .bl{font-size:12.5px;color:var(--ink-2);line-height:1.42;}
+  .st .mt{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3);
+    margin-top:7px;padding-top:6px;border-top:1px solid var(--rule-soft);}
+  .hide .nm,.hide .bl,.hide .mt{filter:blur(5px);user-select:none;}
+  button.rev{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
+    letter-spacing:.08em;text-transform:uppercase;background:transparent;
+    color:var(--accent);border:1px solid var(--accent);padding:6px 12px;cursor:pointer;}
+  button.rev:hover{background:var(--accent);color:var(--surface);}
+
   /* ---- segments ---- */
   .seg{margin-bottom:11px;}
   .seghd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px;}
@@ -165,7 +182,7 @@
     <h1>Scope</h1>
     <div class="sub" style="padding-bottom:6px">Frontier world model · v0.3 · 2020–2030</div>
   </div>
-  <p class="lede">A window into the simulation. Seven labs, eight capability domains, nine gated markets, one month at a time. Everything here is computed — no value is scripted to happen on a date.</p>
+  <p class="lede">A window into the simulation. Seven labs — each one running a strategy it drew at the start and you are not told about — eight capability domains, nine gated markets, one month at a time. Everything here is computed; no value is scripted to happen on a date.</p>
 </header>
 
 <div class="transport">
@@ -216,6 +233,14 @@
 </div>
 
 <div class="panel">
+  <div class="phead"><div><h2>Strategies</h2>
+    <div class="sub">drawn at the start of the game, one per lab, with variation inside each</div></div>
+    <button class="rev" id="reveal">Reveal</button></div>
+  <div class="strat" id="strategies"></div>
+  <p class="note">In a game you would not see this panel. Each lab draws a strategy and a set of parameters inside it, and you infer who is doing what from what they ship, what they charge, and what they are visibly not doing. A lab that goes quiet for two years is telling you something.</p>
+</div>
+
+<div class="panel">
   <div class="phead"><div><h2>The race, by domain</h2>
     <div class="sub">every lab's capability over the decade · one chart per domain</div></div>
     <div class="sub" id="racetotal"></div></div>
@@ -237,7 +262,7 @@
 
 <footer>
   <span>CGP / R-06 / sim</span>
-  <span id="fit">calibrated at ~1.85× · competitiveness 1.8 · seed 7</span>
+  <span id="fit">calibrated at ~1.84× · competitiveness 1.8 · strategies drawn, seed 7</span>
 </footer>
 </div>
 
@@ -405,6 +430,25 @@
     }).join("");
   }
 
+  // ---------- strategies ----------
+  var revealed = false;
+  function drawStrategies(){
+    document.getElementById("strategies").innerHTML = LABS.map(function(l, i){
+      var d = M.doctrines[l] || {};
+      var mix = Object.keys(d.mixture || {})
+        .sort(function(a, b){ return d.mixture[b] - d.mixture[a]; })
+        .slice(0, 4)
+        .map(function(k){ return k + " " + Math.round(d.mixture[k] * 100) + "%"; })
+        .join("  ");
+      return '<div class="st' + (revealed ? "" : " hide") + '">' +
+        '<div class="sh"><i style="background:' + hex(i) + '"></i><b>' + l + '</b></div>' +
+        '<div class="nm">' + (d.strategy_name || "") + '</div>' +
+        '<div class="bl">' + (d.blurb || "") + '</div>' +
+        '<div class="mt">' + mix + '<br>' + (d.ships || 0) + ' models shipped · ' +
+        (d.shelved || 0) + ' shelved · ' + (d.withheld || 0) + ' months withheld</div></div>';
+    }).join("");
+  }
+
   // ---------- the race ----------
   var RACE = {};   // per-domain leader history and summary, computed once
   function computeRace(){
@@ -555,6 +599,7 @@
     document.getElementById("clock").textContent = MONTHS[f.month - 1] + " " + f.year;
     document.getElementById("clocksub").textContent = "month " + (cur + 1) + " of " + F.length;
     drawTiles(); drawChart(); drawProfiles(); drawRace(); drawSegments(); drawTable();
+    drawStrategies();
   }
 
   // ---------- wiring ----------
@@ -580,6 +625,11 @@
     var l = el.dataset.lab;
     if(hidden[l]) delete hidden[l]; else hidden[l] = 1;
     drawLegend(); drawChart(); drawRace();
+  });
+  document.getElementById("reveal").addEventListener("click", function(){
+    revealed = !revealed;
+    this.textContent = revealed ? "Hide" : "Reveal";
+    drawStrategies();
   });
   document.addEventListener("keydown", function(e){
     if(e.key === "ArrowRight" && cur < F.length - 1){ cur++; scrub.value = cur; stop(); render(); }
