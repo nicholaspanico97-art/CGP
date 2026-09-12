@@ -20,7 +20,8 @@ import math
 from . import constants as K
 
 
-def outcome_multiplier(rng, researcher_quality, stars, behind_oom):
+def outcome_multiplier(rng, researcher_quality, stars, behind_oom,
+                       ambition=1.0):
     """
     How this run actually went, as a multiplier on effective compute.
     Returns (multiplier, tag) where tag is 'breakthrough', 'dud' or ''.
@@ -33,12 +34,17 @@ def outcome_multiplier(rng, researcher_quality, stars, behind_oom):
     # Falling behind widens it: you stop running the safe recipe.
     risk = 1.0 + K.BEHIND_RISK_APPETITE * max(0.0, min(2.0, behind_oom))
 
-    sigma = K.RUN_SIGMA_LOG10 * damp * risk * comp
+    # Reaching far past anything you have landed before is allowed and
+    # risky. Doublings above the comfortable multiple widen the distribution
+    # and raise the odds it comes apart.
+    over = max(0.0, math.log2(max(ambition, 1e-6) / K.AMBITION_COMFORT))
+    sigma = (K.RUN_SIGMA_LOG10 + K.AMBITION_SIGMA * over) * damp * risk * comp
     oom = rng.gauss(0.0, sigma)
     tag = ""
 
     p_break = K.RUN_BREAKTHROUGH_P * risk * comp
-    p_dud = K.RUN_DUD_P * risk * (2.0 - damp) / 1.6
+    p_dud = min(0.75, (K.RUN_DUD_P + K.AMBITION_RISK * over)
+                * risk * (2.0 - damp) / 1.6)
     roll = rng.random()
     if roll < p_break:
         oom += K.RUN_BREAKTHROUGH_OOM * comp * rng.uniform(0.6, 1.35)

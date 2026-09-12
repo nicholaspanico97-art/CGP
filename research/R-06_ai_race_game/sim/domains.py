@@ -144,7 +144,7 @@ SEGMENTS = {
         weight_domains={"CODE": 0.70, "AGENT": 0.20, "REASON": 0.10},
         differentiation=0.06, stickiness=0.7, tam_share=0.22, temperature=0.60, brand_weight=0.5),
     "enterprise_agents": dict(
-        name="Enterprise agents", gates={"AGENT": 25.80, "REASON": 26.00},
+        name="Enterprise agents", gates={"AGENT": 27.60, "REASON": 26.60},
         weight_domains={"AGENT": 0.50, "REASON": 0.30, "LANG": 0.20},
         differentiation=0.22, stickiness=0.88, tam_share=0.14, temperature=0.75, brand_weight=1.1),
     "science": dict(

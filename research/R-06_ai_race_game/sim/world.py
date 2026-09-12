@@ -74,6 +74,8 @@ class Lab:
         self.elicitation = doctrine.get("elicitation", 0.42)
         self.chase = {}                   # per-domain measured-score padding
         self.scale_at_release = fleet_count  # fleet size when last shipped
+        self.ambition = 1.0               # this run vs the last one landed
+        self.run_window = 4.0
         self.beliefs = []                 # what this lab believes about rivals
         self.threat = 0.0                 # perceived deficit, in OOM
         self.feared = None                # who it thinks is ahead
@@ -165,7 +167,8 @@ class Lab:
         behind *= (1.0 + K.SPIRAL * K.THREAT_RISK_GAIN)
 
         mult, tag = REL.outcome_multiplier(
-            self.rng, self.researcher_quality, self.stars, behind)
+            self.rng, self.researcher_quality, self.stars, behind,
+            ambition=getattr(self, "ambition", 1.0))
 
         cap = capability_index(self.train_bank * mult, month, self.algo_mult,
                                self.rl_investment, tt,
@@ -627,16 +630,21 @@ class World:
         by what this lab has learned to land. Ambition is limited by the last
         run you actually finished, which is why nobody jumps two OOMs at once.
         """
+        # Wall-clock a lab is willing to spend. Competitive fear compresses
+        # it: real labs threw more accelerators at a run to finish sooner,
+        # because time-to-market is what they are racing on.
         window = lab.doctrine.get("run_months", 4.0)
+        window = max(1.2, window - 0.8 * K.SPIRAL * getattr(lab, "threat", 0.0))
+        lab.run_window = window
         by_fleet = (lab.fleet.train_flops() * lab.doctrine["train"]
+                    * K.FRONTIER_RUN_SHARE
                     * K.SECONDS_PER_MONTH * window / 1.18)
-        # how much bigger a run you dare attempt is an engineering-talent
-        # question: the team that landed the last one knows what breaks
-        growth = K.MAX_RUN_GROWTH_PER_SHIP * (
-            0.75 + 0.25 * min(2.0, lab.researcher_quality * (1 + 0.1 * lab.stars)))
-        ceiling = (lab.largest_run * growth
-                   if lab.largest_run > 0 else lab.doctrine.get("first_run_flop", 6e22))
-        return min(by_fleet, ceiling)
+        if lab.largest_run <= 0:
+            return min(by_fleet, lab.doctrine.get("first_run_flop", 6e22))
+        # Compute is the constraint. Reaching far past what you have landed
+        # before is allowed, and dangerous - priced in outcome_multiplier.
+        lab.ambition = by_fleet / lab.largest_run
+        return by_fleet
 
     def _resolve_market(self, m):
         """

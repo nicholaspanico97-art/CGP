@@ -87,7 +87,7 @@ FAB_OUTPUT_PER_MONTH = {
 # capability curve could never bend.
 ALGO_EFF_RATE_2020 = 3.0      # x per year the historical period must show
 ALGO_EFF_RATE_2030 = 1.7      # the no-automation baseline it decays toward
-SECTOR_ALGO_SCALE = 0.1     # calibrated: research output -> frontier growth
+SECTOR_ALGO_SCALE = 0.07     # calibrated: research output -> frontier growth
 SECTOR_ALGO_ALPHA = 0.45      # diminishing returns to piling on researchers
 IDEA_DIFFICULTY = 0.6         # ideas get harder to find: each further
                               # doubling of efficiency costs more research
@@ -143,7 +143,31 @@ RECIPE_ERA_MOE = {                # (year, month): sector-best sparsity factor
 # Engineering, not physics: the largest run a lab can actually land grows
 # with experience. Runs in the real record grew ~3-5x per generation, never
 # 100x, because the failure modes at each new scale have to be learned.
-MAX_RUN_GROWTH_PER_SHIP = 1.5   # calibrated, not assumed: see sim/score.py
+# Ambition, not a ceiling.
+#
+# This used to be a HARD cap: a run could be at most this multiple of your
+# last one. Checking which constraint actually bound revealed that it was
+# deciding run size in 73% of lab-months - so an invented ratchet, tuned to
+# reproduce historical run growth, was doing the job that compute was
+# supposed to do. A lab could hold five million accelerators and still plan
+# a modest run. That makes the entire capex and power half of the model
+# nearly decorative, and it is the opposite of the thesis.
+#
+# Now the constraint is compute, and over-ambition is a RISK instead: a run
+# far beyond anything you have landed before is more likely to come apart.
+# Labs did attempt big jumps and did sometimes eat them.
+# A lab does not point its whole training lane at one model. The frontier
+# run shares that compute with ablations, smaller production models,
+# distillation targets and restarts. Modelling one run consuming the entire
+# lane made every lab's frontier model roughly twice as large as it should
+# be, which is the kind of error a magnitude-at-a-date metric hides and a
+# timing metric finds immediately.
+FRONTIER_RUN_SHARE = 0.30
+
+AMBITION_COMFORT = 2.6        # multiple of your last run you can attempt
+                              # without materially raising the odds of a dud
+AMBITION_RISK = 0.30          # extra dud probability per doubling above it
+AMBITION_SIGMA = 0.22         # extra outcome spread per doubling above it
 
 # Mass-market adoption needed a conversational product, which needed a
 # capability level that arrived in late 2022 - not a moment earlier.
