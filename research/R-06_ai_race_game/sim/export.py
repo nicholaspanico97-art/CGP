@@ -4,6 +4,7 @@ from . import domains as D
 from .world import World
 from .scenarios import historical_2020, randomized_2020
 from .capability import BenchmarkModel
+from . import objectives as OBJ
 
 
 SUITE = {"LANG": "MMLU", "REASON": "GPQA", "CODE": "SWE", "AGENT": "AGENT",
@@ -64,7 +65,14 @@ def run(months=132, seed=7, randomized=True):
             "segments": segs,
             "labs": labs,
         })
+    snap = OBJ.snapshot(w)
+    goals = {}
+    for l in w.labs:
+        sc, detail, _m = OBJ.evaluate(l, w, snap)
+        goals[l.name] = {"score": round(sc, 3),
+                         "detail": [[d[0], d[1]] for d in detail]}
     meta = {
+        "goals": goals,
         "releases": {l.name: [[int(x[0]), x[1], x[2]] for x in l.ships] for l in w.labs},
         "domains": D.DOMAIN_KEYS,
         "domain_names": {k: v["name"] for k, v in D.DOMAINS.items()},

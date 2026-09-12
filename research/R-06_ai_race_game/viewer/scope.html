@@ -137,7 +137,19 @@
   .st .bl{font-size:12.5px;color:var(--ink-2);line-height:1.42;}
   .st .mt{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3);
     margin-top:7px;padding-top:6px;border-top:1px solid var(--rule-soft);}
-  .hide .nm,.hide .bl,.hide .mt{filter:blur(5px);user-select:none;}
+  .hide .nm,.hide .bl,.hide .mt,.hide .gl{filter:blur(5px);user-select:none;}
+  .gl{margin-top:8px;padding-top:7px;border-top:1px solid var(--rule-soft);}
+  .gl .gt{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-3);margin-bottom:5px;
+    display:flex;justify-content:space-between;}
+  .gl .gt b{font-weight:600;}
+  .gr{display:grid;grid-template-columns:1fr 34px;gap:7px;align-items:center;
+    font-size:11.5px;color:var(--ink-2);margin-bottom:3px;line-height:1.3;}
+  .gr .gb{height:7px;background:var(--surface-2);position:relative;grid-column:1/-1;}
+  .gr .gb i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);}
+  .gv{font-family:"IBM Plex Mono",monospace;font-size:10.5px;text-align:right;
+    font-variant-numeric:tabular-nums;}
+  .met{color:var(--good);} .miss{color:var(--ink-3);}
   button.rev{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;
     letter-spacing:.08em;text-transform:uppercase;background:transparent;
     color:var(--accent);border:1px solid var(--accent);padding:6px 12px;cursor:pointer;}
@@ -237,7 +249,7 @@
     <div class="sub">drawn at the start of the game, one per lab, with variation inside each</div></div>
     <button class="rev" id="reveal">Reveal</button></div>
   <div class="strat" id="strategies"></div>
-  <p class="note">In a game you would not see this panel. Each lab draws a strategy and a set of parameters inside it, and you infer who is doing what from what they ship, what they charge, and what they are visibly not doing. A lab that goes quiet for two years is telling you something.</p>
+  <p class="note">Revenue share is the wrong scoreboard for most of these. An open-weights lab is not trying to out-earn an enterprise vendor — it is trying to keep the field close and stay the developers' default. So each lab is scored against <em>its own</em> objectives, shown here at the end of the run.<br><br>In a game you would not see this panel. Each lab draws a strategy and a set of parameters inside it, and you infer who is doing what from what they ship, what they charge, and what they are visibly not doing. A lab that goes quiet for two years is telling you something.</p>
 </div>
 
 <div class="panel">
@@ -262,7 +274,7 @@
 
 <footer>
   <span>CGP / R-06 / sim</span>
-  <span id="fit">calibrated at ~1.84× · competitiveness 1.8 · strategies drawn, seed 7</span>
+  <span id="fit">calibrated at ~1.84× · competitiveness 1.8 · strategies drawn · scored on own goals · seed 7</span>
 </footer>
 </div>
 
@@ -445,8 +457,22 @@
         '<div class="nm">' + (d.strategy_name || "") + '</div>' +
         '<div class="bl">' + (d.blurb || "") + '</div>' +
         '<div class="mt">' + mix + '<br>' + (d.ships || 0) + ' models shipped · ' +
-        (d.shelved || 0) + ' shelved · ' + (d.withheld || 0) + ' months withheld</div></div>';
+        (d.shelved || 0) + ' shelved · ' + (d.withheld || 0) + ' months withheld</div>' +
+        goalBlock(l) + '</div>';
     }).join("");
+  }
+
+  function goalBlock(lab){
+    var g = (M.goals || {})[lab];
+    if(!g) return "";
+    var rows = g.detail.map(function(d){
+      var pct = Math.round(d[1] * 100);
+      return '<div class="gr"><span class="' + (pct >= 100 ? "met" : "miss") + '">' +
+        d[0] + '</span><span class="gv">' + pct + '%</span>' +
+        '<span class="gb"><i style="width:' + pct + '%"></i></span></div>';
+    }).join("");
+    return '<div class="gl"><div class="gt"><span>its own objectives</span>' +
+      '<b>' + Math.round(g.score * 100) + '%</b></div>' + rows + '</div>';
   }
 
   // ---------- the race ----------

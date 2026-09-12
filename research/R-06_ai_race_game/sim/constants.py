@@ -78,7 +78,7 @@ FAB_OUTPUT_PER_MONTH = {
 # a full decade is not credible, so the rate decays.                 (MED)
 ALGO_EFF_RATE_2020 = 3.0      # x per year at the frontier
 ALGO_EFF_RATE_2030 = 1.7      # x per year by end of decade
-MAX_ALGO_ADVANTAGE = 4.0      # most a lab can privately be ahead of the
+MAX_ALGO_ADVANTAGE = 7.0      # most a lab can privately be ahead of the
                               # field on efficiency, as a multiple      (LOW)
 LEADER_EDGE_DECAY = 0.55      # how fast a private edge becomes common  (LOW)
 CAPABILITY_PERCEPTION_OOM = 1.4  # beyond this much of a capability gap,

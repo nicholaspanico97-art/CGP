@@ -10,6 +10,7 @@ playing through.
 import statistics
 from . import constants as K
 from . import domains as D
+from . import objectives as OBJ
 from .world import World
 from .scenarios import historical_2020, randomized_2020
 
@@ -48,9 +49,13 @@ def analyse(seed, months=132, randomized=True):
             prev = x
             longest = max(longest, cur)
         out["domains"][dom] = (changes, top, longest)
+    snap = OBJ.snapshot(w)
     tot_rev = sum(sum(x.seg_revenue.values()) for x in w.labs) or 1.0
     for l in w.labs:
+        goal_score, detail, _m = OBJ.evaluate(l, w, snap)
         out["strategies"][l.doctrine["strategy"]] = {
+            "goal": goal_score,
+            "detail": detail,
             "rev_share": sum(l.seg_revenue.values()) / tot_rev,
             "cap": l.model.capability if l.model else 0.0,
             "ships": len([s for s in l.ships if s[1] == "pretrain"]),
@@ -89,21 +94,33 @@ def report(seeds=24, months=132):
           f"  range {min(tops)*100:.0f}-{max(tops)*100:.0f}%")
     print(f"  runs ending in a runaway   : {runaway*100:.0f}%  (top lab over 60%)")
     print(f"  labs still viable at 2030  : {statistics.mean([r['alive'] for r in rows]):.1f} of 7")
-    print("\n  STRATEGY OUTCOMES  (only counts games where the strategy was drawn)")
-    print(f"    {'strategy':14s}{'games':>7s}{'mean rev share':>16s}{'best':>8s}"
-          f"{'mean ships':>12s}")
+    print("\n  DID EACH STRATEGY MEET ITS OWN GOALS?")
+    print("  Revenue share is the wrong scoreboard for most of these; each is")
+    print("  scored against what it was actually trying to do.\n")
+    print(f"    {'strategy':14s}{'games':>7s}{'goal score':>12s}{'achieved':>11s}"
+          f"{'rev share':>11s}")
     agg = {}
     for r in rows:
         for k, v in r["strategies"].items():
-            a = agg.setdefault(k, {"n": 0, "rev": 0.0, "best": 0.0, "ships": 0})
+            a = agg.setdefault(k, {"n": 0, "rev": 0.0, "goal": 0.0, "won": 0,
+                                   "goals": {}})
             a["n"] += 1
             a["rev"] += v["rev_share"]
-            a["best"] = max(a["best"], v["rev_share"])
-            a["ships"] += v["ships"]
-    for k in sorted(agg, key=lambda x: -agg[x]["rev"] / max(agg[x]["n"], 1)):
+            a["goal"] += v["goal"]
+            a["won"] += 1 if v["goal"] >= 0.65 else 0
+            for label, frac in v["detail"]:
+                a["goals"].setdefault(label, []).append(frac)
+    for k in sorted(agg, key=lambda x: -agg[x]["goal"] / max(agg[x]["n"], 1)):
         a = agg[k]
-        print(f"    {k:14s}{a['n']:7d}{a['rev']/a['n']*100:15.0f}%"
-              f"{a['best']*100:7.0f}%{a['ships']/a['n']:12.1f}")
+        print(f"    {k:14s}{a['n']:7d}{a['goal']/a['n']*100:11.0f}%"
+              f"{a['won']/a['n']*100:10.0f}%{a['rev']/a['n']*100:10.0f}%")
+    print("\n  WHICH GOALS ARE FAILING")
+    for k in sorted(agg):
+        a = agg[k]
+        worst = sorted(a["goals"].items(),
+                       key=lambda kv: sum(kv[1]) / len(kv[1]))[:2]
+        bits = " · ".join(f"{lbl[:40]} {sum(v)/len(v)*100:.0f}%" for lbl, v in worst)
+        print(f"    {k:14s}{bits}")
     wh = statistics.mean([r["withheld"] for r in rows])
     print(f"\n  months of capability deliberately withheld: {wh:.0f} per run")
     ships = [sum(r["ships"].values()) for r in rows]

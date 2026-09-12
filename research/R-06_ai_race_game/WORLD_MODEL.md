@@ -1,4 +1,4 @@
-# Frontier — World Model v0.5
+# Frontier — World Model v0.6
 
 **What changed:** the paper prototype (`PAPER_PROTOTYPE.md`) is superseded.
 Nick's direction, Sep 11 2026: *model the world really well, run the sims,
@@ -20,6 +20,12 @@ already sells, so that variance shows up as *flat stretches and jumps*,
 never as capability going down. Plus talent (v0.3), demand unlocked by
 capability rather than by the calendar (v0.3), and a `COMPETITIVENESS` dial
 that trades a little fidelity for a much more contested race.
+
+**v0.6, Sep 12 2026 — each strategy is scored on its own goals.** Revenue
+share was the wrong scoreboard. An open-weights lab is not trying to
+out-earn an enterprise vendor; it is trying to keep the field close and stay
+the developers' default. Every strategy now carries its own objectives and
+balance is measured against those.
 
 **v0.5, Sep 12 2026 — strategies.** A lab is no longer a parameter bundle,
 it is a set of intentions. Eleven strategies (fifteen counting the vertical
@@ -286,25 +292,67 @@ lab lifts everyone; a field of secretive labs grinds diffusion down. That is
 what a hoarding strategy is buying, and it is why the same strategy plays
 differently depending on who else got drawn.
 
-### Strategy balance is NOT tuned yet
-`python3 -m sim.balance` reports mean revenue share per strategy across
-games. At present, over 30 games:
+### Each strategy is scored on its own goals
 
-| | mean share | best game |
-|---|---|---|
-| Platform incumbent | **45%** | 81% |
-| Data monopolist | 23% | 73% |
-| Sovereign champion | 22% | 56% |
-| Vertical specialist | 14% | 61% |
-| … | | |
-| Scale maximalist | 3% | 40% |
-| **Efficiency leader** | **2%** | 12% |
+`sim/objectives.py` gives every strategy two or three weighted goals in its
+own terms. The efficiency leader wants to be the cheapest tokens in the
+world *and still make money*; the open-weights lab wants the field kept
+inside an order of magnitude and to stay the developers' default; the
+self-improvement racer wants a decisive capability level and an outright
+lead, and does not care about revenue beyond staying funded.
 
-That is not eleven viable strategies. It is partly real — matching
-history's capex means the platform incumbent's balance sheet dominates,
-because that is what happened — and partly unbalanced: the efficiency
-leader and the scale maximalist are not currently playable. Tuning this is
-the next chunk, and the instrument to tune against now exists.
+Two subtleties the scoring has to get right:
+
+- **A lab's goals are judged on what it BUILT, not what it released.** A
+  strategy whose plan is to sit on capability is not failing at capability
+  because it is succeeding at sitting on it. The market still only ever sees
+  what shipped.
+- **Targets have to live inside the achievable range.** They were set by
+  measuring the best value any lab reaches in a game, then placing the bar
+  where attainment lands in a sensible band rather than at 0% or 100%.
+
+Over 36 games:
+
+| Strategy | Goal score | Achieved | Revenue share |
+|---|---|---|---|
+| Efficiency leader | 91% | 78% | **4%** |
+| Vertical specialist | 91% | 89% | 13% |
+| Open weights | 83% | 74% | 10% |
+| Sovereign champion | 82% | 100% | 17% |
+| Enterprise & trust | 77% | 72% | 13% |
+| Platform incumbent | 73% | 58% | **28%** |
+| Data monopolist | 72% | 69% | 23% |
+| Self-improvement racer | 70% | 38% | 11% |
+| Fast follower | 69% | 85% | 6% |
+| Scale maximalist | 66% | 50% | 16% |
+| Consumer land grab | 65% | 55% | 13% |
+
+The efficiency leader takes 4% of revenue and succeeds 78% of the time.
+That is the whole point of the reframe: it was never trying to take
+revenue share. They are deliberately not even — the racer is a 38%
+strategy, high risk and high ceiling; the follower is an 85% strategy that
+never wins big. The sovereign champion at 100% is still too easy and is
+the one target left to raise.
+
+### Three model bugs this exposed
+1. **The research lane was worthless.** Algorithmic advantage converged to
+   ~1.0 for every lab (range 0.88–1.05): spending 39% of compute on
+   experiments bought a 4% edge, because diffusion and renormalisation
+   erased it faster than research created it. A leader's edge now erodes at
+   a rate that depends on how open the field is — which is the other half
+   of what a hoarding strategy is buying — and the ceiling on private
+   advantage went from 4x to 7x.
+2. **Capability-led strategies had no way to fund themselves.** The scale
+   maximalist was spending $218B of capex against a hyperscaler's $2,416B,
+   because it served few customers, so earned little, so could not raise. A
+   lab at the frontier with no revenue was in fact fundable on the
+   narrative for the whole 2020–2023 period; valuation now scales with
+   capability, per strategy. Calibration *improved* when this was added —
+   the anchors wanted that capex.
+3. **No market had any memory.** Share was re-decided from scratch every
+   month, so a consumer land grab could never hold a default. Segments now
+   carry stickiness: a consumer habit at 0.90, an enterprise contract at
+   0.88, an API call at 0.45.
 
 ## 3. Calibration
 
@@ -374,7 +422,9 @@ sim/world.py        labs, the market, capital, power, the monthly tick
 sim/domains.py      8 domains, 10 data sources, 9 gated market segments
 sim/talent.py       researchers, stars, and the people-to-compute shift
 sim/release.py      run outcomes, the ship decision, x.5 releases
-sim/balance.py      multi-seed lead-change instrument: is it a race?
+sim/objectives.py   what each strategy is actually trying to do
+sim/balance.py      multi-seed instrument: is it a race, and did each
+                    strategy reach its own goals?
 sim/scenarios.py    seven lab doctrines and mixtures, Jan 2020 positions
 sim/score.py        calibration error across all anchor families
 sim/fit_report.py   capability curve fit and residuals

@@ -274,7 +274,12 @@ class Lab:
         if self.algo_mult < frontier_algo:
             self.algo_mult += (frontier_algo - self.algo_mult) * k
         else:
-            self.algo_mult -= (self.algo_mult - 1.0) * k * K.LEADER_EDGE_DECAY
+            # A leader's private edge erodes because the techniques become
+            # common knowledge - which happens fast in an open field and
+            # slowly in a closed one. This is the other half of what a
+            # hoarding strategy is buying.
+            decay = K.LEADER_EDGE_DECAY * (0.35 + 1.15 * openness)
+            self.algo_mult -= (self.algo_mult - 1.0) * k * decay
 
     # ----------------------------------------------------------------- data
     def strategic_value(self, source_key):
@@ -552,6 +557,8 @@ class World:
             l.set_price(close, m)
         avg_price = sum(l.price_per_mtok for l in serving) / len(serving)
 
+        if not hasattr(self, "_prev_share"):
+            self._prev_share = {}
         demand_dollars = {l: 0.0 for l in serving}
         self.segment_state = {}
         sector_month = self._sector_spend(m)
@@ -592,6 +599,19 @@ class World:
             shares = [max(sh, K.MIN_VIABLE_SHARE) for sh in shares]
             tot = sum(shares)
             shares = [sh / tot for sh in shares]
+
+            # Some markets re-decide every month and some do not. A consumer
+            # default is a habit; an enterprise deployment is a contract and
+            # a migration. Stickiness is why a land grab is a strategy at all.
+            stick = seg.get("stickiness", 0.0)
+            if stick > 0:
+                prev = self._prev_share.setdefault(seg_key, {})
+                shares = [prev.get(l.name, sh) * stick + sh * (1 - stick)
+                          for l, sh in zip(eligible, shares)]
+                tot2 = sum(shares) or 1.0
+                shares = [sh / tot2 for sh in shares]
+                for l, sh in zip(eligible, shares):
+                    prev[l.name] = sh
 
             for l, sh in zip(eligible, shares):
                 demand_dollars[l] += tam * sh
@@ -756,8 +776,15 @@ class World:
             lab.arr = lab.revenue_m * 12.0
             lab.researchers = max(1.0, lab.researchers)
             # story value: being at or near the frontier is worth something
-            behind = max(0.0, fcap - (lab.model.capability if lab.model else 0))
-            story = lab.doctrine.get("story_value", 2.0e9) * (10 ** (-0.55 * behind))
+            own = lab.model.capability if lab.model else 0.0
+            behind = max(0.0, fcap - own)
+            # A lab at the frontier with no revenue is still worth funding -
+            # that is what the whole 2020-2023 period was. Capability-led
+            # strategies raise on the story; earnings-led ones do not.
+            narrative = 10 ** (lab.doctrine.get("story_cap_gain", 0.35)
+                               * max(0.0, own - 24.0))
+            story = (lab.doctrine.get("story_value", 2.0e9) * narrative
+                     * (10 ** (-0.55 * behind)))
             multiple = 20.0 + 45.0 * min(1.0, m / 72.0)   # multiples expanded
             lab.valuation = max(story, lab.arr * multiple)
             if lab.doctrine.get("backer_funded"):

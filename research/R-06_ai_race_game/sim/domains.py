@@ -121,6 +121,9 @@ MAX_USEFUL_EPOCHS = 4.2
 #   best benchmark wins the market; near 1 a smaller specialist holds its
 #   ground against a rival an order of magnitude ahead on compute. Creative
 #   work sits high, price-per-token API sits at zero.
+# stickiness: how much of last month's share carries over regardless. A
+#   consumer default is a habit and an enterprise deployment is a contract;
+#   an API call is a config change. This is why a land grab is a strategy.
 # gate:  minimum domain capability to have a sellable product at all.
 #        Calibrated so each segment opens in the quarter its real product
 #        category actually appeared - the assistant in late 2022, video
@@ -131,39 +134,39 @@ SEGMENTS = {
     "consumer_chat": dict(
         name="Consumer assistant", gates={"LANG": 25.20},
         weight_domains={"LANG": 0.75, "REASON": 0.15, "AGENT": 0.10},
-        differentiation=0.3, tam_share=0.30, temperature=0.85, brand_weight=1.4),
+        differentiation=0.3, stickiness=0.9, tam_share=0.30, temperature=0.85, brand_weight=1.4),
     "api_general": dict(
         name="General API", gates={"LANG": 23.20},
         weight_domains={"LANG": 0.55, "REASON": 0.25, "CODE": 0.20},
-        differentiation=0.0, tam_share=0.16, temperature=0.55, brand_weight=0.4),
+        differentiation=0.0, stickiness=0.45, tam_share=0.16, temperature=0.55, brand_weight=0.4),
     "coding": dict(
         name="Coding & software agents", gates={"CODE": 24.20},
         weight_domains={"CODE": 0.70, "AGENT": 0.20, "REASON": 0.10},
-        differentiation=0.06, tam_share=0.22, temperature=0.60, brand_weight=0.5),
+        differentiation=0.06, stickiness=0.7, tam_share=0.22, temperature=0.60, brand_weight=0.5),
     "enterprise_agents": dict(
         name="Enterprise agents", gates={"AGENT": 25.80, "REASON": 26.00},
         weight_domains={"AGENT": 0.50, "REASON": 0.30, "LANG": 0.20},
-        differentiation=0.22, tam_share=0.14, temperature=0.75, brand_weight=1.1),
+        differentiation=0.22, stickiness=0.88, tam_share=0.14, temperature=0.75, brand_weight=1.1),
     "science": dict(
         name="Scientific & technical", gates={"REASON": 26.30},
         weight_domains={"REASON": 0.85, "LANG": 0.15},
-        differentiation=0.1, tam_share=0.05, temperature=0.70, brand_weight=0.8),
+        differentiation=0.1, stickiness=0.75, tam_share=0.05, temperature=0.70, brand_weight=0.8),
     "image_gen": dict(
         name="Image generation", gates={"IMAGE": 24.40},
         weight_domains={"IMAGE": 1.0},
-        differentiation=0.55, tam_share=0.05, temperature=0.70, brand_weight=0.9),
+        differentiation=0.55, stickiness=0.72, tam_share=0.05, temperature=0.70, brand_weight=0.9),
     "video_gen": dict(
         name="Video generation", gates={"VIDEO": 25.70},
         weight_domains={"VIDEO": 0.82, "AUDIO": 0.18},
-        differentiation=0.5, tam_share=0.05, temperature=0.80, brand_weight=0.9),
+        differentiation=0.5, stickiness=0.7, tam_share=0.05, temperature=0.80, brand_weight=0.9),
     "voice": dict(
         name="Voice & audio", gates={"AUDIO": 24.70},
         weight_domains={"AUDIO": 0.80, "LANG": 0.20},
-        differentiation=0.45, tam_share=0.02, temperature=0.70, brand_weight=0.8),
+        differentiation=0.45, stickiness=0.7, tam_share=0.02, temperature=0.70, brand_weight=0.8),
     "robotics": dict(
         name="Embodied & robotics", gates={"ROBOT": 26.50, "AGENT": 26.80},
         weight_domains={"ROBOT": 0.65, "AGENT": 0.35},
-        differentiation=0.15, tam_share=0.01, temperature=0.90, brand_weight=0.7),
+        differentiation=0.15, stickiness=0.85, tam_share=0.01, temperature=0.90, brand_weight=0.7),
 }
 
 
