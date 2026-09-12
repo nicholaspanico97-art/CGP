@@ -33,6 +33,61 @@ DOMAINS = {
 DOMAIN_KEYS = list(DOMAINS)
 
 
+# ------------------------------------------------------ capability transfer
+# Domains were independent given the training mixture, which is wrong in a
+# way that mattered: it let a lab sit at the frontier in CODE and at zero in
+# REASON, which does not happen to anything. Training on code improves
+# formal reasoning; reasoning improves agency; video is images with time in
+# them; speech and language share almost everything.
+#
+# TRANSFER[source][target] is the fraction of the compute pointed at source
+# that also counts toward target. Read down a column to see what feeds a
+# domain. The numbers are judgment, not measurement - but the STRUCTURE is
+# not controversial, and its absence was.
+#
+# The consequence worth noticing: the matrix has clusters. CODE/REASON/AGENT
+# feed each other heavily, and so do IMAGE/VIDEO/AUDIO. So concentrating on
+# a related GROUP is efficient while scattering across unrelated ones is
+# not, which rewards specialisation rather than punishing it.
+TRANSFER = {
+    # Within a cluster, transfer is strong. Across clusters it is weak:
+    # reading a great deal of prose does not teach you to render a scene,
+    # and rendering scenes does not teach you to prove things. Halving the
+    # cross-cluster coefficients from the first draft restored the niche a
+    # specialist is supposed to own - generalists were leaking into creative
+    # segments on the strength of their text compute, which is not a thing.
+    "LANG":   {"REASON": .18, "CODE": .12, "AGENT": .15, "AUDIO": .11,
+               "IMAGE": .015, "VIDEO": .012, "ROBOT": .012},
+    "REASON": {"LANG": .12, "CODE": .30, "AGENT": .28, "ROBOT": .04,
+               "IMAGE": .012, "VIDEO": .012, "AUDIO": .015},
+    "CODE":   {"REASON": .28, "AGENT": .35, "LANG": .06, "ROBOT": .04,
+               "IMAGE": .008, "VIDEO": .008, "AUDIO": .008},
+    "AGENT":  {"CODE": .22, "REASON": .15, "ROBOT": .22, "LANG": .05,
+               "VIDEO": .018, "IMAGE": .014, "AUDIO": .018},
+    "IMAGE":  {"VIDEO": .52, "ROBOT": .16, "AUDIO": .06, "LANG": .014,
+               "REASON": .008, "CODE": .008, "AGENT": .014},
+    "VIDEO":  {"IMAGE": .48, "ROBOT": .22, "AUDIO": .17, "AGENT": .022,
+               "LANG": .014, "REASON": .008, "CODE": .008},
+    "AUDIO":  {"LANG": .09, "VIDEO": .14, "IMAGE": .06, "AGENT": .014,
+               "REASON": .008, "CODE": .008, "ROBOT": .014},
+    "ROBOT":  {"AGENT": .20, "VIDEO": .09, "IMAGE": .07, "REASON": .02,
+               "CODE": .02, "LANG": .01, "AUDIO": .01},
+}
+
+
+# A modality has to be PRESENT to transfer into. A text-only model does not
+# acquire image generation from having read a lot: with no pixels in the
+# mixture there is no encoder for them. Skills inside text are different -
+# reasoning and code are not separate senses, and a model trained only on
+# prose still reasons.
+MODALITY_DOMAINS = {"IMAGE", "VIDEO", "AUDIO", "ROBOT"}
+SKILL_DOMAINS = {"LANG", "REASON", "CODE", "AGENT"}
+
+# Transferred capability still needs some target-domain data to elicit, but
+# far less than direct training does. This is the floor it gets with none.
+TRANSFER_DATA_GATE = 0.35
+
+
 # ----------------------------------------------------------- data sources
 # volume:   token-equivalents available to the whole sector, for that source
 # quality:  multiplier on effective tokens; expert data is worth many web tokens

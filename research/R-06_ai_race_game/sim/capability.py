@@ -159,24 +159,50 @@ class BenchmarkModel:
 
 def domain_capability(effective_flop, mixture, run_tokens, stock, domains):
     """
-    Capability per domain. Compute is split by the training mixture; data
-    decides how much of that compute actually lands. A domain you pointed
-    half your compute at but have no data for is compute you set on fire.
+    Capability per domain, with transfer between them.
+
+    Two contributions, added in effective-compute space (linear, so they sum
+    before the log):
+
+      DIRECT       the compute pointed at this domain, gated hard by whether
+                   the lab has the data to feed it
+      TRANSFERRED  compute pointed at RELATED domains, gated softly - skills
+                   move between domains far more readily than data does
+
+    A modality has to be present in the mixture at all to receive transfer;
+    a skill inside text does not. So a text-only lab reasons without having
+    aimed at reasoning, and generates no video whatever it reads.
     """
-    from .domains import data_sufficiency
-    out = {}
+    from .domains import (data_sufficiency, TRANSFER, MODALITY_DOMAINS,
+                          TRANSFER_DATA_GATE)
+    direct, suff, qual = {}, {}, {}
     for d in domains:
         w = mixture.get(d, 0.0)
         if w <= 0:
+            direct[d] = 0.0
+            suff[d] = 0.0
+            qual[d] = 1.0
+            continue
+        wanted = run_tokens * w
+        suff[d] = data_sufficiency(stock.effective(d), wanted)
+        qual[d] = stock.quality(d)
+        direct[d] = effective_flop * w * suff[d]
+
+    out = {}
+    for d in domains:
+        present = mixture.get(d, 0.0) > 0
+        if not present and d in MODALITY_DOMAINS:
+            out[d] = 0.0                      # no encoder for a sense you skipped
+            continue
+        gate = TRANSFER_DATA_GATE + (1.0 - TRANSFER_DATA_GATE) * suff.get(d, 0.0)
+        trans = sum(TRANSFER.get(s, {}).get(d, 0.0) * direct.get(s, 0.0)
+                    for s in domains if s != d)
+        total = direct.get(d, 0.0) + trans * gate
+        if total <= 0:
             out[d] = 0.0
             continue
-        flop_d = effective_flop * w
-        wanted = run_tokens * w
-        suff = data_sufficiency(stock.effective(d), wanted)
-        qual = stock.quality(d)
-        out[d] = (math.log10(max(flop_d, 1.0))
-                  + math.log10(max(suff, 1e-3))
-                  + 0.6 * math.log10(max(qual, 0.05)))
+        out[d] = (math.log10(total)
+                  + 0.6 * math.log10(max(qual.get(d, 1.0), 0.05)))
     return out
 
 

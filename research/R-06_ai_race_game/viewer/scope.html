@@ -109,6 +109,10 @@
     font-variant-numeric:tabular-nums;}
   .drow.dead .dn,.drow.dead .dv{color:var(--ink-3);opacity:.5;}
   .est{font-size:9px;color:var(--warn);}
+  .carried{font-size:8.5px;color:var(--cool,#1f5a66);letter-spacing:.04em;}
+  :root{--cool:#1f5a66;}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--cool:#6ab4c2;}}
+  :root[data-theme="dark"]{--cool:#6ab4c2;}
 
   /* ---- the race ---- */
   .race{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));}
@@ -323,7 +327,7 @@
     <div class="sub">bars are the difficulty frontier · numbers are the published score</div></div>
     <div class="sub" id="suitenow"></div></div>
   <div class="profiles" id="profiles"></div>
-  <p class="note">The number on each row is the <em>published</em> score on whatever suite is currently in use for that domain — not a readout of the bar beside it. A benchmark is a distribution over task difficulty, so it saturates on its own schedule and gets replaced by a harder one; a superscript marks how many times that has happened. Two labs at the same frontier score differently, because elicitation differs, and a lab that optimises for the suite scores higher than it can actually perform.<br><br>A model is not one number. Each bar is one domain, bought with a share of the training mixture <em>and</em> the data to feed it — a domain with no data is compute set on fire. Domains marked <span class="est">est</span> have hand-set capability curves with no public score history behind them.</p>
+  <p class="note">A domain marked <span class="carried">via</span> is one this lab never aimed at — the capability transferred in from related domains it did train on. Skills move between domains far more readily than data does: code and formal reasoning feed each other, video is images with time in them, and a text-only lab reasons without having tried to. But a modality has to be present at all to receive anything, so no amount of reading teaches a model to render a scene.<br><br>The number on each row is the <em>published</em> score on whatever suite is currently in use for that domain — not a readout of the bar beside it. A benchmark is a distribution over task difficulty, so it saturates on its own schedule and gets replaced by a harder one; a superscript marks how many times that has happened. Two labs at the same frontier score differently, because elicitation differs, and a lab that optimises for the suite scores higher than it can actually perform.<br><br>A model is not one number. Each bar is one domain, bought with a share of the training mixture <em>and</em> the data to feed it — a domain with no data is compute set on fire. Domains marked <span class="est">est</span> have hand-set capability curves with no public score history behind them.</p>
 </div>
 
 <div class="panel">
@@ -570,9 +574,12 @@
         var pct = c > 0 ? Math.max(2, Math.min(100, (c - DMIN) / (DMAX - DMIN) * 100)) : 0;
         var est = M.anchored[dom] ? "" : ' <span class="est">est</span>';
         var gen = (f.suitegen || {})[dom] || 0;
+        var mixw = ((M.doctrines[l] || {}).mixture || {})[dom] || 0;
+        var carried = (c > 0 && mixw < 0.005);
         return '<div class="drow' + (c > 0 ? "" : " dead") + '" title="' +
           ((f.suites || {})[dom] || "") + '">' +
-          '<span class="dn">' + dom + est + (gen ? '<sup>' + gen + '</sup>' : '') + '</span>' +
+          '<span class="dn">' + dom + est + (gen ? '<sup>' + gen + '</sup>' : '') +
+          (carried ? ' <span class="carried">via</span>' : '') + '</span>' +
           '<span class="db">' + (c > 0 ? '<i style="width:' + pct + '%;background:' + hex(i) + '"></i>' : '') + '</span>' +
           '<span class="dv">' + (c > 0 ? b.toFixed(0) : "—") + '</span></div>';
       }).join("");

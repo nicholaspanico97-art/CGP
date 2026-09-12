@@ -102,13 +102,33 @@ Stated so nobody mistakes these for findings:
 
 Ordered by how much I think it matters.
 
-**1. No capability transfer between domains.** Domains are independent given
-the training mixture. In reality training on code improves reasoning,
-reasoning improves agency, and multimodal pretraining lifts several at once.
-This is the biggest remaining structural error: it makes specialisation
-strictly cheaper than it is, and it means a lab can be at the frontier in
-`CODE` and nowhere in `REASON`, which does not happen. A transfer matrix is
-cheap to add and would change strategy balance.
+**1. ~~No capability transfer between domains.~~ FIXED — see `sim/domains.py`
+`TRANSFER`.** Capability now transfers: `TRANSFER[source][target]` is the
+fraction of compute pointed at source that also counts toward target, added
+in effective-compute space before the log.
+
+Two rules make it behave:
+
+- **A modality must be present to receive transfer.** A text-only model does
+  not acquire image generation from having read a great deal — with no pixels
+  in the mixture there is no encoder for them. Skills inside text are
+  different: reasoning and code are not separate senses, so a lab that never
+  aimed at agency still has some.
+- **Transferred capability needs less data to elicit** than direct training
+  does — a 0.35 floor with no target-domain data at all, rising with
+  sufficiency. Skills move between domains far more readily than data does.
+
+The matrix has **clusters**: CODE/REASON/AGENT feed each other heavily, as do
+IMAGE/VIDEO/AUDIO, while across clusters transfer is weak. So concentrating
+on a related *group* is efficient and scattering is not — which rewards
+specialisation rather than punishing it.
+
+That last part needed a correction. The first draft's cross-cluster
+coefficients were about twice as high, and generalists leaked into creative
+segments on the strength of their text compute — vertical specialists fell
+from ~40% of their own segment to 26%. Halving text→pixel transfer restored
+them to 38%. Reading a great deal of prose does not teach you to render a
+scene, and the numbers should say so.
 
 **2. Demand is a spend ceiling, not a labour market.** By 2030, with agents
 doing real work, the demand side should be "fraction of knowledge work
