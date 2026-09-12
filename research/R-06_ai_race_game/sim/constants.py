@@ -126,7 +126,7 @@ RECIPE_ERA_MOE = {                # (year, month): sector-best sparsity factor
 # Engineering, not physics: the largest run a lab can actually land grows
 # with experience. Runs in the real record grew ~3-5x per generation, never
 # 100x, because the failure modes at each new scale have to be learned.
-MAX_RUN_GROWTH_PER_SHIP = 2.4   # calibrated, not assumed: see sim/score.py
+MAX_RUN_GROWTH_PER_SHIP = 2.0   # calibrated, not assumed: see sim/score.py
 
 # Mass-market adoption needed a conversational product, which needed a
 # capability level that arrived in late 2022 - not a moment earlier.
@@ -149,17 +149,43 @@ GROSS_MARGIN_FLOOR = -0.6    # how far below cost a lab will price
 # addressable annual spend on the work these models can do - software,
 # services, and the cheaper end of knowledge labour - which grows as
 # capability unlocks new categories but never becomes infinite.
-# Calibrated so that 2020-2026 lands on the observed revenue record; the
-# 2027-2030 continuation is an assumption (~1.75x/yr) and is the single
-# biggest lever on how the back half of a campaign feels.
-SECTOR_SPEND_CEILING = {      # $ per year the world will pay, sector-wide
-    2020: 1.2e8, 2021: 3.5e8, 2022: 8.0e8, 2023: 5.0e9,  2024: 1.3e10,
-    2025: 4.5e10, 2026: 1.1e11, 2027: 2.0e11, 2028: 3.6e11,
-    2029: 6.2e11, 2030: 1.0e12,
-}
+# Demand is unlocked by CAPABILITY, not by the calendar. If an assistant
+# worth paying for exists in 2020, people buy it in 2020. What the calendar
+# cannot do is make organisations adopt faster than they adopt: value
+# unlocked is immediate, realised spend chases it with a lag.
+#
+#   value_unlocked($/yr) = SPEND_AT_REFERENCE x 10^(SPEND_PER_OOM x (C - C_ref))
+#   realised spend approaches that with a half-life of DIFFUSION_HALFLIFE_M
+SPEND_REFERENCE_CAPABILITY = 26.50   # frontier LANG capability, GPT-4 class
+SPEND_AT_REFERENCE = 2.0e9          # $/yr the world would eventually pay there
+SPEND_PER_OOM = 0.45                 # OOMs of spend per OOM of capability
+DIFFUSION_HALFLIFE_M = 12            # how slowly organisations actually adopt
 
 CONSUMER_USAGE_MULT = 2.6    # flat-rate consumers burn this many times the
                              # tokens per dollar that an API buyer does (LOW)
 
 RESEARCHER_COST_PER_YEAR = 900_000  # fully loaded frontier researcher (MED)
 ENGINEER_COST_PER_YEAR = 420_000    # everyone else                    (MED)
+
+# ------------------------------------------------------------------ talent
+# Progress shifts from people to compute across the decade. In 2020 a small
+# team with the right idea moved the field; by 2030 the constraint is how
+# many experiments an organisation can run. These four numbers are the claim.
+TALENT_ELASTICITY_2020 = 0.78     # exponent on researcher-years, 2020
+TALENT_ELASTICITY_2030 = 0.16     # ... and 2030
+COMPUTE_ELASTICITY_2020 = 0.08    # exponent on experiment FLOP, 2020
+COMPUTE_ELASTICITY_2030 = 0.52    # ... and 2030
+STAR_EXPONENT_2020 = 0.55         # weight on exceptional individuals, 2020
+STAR_EXPONENT_2030 = 0.10         # ... and 2030
+RESEARCH_SCALE = 0.0065           # calibrated overall rate
+
+STAR_POOL_2020 = 130              # frontier-caliber researchers worldwide
+STAR_POOL_GROWTH = 1.32           # per year; training one takes years   (LOW)
+RESEARCHER_POOL_2020 = 4_500
+RESEARCHER_POOL_GROWTH = 1.40
+COMP_SCARCITY_EXPONENT = 0.55     # how hard comp rises when everyone hires
+STAR_MOVE_RATE = 0.055            # chance per month a star considers moving
+ATTRACT_COMPUTE = 0.45            # weights on why a researcher picks a lab
+ATTRACT_COMP = 0.30
+ATTRACT_MISSION = 0.15
+ATTRACT_PRESTIGE = 0.10

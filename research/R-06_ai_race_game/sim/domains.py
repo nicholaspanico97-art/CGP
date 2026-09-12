@@ -167,13 +167,9 @@ SEGMENTS = {
 }
 
 
-def segment_tam(seg_key, month):
-    """Dollars per month this segment can absorb."""
-    year = 2020 + month // 12
-    ceiling = K.SECTOR_SPEND_CEILING.get(year, 1.0e12)
-    seg = SEGMENTS[seg_key]
-    # segments that depend on later capabilities open up later
-    return ceiling * seg["tam_share"] / 12.0
+def segment_tam(seg_key, sector_spend_month):
+    """This segment's share of the sector's realised monthly spend."""
+    return sector_spend_month * SEGMENTS[seg_key]["tam_share"]
 
 
 class DataStock:

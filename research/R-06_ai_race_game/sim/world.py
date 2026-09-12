@@ -10,6 +10,7 @@ from . import constants as K
 from . import anchors as A
 from . import economics as E
 from . import domains as D
+from . import talent as T
 from .capability import (BenchmarkModel, algo_efficiency, reasoning_multiplier,
                          capability_index, domain_capability)
 
@@ -41,6 +42,10 @@ class Lab:
         self.cash = cash
         self.researchers = researchers
         self.engineers = researchers * 2
+        self.researcher_quality = doctrine.get("researcher_quality", 1.0)
+        self.stars = doctrine.get("stars", 0)
+        self.comp_offer = K.RESEARCHER_COST_PER_YEAR * doctrine.get("comp_stance", 1.0)
+        self.mission_alignment = doctrine.get("mission", 50.0)
         self.fleet = E.Fleet()
         self.fleet.add(fleet_accel, fleet_count, start_month)
         self.orders = []                  # [accel, count, arrival_month, paid]
@@ -139,16 +144,15 @@ class Lab:
         researcher-years and by experiment FLOP, with sharply diminishing
         returns to either alone.
         """
-        r_years = self.researchers * months / 12.0
         exp_flop = self.fleet.train_flops() * frac * K.SECONDS_PER_MONTH * months
-        if exp_flop <= 0 or r_years <= 0:
+        if exp_flop <= 0 or self.researchers <= 0:
             return
         # Cobb-Douglas in researcher-years and experiment FLOP. This is a
         # LAB-RELATIVE advantage: sector-wide progress already lives in
         # algo_efficiency(month). A lab can run ahead of the field, but the
         # advantage is bounded - you cannot privately out-research the entire
         # world by orders of magnitude - and it decays as others catch up.
-        gain = 0.0016 * (r_years ** 0.35) * ((exp_flop / 1e21) ** 0.22)
+        gain = T.research_output(self, self._month, exp_flop, months)
         headroom = max(0.0, 1.0 - (self.algo_mult - 1.0) / (K.MAX_ALGO_ADVANTAGE - 1.0))
         self.algo_mult *= (1.0 + gain * headroom)
         self.algo_mult = min(self.algo_mult, K.MAX_ALGO_ADVANTAGE)
@@ -329,7 +333,10 @@ class World:
 
     def step(self):
         m = self.month
+        for lab in self.labs:
+            lab._month = m
         frontier_algo = max(l.algo_mult for l in self.labs)
+        self._talent_market(m)
 
         if not hasattr(self, "claimed_exclusives"):
             self.claimed_exclusives = set()
@@ -359,6 +366,17 @@ class World:
                     target = self._next_run_size(lab, m)
                     lab.run_target = target if target > 1e18 else None
 
+        # algo_mult is a RELATIVE advantage over the field, not an absolute
+        # rate - sector-wide progress already lives in algo_efficiency(month).
+        # Renormalising each month keeps it meaning "ahead of the others",
+        # so a lab cannot bank a permanent private multiplier and neither can
+        # everyone simultaneously max it out.
+        mean_algo = sum(l.algo_mult for l in self.labs) / len(self.labs)
+        if mean_algo > 0:
+            for lab in self.labs:
+                lab.algo_mult = min(K.MAX_ALGO_ADVANTAGE,
+                                    max(0.25, lab.algo_mult / mean_algo))
+
         self._resolve_market(m)
         self._finance(m)
         self._procure(m)
@@ -373,7 +391,11 @@ class World:
         window = lab.doctrine.get("run_months", 4.0)
         by_fleet = (lab.fleet.train_flops() * lab.doctrine["train"]
                     * K.SECONDS_PER_MONTH * window / 1.18)
-        ceiling = (lab.largest_run * K.MAX_RUN_GROWTH_PER_SHIP
+        # how much bigger a run you dare attempt is an engineering-talent
+        # question: the team that landed the last one knows what breaks
+        growth = K.MAX_RUN_GROWTH_PER_SHIP * (
+            0.75 + 0.25 * min(2.0, lab.researcher_quality * (1 + 0.1 * lab.stars)))
+        ceiling = (lab.largest_run * growth
                    if lab.largest_run > 0 else lab.doctrine.get("first_run_flop", 6e22))
         return min(by_fleet, ceiling)
 
@@ -399,6 +421,7 @@ class World:
 
         demand_dollars = {l: 0.0 for l in serving}
         self.segment_state = {}
+        sector_month = self._sector_spend(m)
 
         for seg_key, seg in D.SEGMENTS.items():
             eligible = [l for l in serving if l.model.can_serve(seg_key)]
@@ -412,7 +435,7 @@ class World:
             # buyers pay for capability they can actually use
             gate = max(seg["gates"].values())
             fill = 1.0 / (1.0 + math.exp(-(best - gate) / 0.75))
-            tam = D.segment_tam(seg_key, m) * fill
+            tam = D.segment_tam(seg_key, sector_month) * fill
 
             scores = []
             for l in eligible:
@@ -460,7 +483,7 @@ class World:
     def _finance(self, m):
         for lab in self.labs:
             fleet_cost = lab.fleet.monthly_cost(m)
-            staff = (lab.researchers * K.RESEARCHER_COST_PER_YEAR
+            staff = (lab.researchers * lab.comp_offer
                      + lab.engineers * K.ENGINEER_COST_PER_YEAR) / 12.0
             other = 0.25 * staff
             fleet_cost += getattr(lab, "leased_mw", 0.0) * K.LEASE_OPEX_PER_MW_MONTH
@@ -477,7 +500,77 @@ class World:
                 "price": lab.price_per_mtok,
                 "subs": lab.subscribers,
                 "algo": lab.algo_mult, "largest": lab.largest_run,
+                "researchers": lab.researchers, "stars": lab.stars,
             })
+
+    def _talent_market(self, m):
+        """
+        Hiring, compensation, and where the exceptional people go.
+
+        Researchers are a genuinely scarce global stock. When every lab
+        hires against the same pool, compensation rises for all of them;
+        stars move toward whoever offers the most compute per head, the best
+        package and the most credible mission.
+        """
+        supply = T.global_researcher_pool(m)
+        demand = sum(l.researchers for l in self.labs)
+        rate = T.market_comp(m, demand * 1.25, supply)
+        self.market_comp = rate
+
+        for lab in self.labs:
+            target = lab.doctrine.get("headcount_ambition", 1.0)
+            # you can only hire what you can pay for and what exists
+            want = lab.researchers * (1.0 + 0.035 * target)
+            scarcity = max(0.0, supply - demand) / max(supply, 1.0)
+            afford = lab.cash > lab.researchers * rate * 1.5
+            if afford and scarcity > 0.02:
+                lab.researchers = want
+                lab.engineers = lab.researchers * 2.2
+            # pay to keep people, or lose them
+            lab.comp_offer = rate * lab.doctrine.get("comp_stance", 1.0)
+            if lab.comp_offer < rate * 0.85:
+                lab.researchers *= 0.985
+                lab.mission_alignment = max(5.0, lab.mission_alignment - 0.3)
+
+        # Stars: a small global pool. New entrants pick a lab by attraction;
+        # people already placed drift toward better-supported work. Nobody
+        # corners the market, because attraction falls as a lab's compute is
+        # spread over more heads.
+        pool = T.global_star_pool(m)
+        held = sum(l.stars for l in self.labs)
+        scores = [T.attraction(l, m, rate) for l in self.labs]
+        weights = E.logit_share(scores, temperature=0.9)
+        entrants = max(0.0, pool - held) * 0.09
+        for lab, wt in zip(self.labs, weights):
+            lab.stars += entrants * wt
+        # churn: a fraction of everyone's stars is up for grabs each month
+        loose = 0.0
+        for lab in self.labs:
+            leaving = lab.stars * K.STAR_MOVE_RATE
+            lab.stars -= leaving
+            loose += leaving
+        for lab, wt in zip(self.labs, weights):
+            lab.stars += loose * wt
+
+    def _sector_spend(self, m):
+        """
+        What the world will pay this month. Driven by the best capability
+        that actually exists, never by the date - if an assistant worth
+        paying for existed in 2020, it would have been paid for in 2020.
+        The only thing time does is limit how fast adoption catches up.
+        """
+        best_lang = max((l.model.caps.get("LANG", 0.0)
+                         for l in self.labs if l.model), default=0.0)
+        if best_lang <= 0:
+            return 0.0
+        unlocked = K.SPEND_AT_REFERENCE * 10 ** (
+            K.SPEND_PER_OOM * (best_lang - K.SPEND_REFERENCE_CAPABILITY))
+        stock = getattr(self, "spend_stock", 0.0)
+        k = 1 - 0.5 ** (1.0 / K.DIFFUSION_HALFLIFE_M)
+        stock += (unlocked - stock) * k
+        self.spend_stock = stock
+        self.spend_unlocked = unlocked
+        return stock / 12.0
 
     def _data_auction(self, m):
         """
@@ -513,6 +606,7 @@ class World:
         fcap = self.frontier_capability()
         for lab in self.labs:
             lab.arr = lab.revenue_m * 12.0
+            lab.researchers = max(1.0, lab.researchers)
             # story value: being at or near the frontier is worth something
             behind = max(0.0, fcap - (lab.model.capability if lab.model else 0))
             story = lab.doctrine.get("story_value", 2.0e9) * (10 ** (-0.55 * behind))
