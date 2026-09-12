@@ -75,6 +75,36 @@ def attraction(lab, month, market_rate):
             + K.ATTRACT_PRESTIGE * prestige / 10.0)
 
 
+def research_index(lab):
+    """
+    How good this lab's best model is at doing research. Built, not shipped -
+    a lab runs its own internal model whether or not anyone else can see it.
+    """
+    best = {}
+    for m in (lab.model, lab.internal):
+        if m and m.caps:
+            for d, c in m.caps.items():
+                if c > best.get(d, 0.0):
+                    best[d] = c
+    if not best:
+        return 0.0
+    return sum(w * best.get(d, 0.0) for d, w in K.RSI_DOMAINS.items())
+
+
+def automation_factor(lab):
+    """
+    Research throughput multiple from pointing your own models at your own
+    research queue. Saturating: a perfect researcher still waits on
+    experiments that cost wall-clock time and silicon.
+    """
+    r = research_index(lab)
+    if r <= 0:
+        return 1.0
+    x = (r - K.RSI_THRESHOLD) / K.RSI_WIDTH
+    s = 1.0 / (1.0 + math.exp(-x))
+    return 1.0 + (K.RSI_MAX_FACTOR - 1.0) * s
+
+
 def research_output(lab, month, exp_flop, months=1.0):
     """
     Algorithmic progress produced this month, as a relative gain.
@@ -89,5 +119,9 @@ def research_output(lab, month, exp_flop, months=1.0):
     a_t = talent_elasticity(month)
     a_c = compute_elasticity(month)
     stars = (1.0 + lab.stars) ** star_exponent(month)
+    # the agents doing the research also consume some of the compute the
+    # research is being done with
+    auto = automation_factor(lab)
+    usable = exp_flop * (1.0 - K.RSI_COMPUTE_TAX * (auto - 1.0) / K.RSI_MAX_FACTOR)
     return (K.RESEARCH_SCALE * (r_years ** a_t)
-            * ((exp_flop / 1e21) ** a_c) * stars)
+            * ((max(usable, 1.0) / 1e21) ** a_c) * stars * auto)

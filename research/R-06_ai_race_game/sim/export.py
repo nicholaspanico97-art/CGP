@@ -5,6 +5,7 @@ from .world import World
 from .scenarios import historical_2020, randomized_2020
 from .capability import BenchmarkModel
 from . import objectives as OBJ
+from . import talent as T
 
 
 SUITE = {"LANG": "MMLU", "REASON": "GPQA", "CODE": "SWE", "AGENT": "AGENT",
@@ -42,6 +43,8 @@ def run(months=132, seed=7, randomized=True):
                 "run": h["largest"],
                 "res": int(h.get("researchers", 0)),
                 "stars": r(h.get("stars", 0), 1),
+                "auto": r(T.automation_factor(l), 2),
+                "rsi": r(T.research_index(l), 2),
                 "caps": {d: r(l.model.caps.get(d, 0), 2) for d in D.DOMAIN_KEYS}
                         if l.model else {d: 0 for d in D.DOMAIN_KEYS},
                 "bench": {d: r(bm.score(SUITE[d], l.model.caps.get(d, 0)), 1)
@@ -62,6 +65,8 @@ def run(months=132, seed=7, randomized=True):
             "spend": r(getattr(w, "spend_stock", 0) / 1e9, 2),
             "unlocked": r(getattr(w, "spend_unlocked", 0) / 1e9, 2),
             "comp": r(getattr(w, "market_comp", 0) / 1000, 1),
+            "algo_frontier": r(getattr(w, "algo_frontier", 1.0), 1),
+            "openness": r(getattr(w, "openness", 0.0), 3),
             "segments": segs,
             "labs": labs,
         })

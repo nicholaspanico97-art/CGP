@@ -69,9 +69,14 @@ def reasoning_multiplier(month, rl_investment=1.0, test_time_oom=0.0):
 
 
 def capability_index(pretrain_flop, month, lab_algo_mult=1.0,
-                     rl_investment=1.0, test_time_oom=0.0):
-    eff = (pretrain_flop
-           * algo_efficiency(month) * lab_algo_mult
+                     rl_investment=1.0, test_time_oom=0.0, sector_algo=None):
+    """
+    sector_algo: the world's endogenous algorithmic frontier. When omitted
+    (benchmark calibration against the historical record) the fitted
+    time-based track is used instead.
+    """
+    frontier = algo_efficiency(month) if sector_algo is None else sector_algo
+    eff = (pretrain_flop * frontier * lab_algo_mult
            * reasoning_multiplier(month, rl_investment, test_time_oom))
     return math.log10(max(eff, 1.0))
 

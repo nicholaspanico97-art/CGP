@@ -220,6 +220,8 @@
       <option value="res">Researchers</option>
       <option value="stars">Star researchers</option>
       <option value="algo">Algorithmic advantage vs field</option>
+      <option value="auto">Research automation multiple</option>
+      <option value="rsi">Research index (code + agency + science)</option>
       <option value="price">Price, $/Mtok</option>
       <optgroup label="Capability by domain — log₁₀ effective FLOP">
         <option value="cap:LANG">Language &amp; conversation</option>
@@ -414,11 +416,19 @@
       ["Power drawn", (mw/1000).toFixed(2) + " GW", fmtInt(ac) + " accelerators"],
       ["Largest run", fmtExp(run), "FLOP, pretraining"],
       ["Demand unlocked", "$" + fmtB(f.unlocked) + "B", "realised $" + fmtB(f.spend) + "B — adoption lags"],
-      ["Researcher pay", "$" + f.comp + "k", "market rate, per year"]
+      ["Researcher pay", "$" + f.comp + "k", "market rate, per year"],
+      ["Algorithmic frontier", fmtB(f.algo_frontier) + "×", "vs 2020 · moved by research, not the calendar"],
+      ["Research automation", bestAuto(f).toFixed(1) + "×", "best lab's models doing its own research"]
     ];
     document.getElementById("tiles").innerHTML = t.map(function(x){
       return '<div class="tile"><div class="k">' + x[0] + '</div><div class="v">' + x[1] + '</div><div class="n">' + x[2] + '</div></div>';
     }).join("");
+  }
+
+  function bestAuto(f){
+    var b = 1;
+    LABS.forEach(function(l){ var d = f.labs[l]; if(d && d.auto > b) b = d.auto; });
+    return b;
   }
 
   // ---------- capability profiles ----------

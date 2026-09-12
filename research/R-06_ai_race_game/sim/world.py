@@ -151,7 +151,8 @@ class Lab:
             self.rng, self.researcher_quality, self.stars, behind)
 
         cap = capability_index(self.train_bank * mult, month, self.algo_mult,
-                               self.rl_investment, tt)
+                               self.rl_investment, tt,
+                               sector_algo=world.algo_frontier)
         caps = domain_capability(10 ** cap, self.mixture, shape["tokens"],
                                  self.data, D.DOMAIN_KEYS)
 
@@ -174,6 +175,7 @@ class Lab:
             # better than what it sells, and deliberately not released
             self.internal = candidate
             self.withheld_months += 1
+            self.hoarding = True
             self.last_outcome = ("withheld", tag, cap)
             return None
 
@@ -199,7 +201,13 @@ class Lab:
         cap = self.internal.capability
         if STRAT.withholds(self.doctrine, self, world, month, cap):
             self.withheld_months += 1
+            self.hoarding = True
+            # You are visibly not shipping, and the market notices. The
+            # customers you are not defending drift, and the story you cannot
+            # demonstrate is worth less.
+            self.trust = max(5.0, self.trust - K.WITHHOLD_TRUST_DECAY)
             return None
+        self.hoarding = False
         self.model = self.internal
         self.internal = None
         self.post_gen = 0
@@ -255,11 +263,12 @@ class Lab:
         # advantage is bounded - you cannot privately out-research the entire
         # world by orders of magnitude - and it decays as others catch up.
         gain = T.research_output(self, self._month, exp_flop, months)
+        self.last_research = gain
         headroom = max(0.0, 1.0 - (self.algo_mult - 1.0) / (K.MAX_ALGO_ADVANTAGE - 1.0))
         self.algo_mult *= (1.0 + gain * headroom)
         self.algo_mult = min(self.algo_mult, K.MAX_ALGO_ADVANTAGE)
 
-    def diffuse(self, frontier_algo, months=1.0, openness=0.35):
+    def diffuse(self, frontier_algo, months=1.0, openness=0.35, distill=0.0):
         """
         Nobody stays ahead for free: papers, weights and people all leak.
         Followers are pulled up toward the best lab; the leader's private
@@ -269,7 +278,9 @@ class Lab:
         halflife = K.ALGO_DIFFUSION_HALFLIFE_M / max(0.25, 0.45 + 1.3 * openness)
         rate = months / halflife
         if self.algo_mult < frontier_algo:
-            rate *= self.doctrine.get("follow_bonus", 1.0)
+            # every token the labs ahead of you serve is a token you can
+            # study, distill from, or turn into synthetic training data
+            rate *= self.doctrine.get("follow_bonus", 1.0) * (1.0 + distill)
         k = 1 - 0.5 ** rate
         if self.algo_mult < frontier_algo:
             self.algo_mult += (frontier_algo - self.algo_mult) * k
@@ -447,6 +458,9 @@ class World:
         for i, lab in enumerate(labs):
             lab.rng = random.Random(seed * 1009 + i * 7919 + 13)
         self.month = 0
+        # The sector's algorithmic frontier, as a stock that labs advance.
+        self.algo_frontier = 1.0
+        self.sector_research = 0.0
         self.bm = benchmarks or BenchmarkModel().fit()
         self.log = []
 
@@ -471,6 +485,16 @@ class World:
 
         if not hasattr(self, "claimed_exclusives"):
             self.claimed_exclusives = set()
+        # Distillation pressure per lab: how much the labs AHEAD of it are
+        # serving. A leader that sells a lot of tokens is teaching the field.
+        ahead = {}
+        for lab in self.labs:
+            vol = sum(getattr(o, "served_mtok", 0.0) for o in self.labs
+                      if o is not lab and o.algo_mult > lab.algo_mult)
+            ahead[lab.name] = K.DISTILL_COEF * math.log10(
+                1.0 + vol / K.DISTILL_REF_MTOK)
+        self.distill = ahead
+
         for lab in self.labs:
             lab.deliver(m)
             lab.deliver_power(m)
@@ -485,7 +509,8 @@ class World:
             # which is what a lab with idle accelerators actually does
             lab.serve_frac = d["serve"] + spare
             lab.research_step(d["experiment"])
-            lab.diffuse(frontier_algo, openness=self.openness)
+            lab.diffuse(frontier_algo, openness=self.openness,
+                        distill=self.distill.get(lab.name, 0.0))
             fc = self.frontier_capability()
             lab.maybe_release_held(m, self)
             if lab.maybe_ship(m, fc, self) is not None:
@@ -503,6 +528,17 @@ class World:
                 else:
                     target = self._next_run_size(lab, m)
                     lab.run_target = target if target > 1e18 else None
+
+        # The frontier moves because labs did research this month. Automated
+        # research feeds straight into this, which is how the loop closes and
+        # why the late-decade curve bends instead of continuing straight.
+        self.sector_research = sum(getattr(l, "last_research", 0.0)
+                                   for l in self.labs)
+        growth = (K.SECTOR_ALGO_SCALE
+                  * (max(self.sector_research, 1e-9) ** K.SECTOR_ALGO_ALPHA)
+                  / (self.algo_frontier ** K.IDEA_DIFFICULTY))
+        self.algo_frontier *= (1.0 + growth)
+        self.algo_growth = growth
 
         # algo_mult is a RELATIVE advantage over the field, not an absolute
         # rate - sector-wide progress already lives in algo_efficiency(month).
@@ -606,8 +642,16 @@ class World:
             stick = seg.get("stickiness", 0.0)
             if stick > 0:
                 prev = self._prev_share.setdefault(seg_key, {})
-                shares = [prev.get(l.name, sh) * stick + sh * (1 - stick)
-                          for l, sh in zip(eligible, shares)]
+                blended = []
+                for l, sh in zip(eligible, shares):
+                    # A lab sitting on a better model than it sells forfeits
+                    # some of the incumbency it is not defending: people
+                    # notice who has the best thing you can actually use.
+                    k = stick
+                    if getattr(l, "hoarding", False):
+                        k *= (1.0 - K.WITHHOLD_STICKINESS_LOSS)
+                    blended.append(prev.get(l.name, sh) * k + sh * (1.0 - k))
+                shares = blended
                 tot2 = sum(shares) or 1.0
                 shares = [sh / tot2 for sh in shares]
                 for l, sh in zip(eligible, shares):

@@ -76,8 +76,23 @@ FAB_OUTPUT_PER_MONTH = {
 # Pretraining efficiency: FLOP needed for a fixed capability falls over
 # time. Epoch AI put this near 3x/year for 2012-2023; sustaining that for
 # a full decade is not credible, so the rate decays.                 (MED)
-ALGO_EFF_RATE_2020 = 3.0      # x per year at the frontier
-ALGO_EFF_RATE_2030 = 1.7      # x per year by end of decade
+# The sector's algorithmic frontier is ENDOGENOUS: it advances because labs
+# do research, not because the calendar advances. The two rates below are no
+# longer a schedule the world follows - they are what the historical period
+# has to reproduce, and SECTOR_ALGO_SCALE is calibrated so that it does.
+#
+# This is what lets the self-improvement loop matter. With an exogenous
+# schedule, automating research could only redistribute relative advantage
+# between labs; the field's absolute progress was fixed in advance, so the
+# capability curve could never bend.
+ALGO_EFF_RATE_2020 = 3.0      # x per year the historical period must show
+ALGO_EFF_RATE_2030 = 1.7      # the no-automation baseline it decays toward
+SECTOR_ALGO_SCALE = 0.15     # calibrated: research output -> frontier growth
+SECTOR_ALGO_ALPHA = 0.45      # diminishing returns to piling on researchers
+IDEA_DIFFICULTY = 0.6         # ideas get harder to find: each further
+                              # doubling of efficiency costs more research
+                              # than the last. Without this the loop has no
+                              # damping and the frontier explodes in 2021.
 MAX_ALGO_ADVANTAGE = 7.0      # most a lab can privately be ahead of the
                               # field on efficiency, as a multiple      (LOW)
 LEADER_EDGE_DECAY = 0.55      # how fast a private edge becomes common  (LOW)
@@ -168,6 +183,36 @@ CONSUMER_USAGE_MULT = 2.6    # flat-rate consumers burn this many times the
 
 RESEARCHER_COST_PER_YEAR = 900_000  # fully loaded frontier researcher (MED)
 ENGINEER_COST_PER_YEAR = 420_000    # everyone else                    (MED)
+
+# ------------------------------------------------ the self-improvement loop
+# Research is itself a task, and it is a task made of code, long-horizon
+# agency and scientific reasoning. Once a lab's models are good enough at
+# those three, they start doing the research, and the loop closes: better
+# models do better research which makes better models.
+#
+# This is the one genuinely explosive mechanism in the model, so it is
+# bounded: the multiplier saturates, because even a perfect researcher is
+# still waiting on experiments that take wall-clock time and silicon.
+RSI_DOMAINS = {"CODE": 0.40, "AGENT": 0.35, "REASON": 0.25}
+RSI_THRESHOLD = 32.2      # research index where automation starts to bite
+RSI_WIDTH = 1.05          # how sharply it comes on, in OOM
+RSI_MAX_FACTOR = 9.0      # ceiling on research throughput multiple
+RSI_COMPUTE_TAX = 0.22    # fraction of the experiment lane the agents eat
+
+# ------------------------------------------------------------- distillation
+# You can study a model you can query. Every token a frontier model serves is
+# a token someone can learn from - by distillation, by synthetic data, by
+# simply reading what good output looks like. So the leaders' own commercial
+# success is what lets the field catch up, and hoarding is the only way to
+# stop it.
+DISTILL_COEF = 0.42
+DISTILL_REF_MTOK = 1.5e6  # monthly served volume at which this gets serious
+
+# The price of hoarding. A lab whose best model is unreleased is visibly not
+# shipping, and the market notices: it bleeds the consumer loyalty it is not
+# defending, and it cannot raise on a story nobody can verify.
+WITHHOLD_TRUST_DECAY = 0.85    # trust points per month while sitting on one
+WITHHOLD_STICKINESS_LOSS = 0.45  # how much of a sticky default it forfeits
 
 # --------------------------------------------------- run outcomes & releases
 # A training run does not return what the scaling law says. It returns what
