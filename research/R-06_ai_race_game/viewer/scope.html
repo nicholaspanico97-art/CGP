@@ -126,6 +126,13 @@
   .grip.hot{border-color:var(--good);color:var(--good);}
   .grip.cold{border-color:var(--bad);color:var(--bad);}
 
+  table.bench td.aa{color:var(--ink);font-weight:600;font-size:14.5px;
+    border-right:1px solid var(--rule-soft);padding-right:12px;}
+  table.bench td.aa.blind{color:var(--warn);}
+  table.bench th.aath{color:var(--accent);border-right:1px solid var(--rule-soft);
+    padding-right:12px;}
+  .cov{font-size:9px;color:var(--ink-3);margin-left:4px;font-weight:400;}
+
   /* ---- benchmark table ---- */
   .btwrap{overflow-x:auto;}
   table.bench{border-collapse:collapse;width:100%;min-width:760px;font-size:13px;}
@@ -259,6 +266,7 @@
       <option value="cash">Cash, $B</option>
       <option value="res">Researchers</option>
       <option value="stars">Star researchers</option>
+      <option value="aa">AA composite index</option>
       <option value="algo">Algorithmic advantage vs field</option>
       <option value="auto">Research automation multiple</option>
       <option value="rsi">Research index (code + agency + science)</option>
@@ -289,12 +297,12 @@
 
 <div class="panel">
   <div class="phead"><div><h2>Benchmarks</h2>
-    <div class="sub">published scores this month · leader in each suite is bold</div></div>
+    <div class="sub">AA composite, then each suite · leader in each is bold</div></div>
     <div class="sub" id="benchnote"></div></div>
   <div class="btwrap"><table class="bench" id="benchtable"></table></div>
   <div class="resets" id="resets"></div>
   <div class="gapbox hide" id="gapbox"></div>
-  <p class="note">These are the numbers the market prices — and the only numbers a rival can see. A benchmark is a distribution over task difficulty, so each suite saturates on its own schedule and is replaced by a harder one; the arrow is the change since three months ago. Two labs at the same true frontier do not score the same, because elicitation differs, and a lab optimising for the suite scores above what it can actually do. Use <em>Reveal</em> below to see who is doing that.</p>
+  <p class="note"><b>AA</b> is the composite: each suite's score inverted back to the task difficulty it implies, weighted and rescaled so 50 is a GPT-4-class model. It keeps climbing where an average of raw scores would saturate — and it shows amber and goes blind when every suite underneath it has been exhausted and the harder ones have not arrived. The small percentage is coverage: how much of the index a lab is measurable on at all. A media specialist scores well and covers little.<br><br>These are the numbers the market prices — and the only numbers a rival can see. A benchmark is a distribution over task difficulty, so each suite saturates on its own schedule and is replaced by a harder one; the arrow is the change since three months ago. Two labs at the same true frontier do not score the same, because elicitation differs, and a lab optimising for the suite scores above what it can actually do. Use <em>Reveal</em> below to see who is doing that.</p>
 </div>
 
 <div class="panel">
@@ -356,11 +364,13 @@
   // ---------- value accessor ----------
   function val(lab, f){
     var d = f.labs[lab]; if(!d) return 0;
+    if(metric === "aa") return (d.aa === null || d.aa === undefined) ? 0 : d.aa;
     if(metric.indexOf("cap:") === 0) return d.caps[metric.slice(4)] || 0;
     if(metric === "run") return d.run > 0 ? Math.log10(d.run) : 0;
     return d[metric] || 0;
   }
   function axisLabel(v){
+    if(metric === "aa") return v > 0 ? v.toFixed(0) : "0";
     if(metric.indexOf("cap:") === 0) return v > 0 ? v.toFixed(1) : "0";
     if(metric === "run") return v > 0 ? "1e" + v.toFixed(0) : "0";
     if(metric === "accels" || metric === "res") return fmtInt(v);
@@ -374,7 +384,7 @@
   var W = 960, H = 300, P = {l:56, r:74, t:12, b:26};
   function drawChart(){
     var shown = LABS.filter(function(l){ return !hidden[l]; });
-    var isCap = metric.indexOf("cap:") === 0;
+    var isCap = metric.indexOf("cap:") === 0 || metric === "aa";
     var max = 0, min = isCap ? 1e9 : 0;
     F.forEach(function(f){ shown.forEach(function(l){
       var v = val(l, f); if(v > max) max = v;
@@ -410,13 +420,14 @@
       s += '<path d="' + d + '" fill="none" stroke="' + hex(i) + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
     });
     if(isCap){
-      var dom = metric.slice(4);
+      var dom = metric === "aa" ? null : metric.slice(4);
       shown.forEach(function(l){
         var i = LABS.indexOf(l);
         (M.releases[l] || []).forEach(function(rel){
           if(rel[1] !== "pretrain") return;
           var k = rel[0]; if(k >= F.length) return;
-          var v = F[k].labs[l] && F[k].labs[l].caps[dom] || 0;
+          var v = dom ? (F[k].labs[l] && F[k].labs[l].caps[dom] || 0)
+                      : (F[k].labs[l] && F[k].labs[l].aa || 0);
           if(v <= 0) return;
           var x = X(k), y = Y(v);
           if(rel[2] === "breakthrough"){
@@ -469,11 +480,30 @@
       ["Demand unlocked", "$" + fmtB(f.unlocked) + "B", "realised $" + fmtB(f.spend) + "B — adoption lags"],
       ["Researcher pay", "$" + f.comp + "k", "market rate, per year"],
       ["Algorithmic frontier", fmtB(f.algo_frontier) + "×", "vs 2020 · moved by research, not the calendar"],
-      ["Research automation", bestAuto(f).toFixed(1) + "×", "best lab's models doing its own research"]
+      ["Research automation", bestAuto(f).toFixed(1) + "×", "best lab's models doing its own research"],
+      ["AA index", aaTop(f), aaNote(f)]
     ];
     document.getElementById("tiles").innerHTML = t.map(function(x){
       return '<div class="tile"><div class="k">' + x[0] + '</div><div class="v">' + x[1] + '</div><div class="n">' + x[2] + '</div></div>';
     }).join("");
+  }
+
+  function aaRank(f){
+    return LABS.map(function(l){
+      var d = f.labs[l];
+      return (d && d.aa !== null && d.aa !== undefined) ? {l:l, aa:d.aa, cov:d.aacov} : null;
+    }).filter(Boolean).sort(function(a,b){ return b.aa - a.aa; });
+  }
+  function aaTop(f){
+    var r = aaRank(f);
+    return r.length ? r[0].aa.toFixed(1) : "—";
+  }
+  function aaNote(f){
+    var r = aaRank(f);
+    if(!r.length) return "no suite is discriminating";
+    if(r.length < 2) return r[0].l + " · alone at the frontier";
+    var gap = r[0].aa - r[1].aa;
+    return r[0].l + " leads " + r[1].l + " by " + gap.toFixed(1);
   }
 
   function bestAuto(f){
@@ -517,7 +547,7 @@
     var f = F[cur], prev = F[Math.max(0, cur - 3)];
     var doms = M.domains;
 
-    var head = '<thead><tr><th>Lab</th>' + doms.map(function(d){
+    var head = '<thead><tr><th>Lab</th><th class="aath">AA<span class="sname">Composite index</span></th>' + doms.map(function(d){
       var gen = (f.suitegen || {})[d] || 0;
       var name = (f.suites || {})[d] || d;
       var justReset = (M.retirements || []).some(function(r){
@@ -541,18 +571,24 @@
     });
 
     var order = LABS.slice().sort(function(a, b){
-      var la = doms.filter(function(d){ return leader[d] === a; }).length;
-      var lb = doms.filter(function(d){ return leader[d] === b; }).length;
-      if(lb !== la) return lb - la;
-      var sa = doms.reduce(function(t, d){ return t + (f.labs[a] ? f.labs[a].bench[d] : 0); }, 0);
-      var sb = doms.reduce(function(t, d){ return t + (f.labs[b] ? f.labs[b].bench[d] : 0); }, 0);
-      return sb - sa;
+      var aa = f.labs[a] && f.labs[a].aa, ab = f.labs[b] && f.labs[b].aa;
+      if(aa === null || aa === undefined) return 1;
+      if(ab === null || ab === undefined) return -1;
+      return ab - aa;
     });
 
     var rows = order.map(function(l){
       var i = LABS.indexOf(l), d0 = f.labs[l];
       if(!d0) return "";
-      return '<tr><td><span class="dot" style="background:' + hex(i) + '"></span>' + l + '</td>' +
+      var aaCell;
+      if(d0.aa === null || d0.aa === undefined){
+        aaCell = '<td class="aa blind">—</td>';
+      } else {
+        var blind = (d0.aablind || 0) > 0.4;
+        aaCell = '<td class="aa' + (blind ? " blind" : "") + '">' + d0.aa.toFixed(1) +
+          '<span class="cov">' + Math.round((d0.aacov || 0) * 100) + '%</span></td>';
+      }
+      return '<tr><td><span class="dot" style="background:' + hex(i) + '"></span>' + l + '</td>' + aaCell +
         doms.map(function(d){
           var cap = d0.caps[d] || 0;
           if(cap <= 0) return '<td class="none">—</td>';
@@ -572,8 +608,10 @@
     }).join("");
 
     document.getElementById("benchtable").innerHTML = head + "<tbody>" + rows + "</tbody>";
-    document.getElementById("benchnote").textContent =
-      "▲▼ vs three months ago";
+    var r = aaRank(f);
+    document.getElementById("benchnote").textContent = r.length > 1
+      ? "AA gap to second: " + (r[0].aa - r[1].aa).toFixed(1) + " points · ▲▼ vs three months ago"
+      : "▲▼ vs three months ago";
 
     // suite retirements up to now, most recent first
     var rets = (M.retirements || []).filter(function(r){ return r[0] <= cur; }).reverse();
@@ -777,7 +815,15 @@
                '<th>Algo vs field</th><th>Shelved</th><th>$/Mtok</th></tr></thead>';
     var rows = LABS.map(function(l, i){
       var d = f.labs[l]; if(!d) return "";
-      return '<tr><td><span class="dot" style="background:' + hex(i) + '"></span>' + l + '</td>' +
+      var aaCell;
+      if(d0.aa === null || d0.aa === undefined){
+        aaCell = '<td class="aa blind">—</td>';
+      } else {
+        var blind = (d0.aablind || 0) > 0.4;
+        aaCell = '<td class="aa' + (blind ? " blind" : "") + '">' + d0.aa.toFixed(1) +
+          '<span class="cov">' + Math.round((d0.aacov || 0) * 100) + '%</span></td>';
+      }
+      return '<tr><td><span class="dot" style="background:' + hex(i) + '"></span>' + l + '</td>' + aaCell +
         '<td>' + fmtB(d.rev) + '</td>' +
         '<td class="' + (d.net < 0 ? "neg" : "") + '">' + (d.net < 0 ? "−" : "") + fmtB(Math.abs(d.net)) + '</td>' +
         '<td class="' + (d.cash < 0 ? "neg" : "") + '">' + fmtB(d.cash) + '</td>' +

@@ -30,6 +30,10 @@ class Model:
         self.shipped = month
         self.tag = tag                        # 'breakthrough' / 'dud' / ''
         self.generation = generation          # post-training releases so far
+        # Benchmarks are run, not computed. Sampling and harness noise is
+        # drawn once per shipped model, so a lab's published numbers hold
+        # still between releases and jump when it ships.
+        self.eval_noise = {}
 
     def can_serve(self, segment):
         return all(self.caps.get(d, 0.0) >= th
@@ -176,6 +180,8 @@ class Lab:
 
         candidate = Model(f"{self.name}-{month}", cap, shape["active_params"],
                           month, caps, tag)
+        candidate.eval_noise = {k: self.rng.gauss(0.0, TASKS.EVAL_NOISE_PTS)
+                                for k in TASKS.SUITES}
         if STRAT.withholds(self.doctrine, self, world, month, cap):
             # better than what it sells, and deliberately not released
             self.internal = candidate
@@ -826,6 +832,26 @@ class World:
         self.spend_unlocked = unlocked
         return stock / 12.0
 
+    def published_scores(self, lab):
+        """This lab's published numbers, as the world sees them."""
+        if not lab.model:
+            return {}
+        out = {}
+        pc = lab.perceived_caps()
+        for suite, spec in TASKS.SUITES.items():
+            dom = spec["domain"]
+            f = pc.get(dom, 0.0)
+            if f <= 0:
+                continue
+            sc = self.suites.score(suite, f, softness=lab.elicitation)
+            out[dom] = max(0.0, min(100.0, sc + lab.model.eval_noise.get(suite, 0.0)))
+        return out
+
+    def aa(self, lab):
+        """The headline index for one lab: (AA, coverage, blind share)."""
+        return TASKS.aggregate_index(self.suites, self.published_scores(lab),
+                                     softness=lab.elicitation)
+
     def _score_suites(self, m):
         """
         Publish this month's benchmark table, and retire any suite the field
@@ -843,6 +869,7 @@ class World:
                 if f <= 0:
                     continue
                 sc = self.suites.score(suite, f, softness=lab.elicitation)
+                sc = max(0.0, min(100.0, sc + lab.model.eval_noise.get(suite, 0.0)))
                 self.scores.setdefault(suite, {})[lab.name] = sc
                 best = max(best, sc)
             if best > 0 and self.suites.maybe_retire(suite, best, m):

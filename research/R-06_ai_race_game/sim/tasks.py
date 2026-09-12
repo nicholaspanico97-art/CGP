@@ -105,6 +105,26 @@ SUCCESSORS = {
 
 BASE_SOFTNESS = 0.42   # elicitation softness for a lab with no particular edge
 
+# ------------------------------------------------------------- the AA index
+# One number for "where is the frontier". Every suite underneath it
+# saturates, so averaging raw scores would saturate too and stop telling you
+# anything by 2027. Instead AA inverts each suite's score back to the
+# DIFFICULTY it implies, averages those, and rescales - so the index keeps
+# climbing as long as some suite still discriminates, and goes briefly blind
+# when they all saturate at once and before harder ones arrive.
+#
+# Anchored so that 50 is a GPT-4-class model and 100 is a 2030-ish frontier.
+# It is not capped at 100; a decade that runs hot goes past it.
+AA_WEIGHTS = {"LANG": 0.18, "REASON": 0.22, "CODE": 0.22, "AGENT": 0.18,
+              "IMAGE": 0.07, "VIDEO": 0.06, "AUDIO": 0.04, "ROBOT": 0.03}
+AA_ANCHOR_FRONTIER = 26.50   # reads 50
+AA_SCALE = 5.88              # points per OOM of difficulty
+
+# Benchmarks are run, not computed: a given model's published score carries
+# sampling and harness noise. Drawn once per shipped model, not per month -
+# the number does not wobble between releases, it wobbles between them.
+EVAL_NOISE_PTS = 1.6
+
 
 class SuiteSet:
     """
@@ -165,6 +185,62 @@ class SuiteSet:
             "" if self.gen[suite] == 1 else f" v{self.gen[suite]}")
         self.retirements.append((month, suite, self.label[suite]))
         return self.label[suite]
+
+
+def implied_frontier(suiteset, suite, score, softness=BASE_SOFTNESS):
+    """
+    Invert a published score back to the task difficulty it implies.
+    Monotone in the frontier, so bisection. Returns None where the suite has
+    stopped discriminating - at the floor or at its achievable ceiling there
+    is no information left to invert.
+    """
+    lo_f = suiteset.floor[suite]
+    achievable = max(1.0 - suiteset.broken[suite], 1e-6)
+    frac = (score - lo_f) / max(100.0 - lo_f, 1e-6) / achievable
+    if frac <= 0.03 or frac >= 0.97:
+        return None
+    lo, hi = 15.0, 45.0
+    for _ in range(40):
+        mid = 0.5 * (lo + hi)
+        if solved_fraction(mid, suiteset.mu[suite], suiteset.sigma[suite],
+                           softness) < frac:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
+
+
+def aggregate_index(suiteset, scores, softness=BASE_SOFTNESS):
+    """
+    The AA index for one lab, from its published scores.
+
+    Returns (aa, coverage, blind) where coverage is the share of the index's
+    weight this lab is actually measurable on - a media specialist scores
+    well on the suites it enters and covers little of the index - and blind
+    is the share of weight where the suite has saturated and carries no
+    information.
+    """
+    tot_w, acc_w, blind_w, acc = 0.0, 0.0, 0.0, 0.0
+    for dom, w in AA_WEIGHTS.items():
+        tot_w += w
+        suite = DOMAIN_SUITE.get(dom)
+        sc = scores.get(dom)
+        if sc is None or sc <= 0:
+            continue
+        f = implied_frontier(suiteset, suite, sc, softness)
+        if f is None:
+            blind_w += w
+            continue
+        acc += w * f
+        acc_w += w
+    if acc_w <= 0:
+        return None, 0.0, blind_w / tot_w if tot_w else 0.0
+    mean_f = acc / acc_w
+    aa = 50.0 + (mean_f - AA_ANCHOR_FRONTIER) * AA_SCALE
+    return aa, acc_w / tot_w, blind_w / tot_w
+
+
+DOMAIN_SUITE = {spec["domain"]: k for k, spec in SUITES.items()}
 
 
 def fit_anchored(frontier_history, verbose=False):

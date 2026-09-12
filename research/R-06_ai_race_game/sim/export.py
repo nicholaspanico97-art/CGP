@@ -54,6 +54,9 @@ def run(months=132, seed=7, randomized=True):
                                                softness=l.elicitation), 1)
                            for d in D.DOMAIN_KEYS} if l.model
                           else {d: 0 for d in D.DOMAIN_KEYS}),
+                "aa": (lambda t: r(t[0], 1) if t[0] is not None else None)(w.aa(l)),
+                "aacov": r(w.aa(l)[1], 3),
+                "aablind": r(w.aa(l)[2], 3),
                 "chase": r(sum(l.chase.values()) / max(len(l.chase), 1), 3),
                 "caught": l.caught,
                 "segrev": {k: r(v * 12 / 1e9, 3) for k, v in l.seg_revenue.items() if v > 0},
