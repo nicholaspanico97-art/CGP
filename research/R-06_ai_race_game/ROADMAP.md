@@ -22,7 +22,11 @@ Calibration 1.62x across four anchor families. ~90 lead changes a run,
 
 ---
 
-## 1. The observability seam — **architectural, do it first**
+## 1. The observability seam — **DONE, v1.0.** See `WORLD_MODEL.md` §2e.
+
+Original entry kept below for the record.
+
+### The observability seam — *was: architectural, do it first*
 
 The simulation has perfect internal information. Anything can read
 `lab.model.caps`, `lab.cash`, `lab.internal`. A game cannot.
@@ -50,7 +54,7 @@ rival — hire from them, buy their API in volume, read their papers.
 Doing this later means rewriting every consumer of lab state. Doing it now
 costs a day.
 
-## 2. The decision seam — **architectural, do it second**
+## 2. The decision seam — **next**
 
 Policy is currently baked into `doctrine` dicts read inline all over
 `world.py`. A lab does not *decide* anything; the loop reaches in and reads

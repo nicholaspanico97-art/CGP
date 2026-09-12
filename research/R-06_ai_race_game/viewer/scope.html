@@ -173,6 +173,37 @@
   .gaprow .g{margin-left:auto;color:var(--warn);}
   .gaprow .sc{color:var(--bad);}
 
+  /* ---- fog of war ---- */
+  .fogsel{font-family:"IBM Plex Mono",monospace;font-size:12px;}
+  .fogstat{display:flex;flex-wrap:wrap;gap:1px;background:var(--rule);
+    border:1px solid var(--rule);margin-bottom:12px;}
+  .fogstat div{background:var(--panel);padding:9px 12px;flex:1 1 150px;}
+  .fogstat .k{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-3);}
+  .fogstat .v{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:600;margin-top:2px;}
+  .fogstat .v.hot{color:var(--bad);}
+  .fogstat .v.calm{color:var(--good);}
+  table.fog{border-collapse:collapse;width:100%;min-width:640px;font-size:13px;}
+  table.fog th{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink-3);text-align:right;font-weight:600;
+    border-bottom:1.5px solid var(--rule);padding:0 10px 6px 0;white-space:nowrap;}
+  table.fog th:first-child{text-align:left;}
+  table.fog td{border-bottom:1px solid var(--rule-soft);padding:8px 10px 8px 0;
+    text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;
+    color:var(--ink-2);white-space:nowrap;}
+  table.fog td:first-child{text-align:left;font-family:"IBM Plex Sans",sans-serif;
+    color:var(--ink);font-weight:600;}
+  table.fog td .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;}
+  table.fog tr:last-child td{border-bottom:none;}
+  table.fog tr.fear td{background:var(--surface-2);}
+  .band{display:inline-block;width:104px;height:9px;background:var(--surface-2);
+    position:relative;vertical-align:middle;}
+  .band .rng{position:absolute;top:0;bottom:0;background:var(--accent);opacity:.30;}
+  .band .est{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--accent);}
+  .band .tru{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);}
+  .truthcol.hide{filter:blur(4px);user-select:none;}
+  .err.big{color:var(--bad);} .err.ok{color:var(--ink-3);}
+
   /* ---- strategies ---- */
   .strat{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(276px,1fr));}
   .st{border:1px solid var(--rule-soft);background:var(--panel);padding:11px 12px;}
@@ -296,6 +327,15 @@
 </div>
 
 <div class="panel">
+  <div class="phead"><div><h2>Fog of war</h2>
+    <div class="sub">what one lab believes about the others · nobody sees the truth</div></div>
+    <select id="fogsel" class="fogsel"></select></div>
+  <div class="fogstat" id="fogstat"></div>
+  <div class="btwrap"><table class="fog" id="fogtable"></table></div>
+  <p class="note">Every lab plans against an <em>estimate</em> of each rival, built from the scoreboard (which the rival had reasons to inflate), its visible power and hiring, and how long it has been since it shipped anything. Silence plus a growing cluster is the signature of a lab sitting on a breakthrough — and also of a lab that is simply stuck. From outside those look identical.<br><br>The band is the estimate and its error; the dark tick is the truth, hidden until you <em>Reveal</em>. A lab plans against the <b>upper</b> end of the band, not the middle — which is how over-building starts.</p>
+</div>
+
+<div class="panel">
   <div class="phead"><div><h2>Benchmarks</h2>
     <div class="sub">AA composite, then each suite · leader in each is bold</div></div>
     <div class="sub" id="benchnote"></div></div>
@@ -335,7 +375,7 @@
 
 <footer>
   <span>CGP / R-06 / sim</span>
-  <span id="fit">calibrated at ~1.84× · competitiveness 1.8 · strategies drawn · scored on own goals · benchmarks as task difficulty · seed 7</span>
+  <span id="fit">calibrated at ~1.84× · competitiveness 1.8 · strategies drawn · scored on own goals · imperfect information · seed 7</span>
 </footer>
 </div>
 
@@ -540,6 +580,63 @@
       return '<div class="prof"><div class="ph"><i style="background:' + hex(i) + '"></i><b>' + l + '</b>' +
              '<span>' + ex + '</span></div>' + rows + '</div>';
     }).join("");
+  }
+
+  // ---------- fog of war ----------
+  var fogLab = null;
+  function drawFog(){
+    var f = F[cur];
+    var sel = document.getElementById("fogsel");
+    if(!sel.options.length){
+      sel.innerHTML = LABS.map(function(l){
+        return '<option value="' + l + '">Viewing as ' + l + '</option>';
+      }).join("");
+      fogLab = LABS[0];
+      sel.addEventListener("change", function(){ fogLab = this.value; drawFog(); });
+    }
+    var me = f.labs[fogLab];
+    if(!me){ document.getElementById("fogtable").innerHTML = ""; return; }
+
+    var threat = me.threat || 0;
+    var cls = threat > 0.6 ? "hot" : (threat < 0.2 ? "calm" : "");
+    document.getElementById("fogstat").innerHTML =
+      '<div><div class="k">Believes it trails by</div><div class="v ' + cls + '">' +
+        threat.toFixed(2) + ' OOM</div></div>' +
+      '<div><div class="k">Fears most</div><div class="v">' + (me.feared || "—") + '</div></div>' +
+      '<div><div class="k">Its own best</div><div class="v">' + (me.own || 0).toFixed(2) + '</div></div>' +
+      '<div><div class="k">Thinks frontier is</div><div class="v">' + (me.pfront || 0).toFixed(2) + '</div></div>' +
+      '<div><div class="k">Frontier actually is</div><div class="v' + (revealed ? "" : "") + '">' +
+        (revealed ? (f.truth || 0).toFixed(2) : "· · ·") + '</div></div>';
+
+    var lo = 22, hi = 37;
+    function pct(v){ return Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100)); }
+
+    var head = '<thead><tr><th>Rival</th><th>Published AA</th><th>Silent</th>' +
+      '<th>Estimate of their true best</th><th>±</th>' +
+      '<th class="truthcol">Truth</th><th class="truthcol">Error</th></tr></thead>';
+    var rows = LABS.filter(function(l){ return l !== fogLab; }).map(function(l){
+      var i = LABS.indexOf(l), b = (me.bel || {})[l], other = f.labs[l];
+      if(!b || !other) return "";
+      var est = b[0], sig = b[1], silent = b[3];
+      var truth = other.own || 0;
+      var err = est - truth;
+      var band = '<span class="band">' +
+        '<span class="rng" style="left:' + pct(est - sig) + '%;width:' +
+          Math.max(1, pct(est + sig) - pct(est - sig)) + '%"></span>' +
+        '<span class="est" style="left:' + pct(est) + '%"></span>' +
+        (revealed && truth > 0 ? '<span class="tru" style="left:' + pct(truth) + '%"></span>' : '') +
+        '</span>';
+      return '<tr class="' + (me.feared === l ? "fear" : "") + '">' +
+        '<td><span class="dot" style="background:' + hex(i) + '"></span>' + l + '</td>' +
+        '<td>' + (other.aa === null || other.aa === undefined ? "—" : other.aa.toFixed(1)) + '</td>' +
+        '<td>' + silent + 'mo</td>' +
+        '<td>' + band + ' ' + est.toFixed(2) + '</td>' +
+        '<td>' + sig.toFixed(2) + '</td>' +
+        '<td class="truthcol' + (revealed ? "" : " hide") + '">' + truth.toFixed(2) + '</td>' +
+        '<td class="truthcol err ' + (Math.abs(err) > 0.4 ? "big" : "ok") +
+          (revealed ? "" : " hide") + '">' + (err >= 0 ? "+" : "") + err.toFixed(2) + '</td></tr>';
+    }).join("");
+    document.getElementById("fogtable").innerHTML = head + "<tbody>" + rows + "</tbody>";
   }
 
   // ---------- benchmark table ----------
@@ -839,7 +936,7 @@
     var f = F[cur];
     document.getElementById("clock").textContent = MONTHS[f.month - 1] + " " + f.year;
     document.getElementById("clocksub").textContent = "month " + (cur + 1) + " of " + F.length;
-    drawTiles(); drawChart(); drawProfiles(); drawRace(); drawBench();
+    drawTiles(); drawChart(); drawProfiles(); drawRace(); drawFog(); drawBench();
     drawSegments(); drawTable(); drawStrategies();
   }
 
@@ -870,7 +967,7 @@
   document.getElementById("reveal").addEventListener("click", function(){
     revealed = !revealed;
     this.textContent = revealed ? "Hide" : "Reveal";
-    drawStrategies(); drawBench();
+    drawStrategies(); drawBench(); drawFog();
   });
   document.addEventListener("keydown", function(e){
     if(e.key === "ArrowRight" && cur < F.length - 1){ cur++; scrub.value = cur; stop(); render(); }

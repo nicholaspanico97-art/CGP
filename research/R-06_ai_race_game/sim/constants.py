@@ -184,6 +184,49 @@ CONSUMER_USAGE_MULT = 2.6    # flat-rate consumers burn this many times the
 RESEARCHER_COST_PER_YEAR = 900_000  # fully loaded frontier researcher (MED)
 ENGINEER_COST_PER_YEAR = 420_000    # everyone else                    (MED)
 
+# ------------------------------------------------- information and paranoia
+# Nobody can see a rival's true position. They can see the scoreboard (which
+# the rival had reasons to inflate), the power siting and hiring (noisy and
+# lagged), and how long it has been since the rival shipped anything.
+#
+# The last of those is the dangerous one: silence plus growing compute is
+# the signature of a lab sitting on a breakthrough, AND the signature of a
+# lab that is simply stuck. From outside they are identical.
+INTEL_BASE_SIGMA = 0.30       # OOM of uncertainty about a rival's true best
+INTEL_STALENESS = 0.20        # extra uncertainty per year of their silence
+INTEL_SPEND_EFFECT = 0.55     # how much intel investment narrows it
+SCALE_OBS_NOISE = 0.20        # log10 error in counting someone's fleet
+LATENT_FROM_SILENCE = 0.26    # assumed hidden progress per year of silence
+LATENT_FROM_SCALE = 0.40      # weight on their observed compute growth
+LATENT_MAX = 0.55             # ceiling on what silence and siting can tell
+                              # you. Outside observers are not omniscient:
+                              # past about half an order of magnitude the
+                              # signals stop carrying information, and
+                              # without this cap the 2020-22 buildout has
+                              # every lab believing every rival is 2.6 OOM
+                              # ahead, which is not paranoia, it is a bug.
+
+# Threat is what a lab acts on, and it is deliberately pessimistic: a lab
+# plans against the upper end of its estimate, by this many sigma. That bias
+# is the engine of the spiral - pricing in the bad case means over-building,
+# and your over-building is the signal that makes a rival price in theirs.
+PARANOIA_DEFAULT = 0.85
+# Where the spiral is allowed to act matters more than how hard.
+#
+# The historical anchors pin release PACE tightly, so routing panic through
+# the cooldown wrecks the fit (1.68x -> 2.15x on its own) - the record is
+# consistent with labs not panicking much about cadence. But the anchors say
+# nothing about how much a frightened lab overpays for researchers, bids for
+# a corpus, or gambles on an architecture. So the spiral runs mostly through
+# those, and only lightly through pace.
+THREAT_CAPEX_GAIN = 0.22      # extra capex aggression per OOM of deficit
+THREAT_COOLDOWN_CUT = 0.5     # months cut from a release cooldown per OOM
+THREAT_RISK_GAIN = 0.45       # extra architectural risk-taking per OOM
+THREAT_COMP_GAIN = 0.30       # how much more a frightened lab pays per head
+THREAT_BID_GAIN = 0.55        # how much more it will pay for a data licence
+SPIRAL = 1.0                  # master dial. 0 disables the panic channels
+                              # entirely for a historical-realism run.
+
 # --------------------------------------------------- benchmarks as measures
 # Elicitation: how well a lab gets its own model to actually perform, through
 # scaffolding, prompting and tooling. Lower is sharper. Two labs at the same

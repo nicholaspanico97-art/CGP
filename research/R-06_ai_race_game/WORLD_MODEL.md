@@ -1,4 +1,4 @@
-# Frontier — World Model v0.9
+# Frontier — World Model v1.0
 
 **What changed:** the paper prototype (`PAPER_PROTOTYPE.md`) is superseded.
 Nick's direction, Sep 11 2026: *model the world really well, run the sims,
@@ -20,6 +20,12 @@ already sells, so that variance shows up as *flat stretches and jumps*,
 never as capability going down. Plus talent (v0.3), demand unlocked by
 capability rather than by the calendar (v0.3), and a `COMPETITIVENESS` dial
 that trades a little fidelity for a much more contested race.
+
+**v1.0, Sep 12 2026 — the observability seam.** Labs no longer read the
+world's true state. Each forms beliefs about rivals from visible signals,
+with error bars, and every decision runs on the beliefs. That makes
+misrepresentation worth doing and produces an arms-race spiral as an
+emergent result rather than a scripted one. See §2e.
 
 **v0.9, Sep 12 2026 — the AA index**, one number for where the frontier is,
 built by inverting each suite's score back to the difficulty it implies so
@@ -368,6 +374,68 @@ the one target left to raise.
    month, so a consumer land grab could never hold a default. Segments now
    carry stickiness: a consumer habit at 0.90, an enterprise contract at
    0.88, an API call at 0.45.
+
+## 2e. Imperfect information
+
+Until v1.0 every actor read `lab.model.caps` directly. That made half the
+model decorative: benchmark-chasing only matters if rivals cannot see your
+real frontier, and hoarding only works if nobody knows what you have. The
+AI opponents were implicitly cheating.
+
+`sim/intel.py` puts a boundary in. A lab observes signals and forms a
+belief per rival — a point estimate and a sigma — and decisions read the
+belief.
+
+| Public | Inferable, noisily | Private |
+|---|---|---|
+| Published scores, AA, prices | Fleet scale and power siting | True difficulty frontier |
+| Funding rounds, valuations | Headcount | Unreleased models |
+| Announced products | Months since they last shipped | Cash, runway, mixture |
+
+The inference that matters: **silence plus a growing cluster is the
+signature of a lab sitting on a breakthrough, and also of a lab that is
+simply stuck.** From outside those are identical. Inference is capped at
+0.55 OOM — outside observers are not omniscient, and without the cap the
+2020–22 buildout has everyone believing everyone is 2.6 OOM ahead.
+
+### Threat, and why it is biased
+A lab acts on **threat**: the gap to the most alarming rival, measured
+against the *upper* end of its estimate by a per-strategy paranoia. That
+pessimism is the engine. Planning against the bad case means over-building,
+and over-building is itself the signal that makes a rival price in theirs.
+Private information plus an incentive to misrepresent is the standard
+bargaining-failure setup, and this is what it produces here.
+
+### What it costs the sector, measured
+
+Same seeds, three worlds:
+
+| | Sector capex | Researcher pay | Frontier reached |
+|---|---|---|---|
+| Perfect information, no panic | $8.4T | $375k | 34.35 |
+| Uncertainty, no pessimism bias | $8.7T | $579k | 34.78 |
+| **Uncertainty + strategy paranoia** | **$9.2T** | **$613k** | **34.90** |
+
+**+9% on capex and +63% on researcher pay, purely from not knowing** — and
+the frontier ends **0.55 OOM higher** for it. The arms race accelerates
+progress precisely because nobody can see what anyone has. The pay result
+is the sharper one: fear shows up in the talent market before it shows up
+in concrete.
+
+Across twelve games: labs over-estimate the frontier by **+0.69 OOM** on
+average (sd 0.83), spend **86% of lab-months believing they are losing
+badly**, and **27% of lab-months fearing the wrong rival** — pouring money
+into catching someone who is not actually ahead.
+
+### Where the spiral is allowed to act
+The anchors pin release *pace* tightly, so routing panic through the
+cooldown wrecked the fit on its own (1.68x → 2.15x): the historical record
+is consistent with labs not panicking much about cadence. But nothing in
+the anchors says how much a frightened lab overpays for researchers, bids
+for a corpus, or gambles on an architecture. Routed through those, the
+`SPIRAL` dial is **fidelity-neutral** — flat at 1.74–1.78x from 0.6 to 1.5,
+and slightly better than switching it off. Set `SPIRAL = 0` for a
+no-panic run.
 
 ## 3. Calibration
 

@@ -13,6 +13,7 @@ from . import domains as D
 from . import talent as T
 from . import release as REL
 from . import strategy as STRAT
+from . import intel as INTEL
 from . import tasks as TASKS
 from .capability import (BenchmarkModel, FrontierHistory, algo_efficiency, reasoning_multiplier,
                          capability_index, domain_capability)
@@ -72,6 +73,10 @@ class Lab:
         self.internal = None              # built, better, deliberately unreleased
         self.elicitation = doctrine.get("elicitation", 0.42)
         self.chase = {}                   # per-domain measured-score padding
+        self.scale_at_release = fleet_count  # fleet size when last shipped
+        self.beliefs = []                 # what this lab believes about rivals
+        self.threat = 0.0                 # perceived deficit, in OOM
+        self.feared = None                # who it thinks is ahead
         self.caught = 0                   # contamination scandals
         self.withheld_months = 0
         self.rng = None                   # seeded by the World
@@ -154,7 +159,10 @@ class Lab:
         tt = self.doctrine.get("test_time_oom", 0.0)
 
         own = max(self.model.caps.values()) if self.model and self.model.caps else 0.0
+        # frontier_cap is this lab's BELIEF about the frontier. A lab that
+        # over-estimates a rival takes bigger swings than it needed to.
         behind = max(0.0, frontier_cap - own) if own > 0 else 0.0
+        behind *= (1.0 + K.SPIRAL * K.THREAT_RISK_GAIN)
 
         mult, tag = REL.outcome_multiplier(
             self.rng, self.researcher_quality, self.stars, behind)
@@ -196,6 +204,7 @@ class Lab:
         self.post_budget = REL.post_train_budget(self.rng, self.researcher_quality)
         self.post_timer = K.POST_TRAIN_MONTHS + self.rng.randint(0, 2)
         self.ships.append((month, "pretrain", tag, round(cap, 3)))
+        self.scale_at_release = self.fleet.count()
         self.last_outcome = ("shipped", tag, cap)
         if not self.doctrine.get("always_eval", True):
             self.safety_debt += 2.0
@@ -361,7 +370,10 @@ class Lab:
         # a licence is an annual commitment, not a lump of cash, so revenue
         # matters as much as the balance sheet
         budget = max(self.cash * 0.20, self.arr * 0.18)
-        ceiling = min(budget, ask * self.strategic_value(source_key))
+        # fear widens the wallet: a corpus looks cheaper when you believe a
+        # rival is pulling away with something you cannot see
+        panic = 1.0 + K.SPIRAL * K.THREAT_BID_GAIN * getattr(self, "threat", 0.0)
+        ceiling = min(budget, ask * self.strategic_value(source_key) * panic)
         return ceiling if ceiling >= ask else None
 
     def take_data(self, source_key, month, price):
@@ -501,6 +513,7 @@ class World:
             # training-run outcome in the game, which makes calibration
             # incomparable across changes for no reason.
             lab.rng_eval = random.Random(seed * 6421 + i * 104729 + 7)
+            lab.rng_intel = random.Random(seed * 3571 + i * 15485863 + 31)
         self.month = 0
         # The sector's algorithmic frontier, as a stock that labs advance.
         self.algo_frontier = 1.0
@@ -518,6 +531,7 @@ class World:
         m = self.month
         for lab in self.labs:
             lab._month = m
+        self._observe(m)
         frontier_algo = max(l.algo_mult for l in self.labs)
         # How freely ideas move this month. Open-weights labs lift it for
         # everyone; a field of secretive labs grinds diffusion down, which is
@@ -563,9 +577,11 @@ class World:
                 # and launch prep happen - it is not idle time
                 base = lab.doctrine.get("ship_cooldown", 3)
                 jitter = lab.rng.randint(-1, K.SHIP_JITTER_MONTHS)
-                behind = max(0.0, fc - (lab.model.capability if lab.model else 0))
-                # a lab that is behind does not take a leisurely cooldown
-                lab.cooldown = max(1, int(round(base + jitter - 2.0 * behind)))
+                # a lab that BELIEVES it is behind does not take a leisurely
+                # cooldown, whether or not it actually is
+                lab.cooldown = max(1, int(round(
+                    base + jitter
+                    - K.SPIRAL * K.THREAT_COOLDOWN_CUT * lab.threat)))
             lab.maybe_post_train(m)
             if lab.run_target is None:
                 if lab.cooldown > 0:
@@ -768,6 +784,25 @@ class World:
                 "ship_tag": lab.ships[-1][2] if lab.ships and lab.ships[-1][0] == m else "",
             })
 
+    def _observe(self, m):
+        """
+        Every lab looks at every rival and forms a view. Nothing downstream
+        of here is allowed to read a rival's true state - decisions run on
+        these beliefs, which is what makes misrepresentation worth doing.
+        """
+        for lab in self.labs:
+            lab.beliefs = [INTEL.observe(lab, t, self, m)
+                           for t in self.labs if t is not lab]
+            own = 0.0
+            if lab.model and lab.model.caps:
+                own = max(lab.model.caps.values())
+            if lab.internal and lab.internal.caps:
+                own = max(own, max(lab.internal.caps.values()))
+            lab.own_best = own
+            lab.threat, lab.feared = INTEL.threat(lab, lab.beliefs, own)
+            lab.perceived_frontier = INTEL.perceived_frontier(
+                lab.beliefs, lab.doctrine.get("paranoia", K.PARANOIA_DEFAULT))
+
     def _talent_market(self, m):
         """
         Hiring, compensation, and where the exceptional people go.
@@ -792,7 +827,9 @@ class World:
                 lab.researchers = want
                 lab.engineers = lab.researchers * 2.2
             # pay to keep people, or lose them
-            lab.comp_offer = rate * lab.doctrine.get("comp_stance", 1.0)
+            # a lab that believes it is losing bids up for people
+            lab.comp_offer = rate * lab.doctrine.get("comp_stance", 1.0) * (
+                1.0 + K.SPIRAL * K.THREAT_COMP_GAIN * getattr(lab, "threat", 0.0))
             if lab.comp_offer < rate * 0.85:
                 lab.researchers *= 0.985
                 lab.mission_alignment = max(5.0, lab.mission_alignment - 0.3)
@@ -986,7 +1023,13 @@ class World:
                     lab.capex_by_year[year] = lab.capex_by_year.get(year, 0.0) + cost
 
             # ---- buy accelerators
-            budget = max(0.0, lab.cash * lab.doctrine.get("capex_aggression", 0.5))
+            # Perceived deficit raises capex aggression. This is the spiral:
+            # planning against the bad case means over-building, and the
+            # over-building is itself the signal that worries everyone else.
+            aggression = min(0.94, lab.doctrine.get("capex_aggression", 0.5)
+                             * (1.0 + K.SPIRAL * K.THREAT_CAPEX_GAIN * lab.threat))
+            lab.effective_aggression = aggression
+            budget = max(0.0, lab.cash * aggression)
             count = int(budget / accel.capex)
             count = min(count, int(supply * lab.doctrine.get("supply_share", 0.2)))
             count = min(count, lab.headroom_accels(accel))
