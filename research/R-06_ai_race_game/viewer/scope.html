@@ -110,6 +110,22 @@
   .drow.dead .dn,.drow.dead .dv{color:var(--ink-3);opacity:.5;}
   .est{font-size:9px;color:var(--warn);}
 
+  /* ---- the race ---- */
+  .race{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));}
+  .rc{border:1px solid var(--rule-soft);background:var(--panel);padding:10px 11px 8px;}
+  .rc .rh{display:flex;align-items:baseline;gap:8px;margin-bottom:6px;}
+  .rc .rh b{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:14px;font-weight:600;}
+  .rc .rh .est{margin-left:-3px;}
+  .rc .rh span{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:10px;
+    color:var(--ink-3);letter-spacing:.04em;white-space:nowrap;}
+  .rc .now{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-2);
+    margin-top:5px;display:flex;align-items:center;gap:6px;}
+  .rc .now i{width:8px;height:8px;border-radius:50%;flex:none;}
+  .grip{display:inline-block;padding:1px 5px;border:1px solid var(--rule);
+    font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.06em;}
+  .grip.hot{border-color:var(--good);color:var(--good);}
+  .grip.cold{border-color:var(--bad);color:var(--bad);}
+
   /* ---- segments ---- */
   .seg{margin-bottom:11px;}
   .seghd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px;}
@@ -176,6 +192,16 @@
       <option value="stars">Star researchers</option>
       <option value="algo">Algorithmic advantage vs field</option>
       <option value="price">Price, $/Mtok</option>
+      <optgroup label="Capability by domain — log₁₀ effective FLOP">
+        <option value="cap:LANG">Language &amp; conversation</option>
+        <option value="cap:REASON">Reasoning, maths, science</option>
+        <option value="cap:CODE">Code</option>
+        <option value="cap:AGENT">Long-horizon agency</option>
+        <option value="cap:IMAGE">Image generation</option>
+        <option value="cap:VIDEO">Video generation</option>
+        <option value="cap:AUDIO">Speech &amp; audio</option>
+        <option value="cap:ROBOT">Embodied control</option>
+      </optgroup>
     </select>
   </div>
   <div class="legend" id="legend"></div>
@@ -187,6 +213,14 @@
     <div class="sub">per domain, at the current month · bars are log₁₀ effective FLOP</div></div></div>
   <div class="profiles" id="profiles"></div>
   <p class="note">A model is not one number. Each bar is one domain, bought with a share of the training mixture <em>and</em> the data to feed it — a domain with no data is compute set on fire. Domains marked <span class="est">est</span> have hand-set capability curves with no public score history behind them.</p>
+</div>
+
+<div class="panel">
+  <div class="phead"><div><h2>The race, by domain</h2>
+    <div class="sub">every lab's capability over the decade · one chart per domain</div></div>
+    <div class="sub" id="racetotal"></div></div>
+  <div class="race" id="race"></div>
+  <p class="note">The badge on each chart counts how many times the lead actually changed hands, and how much of the decade the dominant lab held. A domain where one lab holds 90%+ for a hundred months is a runaway, not a race — this panel exists to make that visible rather than arguable.</p>
 </div>
 
 <div class="panel">
@@ -232,10 +266,12 @@
   // ---------- value accessor ----------
   function val(lab, f){
     var d = f.labs[lab]; if(!d) return 0;
+    if(metric.indexOf("cap:") === 0) return d.caps[metric.slice(4)] || 0;
     if(metric === "run") return d.run > 0 ? Math.log10(d.run) : 0;
     return d[metric] || 0;
   }
   function axisLabel(v){
+    if(metric.indexOf("cap:") === 0) return v > 0 ? v.toFixed(1) : "0";
     if(metric === "run") return v > 0 ? "1e" + v.toFixed(0) : "0";
     if(metric === "accels" || metric === "res") return fmtInt(v);
     if(metric === "rev" || metric === "cash") return "$" + fmtB(v);
@@ -248,16 +284,22 @@
   var W = 960, H = 300, P = {l:56, r:74, t:12, b:26};
   function drawChart(){
     var shown = LABS.filter(function(l){ return !hidden[l]; });
-    var max = 0;
-    F.forEach(function(f){ shown.forEach(function(l){ var v = val(l, f); if(v > max) max = v; }); });
+    var isCap = metric.indexOf("cap:") === 0;
+    var max = 0, min = isCap ? 1e9 : 0;
+    F.forEach(function(f){ shown.forEach(function(l){
+      var v = val(l, f); if(v > max) max = v;
+      if(isCap && v > 0 && v < min) min = v; }); });
     if(max <= 0) max = 1;
+    if(!isCap || min > max) min = 0;
+    if(isCap) min = Math.floor(min) - 0.2;
+    var span = Math.max(max - min, 0.5);
     var iw = W - P.l - P.r, ih = H - P.t - P.b;
     function X(i){ return P.l + i / (F.length - 1) * iw; }
-    function Y(v){ return P.t + ih - (v / max) * ih; }
+    function Y(v){ return P.t + ih - ((v - min) / span) * ih; }
 
     var s = "";
     for(var g = 0; g <= 4; g++){
-      var v = max * g / 4, y = Y(v);
+      var v = min + span * g / 4, y = Y(v);
       s += '<line class="gridline" x1="' + P.l + '" y1="' + y + '" x2="' + (W - P.r) + '" y2="' + y + '"/>';
       s += '<text class="axis" x="' + (P.l - 8) + '" y="' + (y + 3) + '" text-anchor="end">' + axisLabel(v) + '</text>';
     }
@@ -267,9 +309,13 @@
     }
     shown.forEach(function(l, n){
       var i = LABS.indexOf(l), d = "";
+      var pen = false;
       F.forEach(function(f, k){
-        var x = X(k), y = Y(val(l, f));
-        d += (k === 0 ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1);
+        var v = val(l, f);
+        if(isCap && v <= 0){ pen = false; return; }
+        var x = X(k), y = Y(v);
+        d += (pen ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+        pen = true;
       });
       s += '<path d="' + d + '" fill="none" stroke="' + hex(i) + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
     });
@@ -279,7 +325,8 @@
     // direct labels at the cursor, de-collided
     var pts = shown.map(function(l){
       return {l:l, i:LABS.indexOf(l), v:val(l, F[cur]), y:Y(val(l, F[cur]))};
-    }).sort(function(a, b){ return a.y - b.y; });
+    }).filter(function(p){ return !(isCap && p.v <= 0); })
+      .sort(function(a, b){ return a.y - b.y; });
     for(var q = 1; q < pts.length; q++){
       if(pts[q].y - pts[q-1].y < 12) pts[q].y = pts[q-1].y + 12;
     }
@@ -338,6 +385,91 @@
     }).join("");
   }
 
+  // ---------- the race ----------
+  var RACE = {};   // per-domain leader history and summary, computed once
+  function computeRace(){
+    M.domains.forEach(function(dom){
+      var leaders = F.map(function(f){
+        var best = 0, who = null;
+        LABS.forEach(function(l){
+          var c = f.labs[l] && f.labs[l].caps[dom] || 0;
+          if(c > best){ best = c; who = l; }
+        });
+        return who;
+      });
+      var seq = leaders.filter(Boolean);
+      var changes = 0, longest = 0, cur = 0, prev = null, held = {};
+      seq.forEach(function(l){
+        held[l] = (held[l] || 0) + 1;
+        if(l !== prev){ if(prev !== null) changes++; cur = 1; prev = l; }
+        else cur++;
+        if(cur > longest) longest = cur;
+      });
+      var top = Object.keys(held).sort(function(a, b){ return held[b] - held[a]; })[0];
+      RACE[dom] = {leaders:leaders, changes:changes, longest:longest,
+                   top:top, share: top ? held[top] / seq.length : 0,
+                   months: seq.length};
+    });
+  }
+
+  var RW = 268, RH = 104, RP = {l:4, r:4, t:6, b:4};
+  function drawRace(){
+    var total = 0;
+    M.domains.forEach(function(d){ total += RACE[d].changes; });
+    document.getElementById("racetotal").textContent =
+      total + " lead changes across all domains";
+
+    document.getElementById("race").innerHTML = M.domains.map(function(dom){
+      var info = RACE[dom];
+      var lo = 1e9, hi = 0;
+      F.forEach(function(f){ LABS.forEach(function(l){
+        var c = f.labs[l] && f.labs[l].caps[dom] || 0;
+        if(c > 0){ if(c < lo) lo = c; if(c > hi) hi = c; } }); });
+      var body = "";
+      if(hi === 0){
+        body = '<svg viewBox="0 0 ' + RW + ' ' + RH + '"><text class="axis" x="' +
+               (RW/2) + '" y="' + (RH/2) + '" text-anchor="middle">no capability yet</text></svg>';
+      } else {
+        var span = Math.max(hi - lo, 0.4);
+        var iw = RW - RP.l - RP.r, ih = RH - RP.t - RP.b;
+        var X = function(i){ return RP.l + i / (F.length - 1) * iw; };
+        var Y = function(v){ return RP.t + ih - ((v - lo) / span) * ih; };
+        var g = "";
+        LABS.forEach(function(l, i){
+          if(hidden[l]) return;
+          var d = "", pen = false;
+          F.forEach(function(f, k){
+            var v = f.labs[l] && f.labs[l].caps[dom] || 0;
+            if(v <= 0){ pen = false; return; }
+            d += (pen ? "L" : "M") + X(k).toFixed(1) + " " + Y(v).toFixed(1);
+            pen = true;
+          });
+          if(d) g += '<path d="' + d + '" fill="none" stroke="' + hex(i) +
+                     '" stroke-width="1.6" stroke-linejoin="round"/>';
+        });
+        var cx = X(cur);
+        g += '<line class="cursor" x1="' + cx + '" y1="' + RP.t + '" x2="' + cx +
+             '" y2="' + (RP.t + ih) + '"/>';
+        body = '<svg viewBox="0 0 ' + RW + ' ' + RH + '" role="img" aria-label="' +
+               M.domain_names[dom] + ' capability over time">' + g + '</svg>';
+      }
+      var lead = info.leaders[cur];
+      var li = lead ? LABS.indexOf(lead) : -1;
+      var grip = info.share >= 0.85 ? "cold" : info.changes >= 12 ? "hot" : "";
+      var badge = info.months
+        ? '<span><b class="grip ' + grip + '">' + info.changes + ' changes</b> · ' +
+          (info.top ? info.top + " " + Math.round(info.share * 100) + "%" : "") + '</span>'
+        : '<span>—</span>';
+      var est = M.anchored[dom] ? "" : ' <span class="est">est</span>';
+      return '<div class="rc"><div class="rh"><b>' + dom + '</b>' + est + badge + '</div>' +
+        body +
+        '<div class="now">' + (lead
+          ? '<i style="background:' + hex(li) + '"></i>leading now: ' + lead
+          : '<span style="color:var(--ink-3)">no lab has this capability yet</span>') +
+        '</div></div>';
+    }).join("");
+  }
+
   // ---------- segments ----------
   function drawSegments(){
     var f = F[cur];
@@ -382,7 +514,7 @@
     var f = F[cur];
     document.getElementById("clock").textContent = MONTHS[f.month - 1] + " " + f.year;
     document.getElementById("clocksub").textContent = "month " + (cur + 1) + " of " + F.length;
-    drawTiles(); drawChart(); drawProfiles(); drawSegments(); drawTable();
+    drawTiles(); drawChart(); drawProfiles(); drawRace(); drawSegments(); drawTable();
   }
 
   // ---------- wiring ----------
@@ -407,13 +539,14 @@
     var el = e.target.closest("[data-lab]"); if(!el) return;
     var l = el.dataset.lab;
     if(hidden[l]) delete hidden[l]; else hidden[l] = 1;
-    drawLegend(); drawChart();
+    drawLegend(); drawChart(); drawRace();
   });
   document.addEventListener("keydown", function(e){
     if(e.key === "ArrowRight" && cur < F.length - 1){ cur++; scrub.value = cur; stop(); render(); }
     if(e.key === "ArrowLeft" && cur > 0){ cur--; scrub.value = cur; stop(); render(); }
   });
 
+  computeRace();
   drawLegend();
   render();
 })();
