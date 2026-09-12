@@ -126,6 +126,46 @@
   .grip.hot{border-color:var(--good);color:var(--good);}
   .grip.cold{border-color:var(--bad);color:var(--bad);}
 
+  /* ---- benchmark table ---- */
+  .btwrap{overflow-x:auto;}
+  table.bench{border-collapse:collapse;width:100%;min-width:760px;font-size:13px;}
+  table.bench th{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--ink-3);text-align:right;font-weight:600;
+    border-bottom:1.5px solid var(--rule);padding:0 9px 7px 0;vertical-align:bottom;
+    white-space:nowrap;}
+  table.bench th:first-child{text-align:left;}
+  table.bench th .sname{display:block;color:var(--ink-2);font-size:10px;
+    text-transform:none;letter-spacing:0;font-weight:500;max-width:96px;
+    white-space:normal;line-height:1.25;margin-top:3px;}
+  table.bench th .fresh{color:var(--accent);}
+  table.bench td{border-bottom:1px solid var(--rule-soft);padding:7px 9px 7px 0;
+    text-align:right;font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;
+    color:var(--ink-2);white-space:nowrap;}
+  table.bench td:first-child{text-align:left;font-family:"IBM Plex Sans",sans-serif;
+    color:var(--ink);font-weight:600;}
+  table.bench td .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;}
+  table.bench tr:last-child td{border-bottom:none;}
+  table.bench td.lead{color:var(--ink);font-weight:600;}
+  table.bench td.lead::after{content:"";}
+  table.bench td.none{color:var(--ink-3);opacity:.4;}
+  .dlt{font-size:9.5px;margin-left:5px;}
+  .dlt.up{color:var(--good);} .dlt.dn{color:var(--bad);} .dlt.flat{color:var(--ink-3);opacity:.5;}
+  .resets{margin-top:14px;padding-top:12px;border-top:1px solid var(--rule-soft);}
+  .reset{display:flex;gap:10px;align-items:baseline;font-size:12.5px;color:var(--ink-2);
+    padding:3px 0;}
+  .reset .when{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3);
+    min-width:62px;}
+  .reset b{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;color:var(--ink);}
+  .reset.new{color:var(--accent);}
+  .gapbox{margin-top:12px;padding-top:11px;border-top:1px solid var(--rule-soft);
+    font-size:12.5px;color:var(--ink-2);}
+  .gapbox.hide{filter:blur(5px);user-select:none;}
+  .gaprow{display:flex;gap:8px;align-items:center;font-family:"IBM Plex Mono",monospace;
+    font-size:11.5px;padding:2px 0;}
+  .gaprow i{width:8px;height:8px;border-radius:50%;flex:none;}
+  .gaprow .g{margin-left:auto;color:var(--warn);}
+  .gaprow .sc{color:var(--bad);}
+
   /* ---- strategies ---- */
   .strat{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(276px,1fr));}
   .st{border:1px solid var(--rule-soft);background:var(--panel);padding:11px 12px;}
@@ -245,6 +285,16 @@
     <div class="sub" id="suitenow"></div></div>
   <div class="profiles" id="profiles"></div>
   <p class="note">The number on each row is the <em>published</em> score on whatever suite is currently in use for that domain — not a readout of the bar beside it. A benchmark is a distribution over task difficulty, so it saturates on its own schedule and gets replaced by a harder one; a superscript marks how many times that has happened. Two labs at the same frontier score differently, because elicitation differs, and a lab that optimises for the suite scores higher than it can actually perform.<br><br>A model is not one number. Each bar is one domain, bought with a share of the training mixture <em>and</em> the data to feed it — a domain with no data is compute set on fire. Domains marked <span class="est">est</span> have hand-set capability curves with no public score history behind them.</p>
+</div>
+
+<div class="panel">
+  <div class="phead"><div><h2>Benchmarks</h2>
+    <div class="sub">published scores this month · leader in each suite is bold</div></div>
+    <div class="sub" id="benchnote"></div></div>
+  <div class="btwrap"><table class="bench" id="benchtable"></table></div>
+  <div class="resets" id="resets"></div>
+  <div class="gapbox hide" id="gapbox"></div>
+  <p class="note">These are the numbers the market prices — and the only numbers a rival can see. A benchmark is a distribution over task difficulty, so each suite saturates on its own schedule and is replaced by a harder one; the arrow is the change since three months ago. Two labs at the same true frontier do not score the same, because elicitation differs, and a lab optimising for the suite scores above what it can actually do. Use <em>Reveal</em> below to see who is doing that.</p>
 </div>
 
 <div class="panel">
@@ -462,6 +512,105 @@
     }).join("");
   }
 
+  // ---------- benchmark table ----------
+  function drawBench(){
+    var f = F[cur], prev = F[Math.max(0, cur - 3)];
+    var doms = M.domains;
+
+    var head = '<thead><tr><th>Lab</th>' + doms.map(function(d){
+      var gen = (f.suitegen || {})[d] || 0;
+      var name = (f.suites || {})[d] || d;
+      var justReset = (M.retirements || []).some(function(r){
+        return r[0] > cur - 4 && r[0] <= cur && r[1] === suiteOf(d);
+      });
+      var est = M.anchored[d] ? "" : ' <span class="est">est</span>';
+      return '<th>' + d + est + '<span class="sname' + (justReset ? " fresh" : "") + '">' +
+             name + (gen ? " v" + (gen + 1) : "") + '</span></th>';
+    }).join("") + '</tr></thead>';
+
+    // who leads each suite
+    var leader = {};
+    doms.forEach(function(d){
+      var best = 0, who = null;
+      LABS.forEach(function(l){
+        var b = f.labs[l] && f.labs[l].bench[d] || 0;
+        var c = f.labs[l] && f.labs[l].caps[d] || 0;
+        if(c > 0 && b > best){ best = b; who = l; }
+      });
+      leader[d] = who;
+    });
+
+    var order = LABS.slice().sort(function(a, b){
+      var la = doms.filter(function(d){ return leader[d] === a; }).length;
+      var lb = doms.filter(function(d){ return leader[d] === b; }).length;
+      if(lb !== la) return lb - la;
+      var sa = doms.reduce(function(t, d){ return t + (f.labs[a] ? f.labs[a].bench[d] : 0); }, 0);
+      var sb = doms.reduce(function(t, d){ return t + (f.labs[b] ? f.labs[b].bench[d] : 0); }, 0);
+      return sb - sa;
+    });
+
+    var rows = order.map(function(l){
+      var i = LABS.indexOf(l), d0 = f.labs[l];
+      if(!d0) return "";
+      return '<tr><td><span class="dot" style="background:' + hex(i) + '"></span>' + l + '</td>' +
+        doms.map(function(d){
+          var cap = d0.caps[d] || 0;
+          if(cap <= 0) return '<td class="none">—</td>';
+          var v = d0.bench[d] || 0;
+          var p = (prev.labs[l] && prev.labs[l].caps[d] > 0) ? prev.labs[l].bench[d] : null;
+          var dl = "";
+          if(p !== null){
+            var diff = v - p;
+            var cls = Math.abs(diff) < 0.35 ? "flat" : (diff > 0 ? "up" : "dn");
+            var arrow = Math.abs(diff) < 0.35 ? "–" : (diff > 0 ? "▲" : "▼");
+            dl = '<span class="dlt ' + cls + '">' + arrow +
+                 (Math.abs(diff) < 0.35 ? "" : Math.abs(diff).toFixed(1)) + '</span>';
+          }
+          return '<td class="' + (leader[d] === l ? "lead" : "") + '">' +
+                 v.toFixed(1) + dl + '</td>';
+        }).join("") + '</tr>';
+    }).join("");
+
+    document.getElementById("benchtable").innerHTML = head + "<tbody>" + rows + "</tbody>";
+    document.getElementById("benchnote").textContent =
+      "▲▼ vs three months ago";
+
+    // suite retirements up to now, most recent first
+    var rets = (M.retirements || []).filter(function(r){ return r[0] <= cur; }).reverse();
+    document.getElementById("resets").innerHTML = rets.length
+      ? '<div class="sub" style="margin-bottom:7px">Scoreboard resets — a suite the field exhausted, replaced by a harder one</div>' +
+        rets.slice(0, 6).map(function(r){
+          var isNew = r[0] > cur - 4;
+          return '<div class="reset' + (isNew ? " new" : "") + '"><span class="when">' +
+            (2020 + Math.floor(r[0] / 12)) + "-" + String(r[0] % 12 + 1).padStart(2, "0") +
+            '</span><span><b>' + r[1] + '</b> saturated → ' + r[2] +
+            (isNew ? "  · just now" : "") + '</span></div>';
+        }).join("")
+      : '<div class="sub">No suite saturated yet — every benchmark still discriminates.</div>';
+
+    // private: who is padding the numbers
+    var gaps = LABS.map(function(l, i){
+      var d0 = f.labs[l];
+      return d0 ? {l: l, i: i, gap: d0.chase || 0, caught: d0.caught || 0} : null;
+    }).filter(Boolean).filter(function(g){ return g.gap > 0.005 || g.caught > 0; })
+      .sort(function(a, b){ return b.gap - a.gap; });
+    var gb = document.getElementById("gapbox");
+    gb.className = "gapbox" + (revealed ? "" : " hide");
+    gb.innerHTML = gaps.length
+      ? '<div class="sub" style="margin-bottom:6px">Measured above true — suite optimisation, not capability</div>' +
+        gaps.map(function(g){
+          return '<div class="gaprow"><i style="background:' + hex(g.i) + '"></i>' + g.l +
+            '<span class="g">+' + g.gap.toFixed(2) + ' OOM of padding</span>' +
+            (g.caught ? '<span class="sc">· ' + g.caught + ' caught</span>' : '') + '</div>';
+        }).join("")
+      : '<div class="sub">Nobody is padding the numbers this month.</div>';
+  }
+
+  function suiteOf(dom){
+    return {LANG:"MMLU", REASON:"GPQA", CODE:"SWE", AGENT:"AGENT", IMAGE:"IMAGE",
+            VIDEO:"VIDEO", AUDIO:"AUDIO", ROBOT:"ROBOT"}[dom];
+  }
+
   // ---------- strategies ----------
   var revealed = false;
   function drawStrategies(){
@@ -644,8 +793,8 @@
     var f = F[cur];
     document.getElementById("clock").textContent = MONTHS[f.month - 1] + " " + f.year;
     document.getElementById("clocksub").textContent = "month " + (cur + 1) + " of " + F.length;
-    drawTiles(); drawChart(); drawProfiles(); drawRace(); drawSegments(); drawTable();
-    drawStrategies();
+    drawTiles(); drawChart(); drawProfiles(); drawRace(); drawBench();
+    drawSegments(); drawTable(); drawStrategies();
   }
 
   // ---------- wiring ----------
@@ -675,7 +824,7 @@
   document.getElementById("reveal").addEventListener("click", function(){
     revealed = !revealed;
     this.textContent = revealed ? "Hide" : "Reveal";
-    drawStrategies();
+    drawStrategies(); drawBench();
   });
   document.addEventListener("keydown", function(e){
     if(e.key === "ArrowRight" && cur < F.length - 1){ cur++; scrub.value = cur; stop(); render(); }
