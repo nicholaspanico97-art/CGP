@@ -74,7 +74,12 @@ can be saved, resumed and replayed), validation (so an illegal action is
 caught rather than silently absorbed), and the ability to run a strategy
 against a recorded game to see if it would have done better.
 
-## 3. Safety, incidents and regulation — **the biggest missing pillar**
+## 3. Safety, incidents and regulation — **DONE, v1.3.** See
+`WORLD_MODEL.md` §2f and `sim/safety.py`.
+
+Original entry kept below for the record.
+
+### Safety, incidents and regulation — *was: the biggest missing pillar*
 
 `safety_debt` accumulates and does **nothing**. No incident ever fires.
 There is no regulator. This is a whole designed pillar (`DESIGN.md` §6)
@@ -135,12 +140,13 @@ costs.
    and it retroactively makes the benchmark and hoarding mechanics honest.
 2. **Decision seam** (2) — same argument, and it is what the player plugs
    into.
-3. **Safety and regulation** (3) — the missing pillar, and the largest
-   single addition to what a turn actually feels like.
+3. ~~**Safety and regulation** (3)~~ — **done in v1.3.**
 4. **Events** (4) — cheap, and the biggest gain in run-to-run variety.
 
 5-8 are content and can follow in any order.
 
-The honest summary: the **economy and the capability race are modelled
-well; the game's information structure and its consequence structure are
-not modelled at all.** Those are items 1-3.
+The honest summary as of v1.3: the **economy, the capability race, the
+information structure and the consequence structure are all modelled. What
+is not modelled is the game** — nothing in `sim/` decides anything; policy
+is still read inline out of `doctrine` dicts. That is item 2, and it is now
+the only architectural item left.

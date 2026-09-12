@@ -12,6 +12,7 @@ Python. Read this first, then `WORLD_MODEL.md`.
 | `PREMISES.md` | **Read before changing anything.** What is defensible, what is a guess, what is structurally wrong |
 | `ROADMAP.md` | What is still missing before a game sits on this |
 | `DESIGN.md` | The original game design. Still the target |
+| `HANDOFF.md` | The last session's record: what was just built and why |
 | `BENCHMARKS_PROPOSAL.md` | Why benchmarks work the way they do, with outcome notes |
 
 `PAPER_PROTOTYPE.md` is superseded; kept for its kill-gate discipline only.
@@ -68,6 +69,7 @@ intel.py       what a lab can see; beliefs with error bars; threat
 release.py     run outcomes, the ship decision, x.5 releases
 strategy.py    11 strategies with variation, drawn per game
 objectives.py  what each strategy is trying to do; how success is scored
+safety.py      incident hazard, three severity tiers, sector regulation
 world.py       the monthly tick: everything above, wired together
 scenarios.py   rosters. historical_2020() is FIXED for calibration
 checkpoints.py timing calibration  <- the primary instrument
@@ -80,9 +82,17 @@ export.py      dump a run to JSON for the viewer
 
 - **`historical_2020()` must stay fixed.** It is the calibration roster.
   Randomised games use `randomized_2020(seed)`.
-- **Four separate RNG streams per lab** (`rng`, `rng_eval`, `rng_intel`).
-  Adding a draw to one must not reshuffle the others, or calibration stops
-  being comparable across changes.
+- **Four separate RNG streams per lab** (`rng`, `rng_eval`, `rng_intel`,
+  `rng_safety`). Adding a draw to one must not reshuffle the others, or
+  calibration stops being comparable across changes. **A conditional draw
+  must still be consumed unconditionally** — an `always_eval` short-circuit
+  once made the safety-first strategy skip one `random()` per ship, which
+  desynchronised every later decision in the run and silently contaminated
+  every A/B run against it.
+- **A/B a mechanic by flipping ONE lab, not all of them.** Making every lab
+  careless and comparing outcomes is a null experiment: the relative
+  standings are unchanged by construction. Pair the same lab against itself
+  in the same world on the same seed.
 - **Nothing downstream of `World._observe` may read a rival's true state.**
   Decisions run on `lab.beliefs`. Breaking this makes the AI cheat and
   silently voids benchmark-chasing and hoarding.
@@ -94,12 +104,16 @@ export.py      dump a run to JSON for the viewer
 
 ## Current state
 
-Timing 15/16 inside ±18 months, median offset −9. Order 113/120. Eleven
-strategies score 60–95% on their own goals. ~90 lead changes per run, top
-lab ~40% of revenue, ~6 of 7 labs viable at 2030.
+Timing 15/16 inside ±18 months, median offset −10, mean |offset| 9.4.
+Order 111/120. Eleven strategies score 60–95% on their own goals. ~90 lead
+changes per run, top lab ~40% of revenue, ~6 of 7 labs viable at 2030.
+Safety incidents fire with the intended severity gradient: nothing severe is
+possible before agentic capability exists, and by 2028–30 severe is ~6% of
+incidents.
 
 ## What is deliberately not modelled yet
 
-Safety incidents and regulation (`safety_debt` accumulates and does nothing,
-so shipping without evaluating is currently free), events, government as an
-actor, labs dying, the player. See `ROADMAP.md`.
+Events, government as an actor, labs dying, and the player. See
+`ROADMAP.md`. The next architectural item is the **decision seam** (item 2):
+policy is still read inline out of `doctrine` dicts, so nothing in `sim/`
+actually *decides* anything and there is nowhere for a player to plug in.

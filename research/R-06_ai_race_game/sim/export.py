@@ -67,6 +67,11 @@ def run(months=132, seed=7, randomized=True):
                         for b in l.beliefs},
                 "chase": r(sum(l.chase.values()) / max(len(l.chase), 1), 3),
                 "caught": l.caught,
+                "trust": r(l.trust, 1),
+                "debt": r(l.safety_debt, 2),
+                "unevaled": r(max(0.0, l.model.capability - l.evaluated_at), 2)
+                            if l.model else 0,
+                "restricted": bool(m < getattr(l, "deploy_restricted_until", -1)),
                 "segrev": {k: r(v * 12 / 1e9, 3) for k, v in l.seg_revenue.items() if v > 0},
                 "excl": sorted(l.data.exclusives),
                 "ship": (l.ships[-1][1] if l.ships and l.ships[-1][0] == m else ""),
@@ -84,6 +89,11 @@ def run(months=132, seed=7, randomized=True):
             "comp": r(getattr(w, "market_comp", 0) / 1000, 1),
             "algo_frontier": r(getattr(w, "algo_frontier", 1.0), 1),
             "openness": r(getattr(w, "openness", 0.0), 3),
+            "regulation": r(getattr(w, "regulation", 0.0), 3),
+            "incidents": [dict(lab=x["lab"], severity=x["severity"],
+                               text=x["text"], cost=r(x["cost"] / 1e9, 3),
+                               trust=x["trust_after"])
+                          for x in w.incident_log if x["month"] == m],
             "truth": r(max((x.own_best for x in w.labs), default=0), 2),
             "suites": {d: w.suites.label[SUITE[d]] for d in D.DOMAIN_KEYS},
             "suitegen": {d: w.suites.gen[SUITE[d]] for d in D.DOMAIN_KEYS},
@@ -117,6 +127,8 @@ def run(months=132, seed=7, randomized=True):
             "ships": len([x for x in l.ships if x[1] == "pretrain"]),
         } for l in w.labs},
         "seed": seed,
+        "incident_log": [[int(x["month"]), x["lab"], x["severity"], x["text"],
+                          r(x["cost"] / 1e9, 3)] for x in w.incident_log],
         "retirements": [[int(m), s_, lab] for m, s_, lab in w.suites.retirements],
         "sources": {k: {"name": v["name"], "exclusive": v["exclusive"]}
                     for k, v in D.DATA_SOURCES.items()},

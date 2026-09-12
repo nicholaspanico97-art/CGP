@@ -14,6 +14,7 @@ from . import talent as T
 from . import release as REL
 from . import strategy as STRAT
 from . import intel as INTEL
+from . import safety as SAFE
 from . import tasks as TASKS
 from .capability import (BenchmarkModel, FrontierHistory, algo_efficiency, reasoning_multiplier,
                          capability_index, domain_capability)
@@ -80,6 +81,10 @@ class Lab:
         self.threat = 0.0                 # perceived deficit, in OOM
         self.feared = None                # who it thinks is ahead
         self.caught = 0                   # contamination scandals
+        self.incidents = []               # what has gone wrong here
+        self.evaluated_at = 0.0           # capability as of the last real eval
+        self.legal_exposure = 0.0
+        self.deploy_restricted_until = -1
         self.withheld_months = 0
         self.rng = None                   # seeded by the World
         self.run_target = None
@@ -209,7 +214,15 @@ class Lab:
         self.ships.append((month, "pretrain", tag, round(cap, 3)))
         self.scale_at_release = self.fleet.count()
         self.last_outcome = ("shipped", tag, cap)
-        if not self.doctrine.get("always_eval", True):
+        # the draw is always consumed so that changing eval posture does not
+        # desynchronise every other random decision in the run
+        roll = self.rng.random()
+        if self.doctrine.get("always_eval", False) or roll < self.doctrine.get("eval_rate", 0.5):
+            # a real evaluation covers most of the jump you just shipped
+            self.evaluated_at = (self.evaluated_at
+                                 + K.EVAL_CAPABILITY_COVERAGE
+                                 * (cap - self.evaluated_at))
+        else:
             self.safety_debt += 2.0
         return self.model
 
@@ -517,9 +530,12 @@ class World:
             # incomparable across changes for no reason.
             lab.rng_eval = random.Random(seed * 6421 + i * 104729 + 7)
             lab.rng_intel = random.Random(seed * 3571 + i * 15485863 + 31)
+            lab.rng_safety = random.Random(seed * 8191 + i * 2750159 + 53)
         self.month = 0
         # The sector's algorithmic frontier, as a stock that labs advance.
         self.algo_frontier = 1.0
+        self.regulation = 0.0             # sector-wide, rises with severe incidents
+        self.incident_log = []
         self.sector_research = 0.0
         self.bm = benchmarks or BenchmarkModel().fit()
         self.suites = TASKS.SuiteSet(TASKS.fit_anchored(FrontierHistory()))
@@ -618,6 +634,7 @@ class World:
         for lab in self.labs:
             if lab.model:
                 lab.chase_step(m)
+        self._safety(m)
         self._score_suites(m)
         self._resolve_market(m)
         self._finance(m)
@@ -673,9 +690,14 @@ class World:
         sector_month = self._sector_spend(m)
 
         for seg_key, seg in D.SEGMENTS.items():
+            # Regulation raises the bar on products that act in the world,
+            # and a lab that caused a severe incident is barred from them.
+            agentic = seg_key in ("enterprise_agents", "robotics", "coding")
+            lift = (K.REGULATION_GATE_LIFT * self.regulation) if agentic else 0.0
             eligible = [l for l in serving
-                        if all(l.perceived_caps().get(dd, 0.0) >= th
-                               for dd, th in D.SEGMENTS[seg_key]["gates"].items())]
+                        if all(l.perceived_caps().get(dd, 0.0) >= th + lift
+                               for dd, th in D.SEGMENTS[seg_key]["gates"].items())
+                        and not (agentic and m < getattr(l, "deploy_restricted_until", -1))]
             if not eligible:
                 self.segment_state[seg_key] = (0.0, [])
                 continue
@@ -773,6 +795,8 @@ class World:
             other = 0.25 * staff
             fleet_cost += getattr(lab, "leased_mw", 0.0) * K.LEASE_OPEX_PER_MW_MONTH
             other += getattr(lab, "annual_data_cost", 0.0) / 12.0
+            other += (lab.revenue_m * K.REGULATION_COMPLIANCE_COST
+                      * self.regulation)
             net = lab.revenue_m - fleet_cost - staff - other
             lab.cash += net
             lab.last_net = net
@@ -787,6 +811,8 @@ class World:
                 "algo": lab.algo_mult, "largest": lab.largest_run,
                 "researchers": lab.researchers, "stars": lab.stars,
                 "shelved": lab.shelved, "postgen": lab.post_gen,
+                "debt": lab.safety_debt, "trust": lab.trust,
+                "nincidents": len(lab.incidents),
                 "shipped_this_month": bool(lab.ships and lab.ships[-1][0] == m),
                 "ship_kind": lab.ships[-1][1] if lab.ships and lab.ships[-1][0] == m else "",
                 "ship_tag": lab.ships[-1][2] if lab.ships and lab.ships[-1][0] == m else "",
@@ -901,6 +927,40 @@ class World:
         """The headline index for one lab: (AA, coverage, blind share)."""
         return TASKS.aggregate_index(self.suites, self.published_scores(lab),
                                      softness=lab.elicitation)
+
+    def _safety(self, m):
+        """
+        Buy down debt, then roll for trouble. Severity is drawn from what the
+        lab's models can do, not from how careless it has been - carelessness
+        only changes the odds and tilts the draw.
+        """
+        self.regulation *= K.REGULATION_DECAY
+        for lab in self.labs:
+            if not lab.model:
+                continue
+            # safety work: a deliberate spend that buys down debt
+            want = lab.doctrine.get("safety_spend", 0.3)
+            if want > 0 and lab.safety_debt > 0 and lab.cash > 0:
+                budget = min(lab.cash * 0.02,
+                             want * K.SAFETY_SPEND_PER_POINT * 2.0)
+                retired = budget / K.SAFETY_SPEND_PER_POINT
+                lab.safety_debt = max(0.0, lab.safety_debt - retired)
+                lab.cash -= budget
+                lab.safety_cost = getattr(lab, "safety_cost", 0.0) + budget
+            # debt accrues just from operating a deployed system
+            lab.safety_debt += K.SAFETY_DEBT_DRIFT
+
+            # Reputation heals toward a baseline, slower the worse your
+            # record is. A clean lab recovers from a bad quarter; a lab with
+            # a history of incidents does not get the benefit of the doubt.
+            scar = 1.0 / (1.0 + K.TRUST_SCAR * len(lab.incidents))
+            gap = K.TRUST_BASELINE - lab.trust
+            lab.trust += gap * K.TRUST_RECOVERY * scar
+
+            p = SAFE.incident_probability(lab, m)
+            if lab.rng_safety.random() < p:
+                sev = SAFE.draw_severity(lab.rng_safety, lab)
+                SAFE.apply_incident(lab, self, sev, m, lab.rng_safety)
 
     def _score_suites(self, m):
         """

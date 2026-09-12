@@ -208,6 +208,56 @@ CONSUMER_USAGE_MULT = 2.6    # flat-rate consumers burn this many times the
 RESEARCHER_COST_PER_YEAR = 900_000  # fully loaded frontier researcher (MED)
 ENGINEER_COST_PER_YEAR = 420_000    # everyone else                    (MED)
 
+# ------------------------------------------------------------------ safety
+# How often something goes wrong is about sloppiness and exposure. How BAD
+# it is when it does is about what the models can actually do. Keeping those
+# two separate is the point: a chat assistant misbehaving is a news cycle,
+# and the same misalignment in something with real autonomy is not.
+INCIDENT_BASE = 0.010          # monthly baseline, before everything else
+INCIDENT_JUMP_GAIN = 0.55      # per OOM shipped without evaluating it
+INCIDENT_DEBT_GAIN = 0.16      # per point of safety debt
+
+# Severity ceiling, keyed on AGENT capability. Below the floor, real-world
+# harm is essentially unreachable however careless a lab is.
+HARM_FLOOR = 26.5              # roughly: agents that can use tools at all
+HARM_CEILING = 32.0            # roughly: agents that act unsupervised
+SEVERE_SCALE = 0.42            # weight on the severe tier at full potential
+
+MINOR_TRUST = 6.0
+MODERATE_TRUST = 14.0
+MODERATE_REVENUE_COST = 0.90   # of one month's revenue
+MODERATE_FIXED = 9.0e7
+SEVERE_TRUST = 26.0
+SEVERE_REVENUE_COST = 3.20     # litigation, remediation, churn - and it
+                               # scales with the business, because a severe
+                               # incident at a $100B lab is not a $600M event
+SEVERE_FIXED = 1.4e9
+SEVERE_RESTRICT_MONTHS = 15    # offender barred from agentic deployment.
+                               # Losing your best segments for over a year is
+                               # the consequence that actually bites
+SEVERE_REGULATION_STEP = 0.55  # sector-wide response to a severe incident
+
+# Reputation heals. Without this, trust is a one-way ratchet to the floor -
+# every lab bottoms out, the variable stops carrying information, and safety
+# investment buys nothing because there is no reputation left to protect.
+# Recovery is slow, and slower the further you have fallen: a lab with a
+# history has to earn its way back.
+TRUST_BASELINE = 55.0
+TRUST_RECOVERY = 0.055         # fraction of the gap closed per month
+TRUST_SCAR = 0.11             # recovery slowed per incident on the record
+
+# Evaluation and safety work
+EVAL_CAPABILITY_COVERAGE = 0.85  # of a capability jump, when a run is evaluated
+SAFETY_SPEND_PER_POINT = 2.2e7   # $ per month to retire one point of debt
+SAFETY_DEBT_DRIFT = 0.035        # debt accrues slowly just from operating
+
+# Regulation: a sector-wide level that rises with severe incidents and
+# decays slowly. Costs everyone compliance and raises the bar for agentic
+# products. Not yet a real actor - see ROADMAP.md item 5.
+REGULATION_DECAY = 0.985         # per month
+REGULATION_COMPLIANCE_COST = 0.045  # of revenue, per unit of regulation
+REGULATION_GATE_LIFT = 0.30      # OOM added to agentic gates per unit
+
 # ------------------------------------------------- information and paranoia
 # Nobody can see a rival's true position. They can see the scoreboard (which
 # the rival had reasons to inflate), the power siting and hiring (noisy and

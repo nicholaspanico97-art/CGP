@@ -1,4 +1,4 @@
-# Frontier — World Model v1.0
+# Frontier — World Model v1.3
 
 **What changed:** the paper prototype (`PAPER_PROTOTYPE.md`) is superseded.
 Nick's direction, Sep 11 2026: *model the world really well, run the sims,
@@ -20,6 +20,21 @@ already sells, so that variance shows up as *flat stretches and jumps*,
 never as capability going down. Plus talent (v0.3), demand unlocked by
 capability rather than by the calendar (v0.3), and a `COMPETITIVENESS` dial
 that trades a little fidelity for a much more contested race.
+
+**v1.3, Sep 12 2026 — safety, incidents and regulation.** `safety_debt`
+used to accumulate and do nothing, which made shipping without
+evaluating strictly free. Three severity tiers now fire, with frequency
+driven by sloppiness and deployment surface and severity gated on what
+the models can actually *do*. A severe incident regulates the whole
+sector, not just the lab that caused it. See §2f.
+
+**v1.2, Sep 12 2026 — capability transfer between domains.** See
+`PREMISES.md`.
+
+**v1.1, Sep 12 2026 — timing replaced magnitude as the calibration
+instrument**, and immediately found a hard run-size ceiling that had
+been deciding outcomes in 73% of lab-months while the model claimed
+compute was the constraint. See `PREMISES.md`.
 
 **v1.0, Sep 12 2026 — the observability seam.** Labs no longer read the
 world's true state. Each forms beliefs about rivals from visible signals,
@@ -437,6 +452,140 @@ for a corpus, or gambles on an architecture. Routed through those, the
 and slightly better than switching it off. Set `SPIRAL = 0` for a
 no-panic run.
 
+## 2f. Safety, incidents and regulation
+
+Until v1.3 `safety_debt` accumulated and did nothing. Shipping a model
+without evaluating it was strictly free, which meant every strategy should
+have done it, and a player would have worked that out in three turns.
+
+The design separates two questions that are usually collapsed into one
+"risk" number, and keeping them apart is the whole point:
+
+| | driven by |
+|---|---|
+| **How often** something goes wrong | deployment surface, safety debt, and how big a capability jump you shipped without evaluating |
+| **How bad** it is when it does | what your models can actually **do** in the world |
+
+The second is the one that carries the design. A chat assistant that
+misbehaves is a news cycle. The same misalignment in something that books
+travel, runs shell commands and calls APIs unsupervised is an economic
+event. In a system with real autonomy over real infrastructure it is a body
+count. So severity is gated on **AGENT capability** and on **how much
+agentic product is actually deployed** — not on how sloppy the lab has
+been. Sloppiness changes the odds; capability changes the ceiling.
+
+### Three tiers
+
+| Tier | What it is | What it costs |
+|---|---|---|
+| **MINOR** | anomalous behaviour, embarrassing, makes the news | trust −6 |
+| **MODERATE** | agents reach something they should not: a service defaced, a system compromised, money lost | trust −14, ~0.9 months of revenue + $90M, legal exposure |
+| **SEVERE** | real-world consequence through action — infrastructure, medical systems, physical harm | trust −26, ~3.2 months of revenue + $1.4B, barred from agentic segments for 15 months, **and the whole sector gets regulated** |
+
+Catastrophic, world-ending outcomes are deliberately out of scope for now.
+
+### The hazard
+
+```
+p(month) = INCIDENT_BASE
+         × (0.35 + log10(1 + served_Mtok/1e4))      deployment surface
+         × (1 + INCIDENT_JUMP_GAIN × unevaluated_jump)
+         × (1 + INCIDENT_DEBT_GAIN × safety_debt)
+```
+
+A model nobody uses cannot embarrass you. The jump term is the real driver:
+shipping a large capability increase you have not evaluated is where the
+surprises live. Evaluating covers 85% of the jump you just shipped; skipping
+it adds 2.0 points of debt, and debt also drifts up 0.035/month just from
+operating a deployed system. Safety spend retires debt at $22M per point.
+
+### Severity, given trouble
+
+```
+w_minor    = 1
+w_moderate = (0.10 + 1.25·h) · sloppy
+w_severe   = SEVERE_SCALE · h² · (0.20 + 0.80·exposure) · sloppy
+```
+
+where `h` is harm potential — AGENT capability ramped between 26.5 (agents
+that can use tools at all) and 32.0 (agents that act unsupervised) — and
+`exposure` is the share of revenue coming from products that *act* rather
+than answer. You cannot take down a grid with a product nobody has pointed
+at anything, so severe needs **both** the capability and the deployment.
+
+The consequence is the gradient the design asked for, measured over 24
+seeded runs:
+
+```
+  era          minor  moderate  severe   severe share
+  2019-2021       83        11       0             0%
+  2022-2024      218        33       0             0%
+  2025-2027      154        71       5             2%
+  2028-2030      110       150      16             6%
+```
+
+Nothing severe is even *possible* before agentic capability exists. The
+early decade is embarrassment; the late decade is liability.
+
+### Regulation, and why it is sector-wide
+
+A severe incident raises `world.regulation` by 0.55, decaying 1.5%/month.
+Regulation does two things: it adds `0.30 × regulation` OOM to the gates on
+agentic segments (enterprise agents, robotics, coding), and it costs every
+lab 4.5% of revenue per unit in compliance. The offending lab is separately
+barred from those segments for 15 months.
+
+This is the mechanism that makes one lab's recklessness everyone's problem,
+which is the thing that actually happens and the thing that makes a
+safety-first rival's complaints about a reckless one more than flavour text.
+
+### Does safety pay?
+
+This is the question the pillar exists to answer, and it took three wrong
+attempts to measure honestly. The instrument that works is **paired**: flip
+*one* lab's safety posture in an otherwise identical world on the same seed,
+and compare that lab to itself. Comparing worlds where *every* lab is
+careless against worlds where every lab is diligent is a null experiment by
+construction — the relative standings do not move.
+
+84 paired lab-runs, 12 seeds x 7 labs, careless (`safety_spend` 0,
+`eval_rate` 0.05) against diligent (0.9 / 0.95):
+
+```
+             ARR $B  trust   minor   mod   sev   incident $B   safety $B
+  careless    121.3    6.3    2698  1436   105        3820.6         0.0
+  diligent    148.3   32.7     306   175    17         975.0       244.4
+
+  paired delta in 2030 ARR (diligent - careless), $B
+    p10  -50.5    p25  -7.3    median  +19.1    p75  +58.4    p90  +145.9
+    mean +27.0    diligence is ahead in 51 of 84 pairs
+```
+
+Diligence buys **8.5x fewer incidents** and costs $244B to do it. The mean is
+strongly positive and the median is clearly positive — but the **p10 and p25
+are negative**. A quarter of the time you would have been better off not
+paying.
+
+That is the shape the design wanted. It is insurance you resent paying: worth
+buying, obviously worth buying on average, and often visibly a waste in the
+run you are actually in. A safety budget that always paid would not be a
+decision; a safety budget that never paid would be a tax nobody should pay.
+
+The careless column also shows *why* it is not free: trust 6.3 is the floor.
+A lab that never evaluates ends the decade with no reputation at all, which
+in the enterprise segment (`brand_weight` 1.4) is most of the market gone.
+
+### Trust heals, but scars
+
+Trust was a one-way ratchet in the first draft, which pinned every lab at
+the floor of 5 by mid-decade and made incidents free after the first one.
+It now heals toward a baseline of 55 at 5.5% of the gap per month, slowed by
+`1/(1 + 0.11 × incidents_on_record)`. A clean lab recovers from a bad
+quarter; a lab with a history does not get the benefit of the doubt. Trust
+enters segment share through `brand_weight`, which is 1.4 in enterprise and
+0.4 in the undifferentiated API market — reputation is worth most exactly
+where the contracts are largest.
+
 ## 3. Calibration
 
 Scored as mean `|log10(model/actual)|` across four independent families,
@@ -507,6 +656,10 @@ sim/talent.py       researchers, stars, and the people-to-compute shift
 sim/release.py      run outcomes, the ship decision, x.5 releases
 sim/tasks.py        benchmarks as task-difficulty distributions
 sim/objectives.py   what each strategy is actually trying to do
+sim/intel.py        what a lab can see: beliefs, error bars, threat
+sim/strategy.py     eleven strategies, drawn per game and not disclosed
+sim/safety.py       the incident hazard, three severity tiers, regulation
+sim/checkpoints.py  TIMING calibration - the primary instrument
 sim/balance.py      multi-seed instrument: is it a race, and did each
                     strategy reach its own goals?
 sim/scenarios.py    seven lab doctrines and mixtures, Jan 2020 positions

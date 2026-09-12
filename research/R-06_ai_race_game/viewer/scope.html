@@ -239,6 +239,13 @@
 
   /* ---- segments ---- */
   .seg{margin-bottom:11px;}
+  .incidents{margin-top:12px;display:flex;flex-direction:column;gap:5px;}
+  .inc{font-size:12.5px;color:var(--ink-2);line-height:1.5;}
+  .inc .sev{display:inline-block;min-width:66px;text-align:center;border-radius:3px;
+    padding:1px 6px;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
+    color:#0d1117;font-weight:600;}
+  .inc .cost{color:#d7443e;}
+  .inc.quiet{color:var(--ink-3);font-style:italic;}
   .seghd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px;}
   .seghd b{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:14.5px;font-weight:600;}
   .seghd .g{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3);}
@@ -306,6 +313,9 @@
       <option value="auto">Research automation multiple</option>
       <option value="rsi">Research index (code + agency + science)</option>
       <option value="price">Price, $/Mtok</option>
+      <option value="trust">Trust</option>
+      <option value="debt">Safety debt</option>
+      <option value="unevaled">Capability shipped unevaluated</option>
       <optgroup label="Capability by domain — log₁₀ effective FLOP">
         <option value="cap:LANG">Language &amp; conversation</option>
         <option value="cap:REASON">Reasoning, maths, science</option>
@@ -347,6 +357,15 @@
   <div class="resets" id="resets"></div>
   <div class="gapbox hide" id="gapbox"></div>
   <p class="note"><b>AA</b> is the composite: each suite's score inverted back to the task difficulty it implies, weighted and rescaled so 50 is a GPT-4-class model. It keeps climbing where an average of raw scores would saturate — and it shows amber and goes blind when every suite underneath it has been exhausted and the harder ones have not arrived. The small percentage is coverage: how much of the index a lab is measurable on at all. A media specialist scores well and covers little.<br><br>These are the numbers the market prices — and the only numbers a rival can see. A benchmark is a distribution over task difficulty, so each suite saturates on its own schedule and is replaced by a harder one; the arrow is the change since three months ago. Two labs at the same true frontier do not score the same, because elicitation differs, and a lab optimising for the suite scores above what it can actually do. Use <em>Reveal</em> below to see who is doing that.</p>
+</div>
+
+<div class="panel">
+  <div class="phead"><div><h2>Safety</h2>
+    <div class="sub">what has gone wrong, and what it cost</div></div>
+    <div class="sub" id="regnote"></div></div>
+  <div class="btwrap"><table class="bench" id="safetytable"></table></div>
+  <div class="incidents" id="incidents"></div>
+  <p class="note">Two different things decide what happens here. <b>How often</b> something goes wrong comes from how much you have deployed, how much safety debt you are carrying, and how large a capability jump you shipped without evaluating it. <b>How bad</b> it is comes from what your models can actually <em>do</em> — agentic capability, and how much of your revenue comes from products that act rather than answer.<br><br>That separation is the whole design. A chat assistant that misbehaves is a news cycle. The same misalignment in something that runs shell commands and calls APIs unsupervised is an economic event. In a system with real autonomy over real infrastructure it is a body count. So nothing severe is even possible before agentic capability exists — and by the end of the decade it is a sixth of everything that goes wrong.<br><br>A severe incident bars the offending lab from agentic markets for fifteen months <em>and regulates the whole sector</em>: higher capability gates on agentic products for everyone, and a compliance cost on all revenue. One lab's recklessness is everybody's problem, which is the thing that actually happens.</p>
 </div>
 
 <div class="panel">
@@ -911,6 +930,49 @@
     }).join("");
   }
 
+  // ---------- safety ----------
+  var SEVCOL = {minor: "#9aa4b2", moderate: "#d98a2b", severe: "#d7443e"};
+  function drawSafety(){
+    var f = F[cur];
+    var reg = f.regulation || 0;
+    document.getElementById("regnote").innerHTML =
+      reg > 0.01 ? ("sector regulation <b>" + reg.toFixed(2) + "</b> · +" +
+                    (0.30 * reg).toFixed(2) + " OOM on agentic gates · " +
+                    (4.5 * reg).toFixed(1) + "% of revenue in compliance")
+                 : "the sector is unregulated";
+    var tally = {};
+    LABS.forEach(function(l){ tally[l] = {minor: 0, moderate: 0, severe: 0, cost: 0}; });
+    (M.incident_log || []).forEach(function(x){
+      if(x[0] > cur || !tally[x[1]]) return;
+      tally[x[1]][x[2]]++; tally[x[1]].cost += x[4];
+    });
+    var head = '<thead><tr><th>Lab</th><th>Trust</th><th>Safety debt</th>' +
+               '<th>Unevaluated</th><th>Minor</th><th>Moderate</th><th>Severe</th>' +
+               '<th>Cost $B</th></tr></thead>';
+    var rows = LABS.map(function(l, i){
+      var d = f.labs[l], t = tally[l]; if(!d) return "";
+      return '<tr><td><span class="dot" style="background:' + hex(i) + '"></span>' + l +
+        (d.restricted ? ' <span style="color:' + SEVCOL.severe + '">barred</span>' : '') + '</td>' +
+        '<td>' + (d.trust === undefined ? "—" : d.trust.toFixed(0)) + '</td>' +
+        '<td>' + (d.debt === undefined ? "—" : d.debt.toFixed(1)) + '</td>' +
+        '<td>' + (d.unevaled === undefined ? "—" : d.unevaled.toFixed(1)) + '</td>' +
+        '<td>' + t.minor + '</td>' +
+        '<td style="color:' + (t.moderate ? SEVCOL.moderate : "inherit") + '">' + t.moderate + '</td>' +
+        '<td style="color:' + (t.severe ? SEVCOL.severe : "inherit") + '">' + t.severe + '</td>' +
+        '<td>' + t.cost.toFixed(1) + '</td></tr>';
+    }).join("");
+    document.getElementById("safetytable").innerHTML = head + "<tbody>" + rows + "</tbody>";
+
+    var recent = (M.incident_log || []).filter(function(x){
+      return x[0] <= cur && x[0] > cur - 24; }).reverse().slice(0, 8);
+    document.getElementById("incidents").innerHTML = recent.length ? recent.map(function(x){
+      var y = 2020 + Math.floor(x[0] / 12), mo = MONTHS[x[0] % 12];
+      return '<div class="inc"><span class="sev" style="background:' + SEVCOL[x[2]] + '">' +
+             x[2] + '</span> <b>' + mo + " " + y + '</b> — ' + x[1] + ': ' + x[3] +
+             (x[4] > 0.001 ? ' <span class="cost">$' + x[4].toFixed(2) + 'B</span>' : '') + '</div>';
+    }).join("") : '<div class="inc quiet">nothing in the last two years</div>';
+  }
+
   // ---------- table ----------
   function drawTable(){
     var f = F[cur];
@@ -944,7 +1006,7 @@
     document.getElementById("clock").textContent = MONTHS[f.month - 1] + " " + f.year;
     document.getElementById("clocksub").textContent = "month " + (cur + 1) + " of " + F.length;
     drawTiles(); drawChart(); drawProfiles(); drawRace(); drawFog(); drawBench();
-    drawSegments(); drawTable(); drawStrategies();
+    drawSegments(); drawTable(); drawSafety(); drawStrategies();
   }
 
   // ---------- wiring ----------

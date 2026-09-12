@@ -97,6 +97,10 @@ Stated so nobody mistakes these for findings:
 | `LATENT_MAX` | 0.55 OOM | Judgment about what outsiders can infer |
 | `SPEND_PER_OOM` | 0.45 | Fitted to revenue, but unidentified |
 | Fitted "broken item" fractions | 0.14–0.18 | Above published label noise (0.05–0.08), so absorbing something else |
+| `HARM_FLOOR` / `HARM_CEILING` | 26.5 / 32.0 | Judgment about where agency becomes dangerous. Decides the whole shape of the late decade |
+| `SEVERE_SCALE` | 0.42 | Invented. Sets how often the worst tier fires at full harm potential |
+| `INCIDENT_BASE` and the cost tiers | 0.010, 0.9x/3.2x revenue | Tuned so that safety posture is a decision rather than a tax. No empirical basis — there is no reference class for a severe AI incident |
+| `SAFETY_SPEND_PER_POINT` | $22M/point/month | Invented entirely |
 
 ## What may be structurally wrong
 
@@ -130,29 +134,45 @@ from ~40% of their own segment to 26%. Halving text→pixel transfer restored
 them to 38%. Reading a great deal of prose does not teach you to render a
 scene, and the numbers should say so.
 
-**2. Demand is a spend ceiling, not a labour market.** By 2030, with agents
+**2. The incident model has no reference class.** Every number in §2f of
+`WORLD_MODEL.md` is a judgment call. The *structure* is defensible —
+frequency from sloppiness and exposure, severity from what the models can
+actually do, a sector-wide regulatory response — and it is the structure
+that produces the behaviour. The magnitudes are not defensible; they were
+tuned until the posture was a decision rather than a tax. Nobody has
+observed a severe AI incident, so nothing anchors the cost of one. Treat
+this as the part of the model most likely to be wrong, and the part where
+being wrong matters least, because the *shape* of the tradeoff is what the
+game needs.
+
+What *is* measured: safety posture is worth buying. Paired across 84
+lab-runs, diligence is ahead in 51 of them, mean +$27B of 2030 ARR — but
+negative at p10 and p25. It should feel like insurance you resent paying,
+and on the numbers it does.
+
+**3. Demand is a spend ceiling, not a labour market.** By 2030, with agents
 doing real work, the demand side should be "fraction of knowledge work
 automatable x the wage bill it displaces", with feedback: cheaper capable
 agents expand the addressable work. Instead there is a ceiling curve. This
 is the weakest part of the late game, and the late game is where the
 interesting decisions are.
 
-**3. Inference-time compute is a doctrine constant.** `test_time_oom` is set
+**4. Inference-time compute is a doctrine constant.** `test_time_oom` is set
 per strategy and never changes. In reality it is a live decision every
 quarter, and a real margin/capability tradeoff: spend more per query for a
 better answer at worse unit economics.
 
-**4. Labs never actually die.** They decay to near-zero revenue and persist.
+**5. Labs never actually die.** They decay to near-zero revenue and persist.
 No bankruptcy, no acquisition, no fire sale of a cluster — which removes
 both a real consequence and a real event.
 
-**5. No qualitative regime change.** Capability is monotone in effective
+**6. No qualitative regime change.** Capability is monotone in effective
 compute forever. The decade's actual history includes at least two shifts
 (instruction tuning, RL on verifiable rewards) that reset what compute
 bought. The model has one such shift, hard-coded by date, in
 `reasoning_multiplier`.
 
-**6. One frontier run at a time.** Now partially addressed by
+**7. One frontier run at a time.** Now partially addressed by
 `FRONTIER_RUN_SHARE`, but a lab still cannot deliberately run two
 generations concurrently, which is a real strategic option.
 
