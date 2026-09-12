@@ -220,7 +220,7 @@
     <div class="sub">every lab's capability over the decade · one chart per domain</div></div>
     <div class="sub" id="racetotal"></div></div>
   <div class="race" id="race"></div>
-  <p class="note">The badge on each chart counts how many times the lead actually changed hands, and how much of the decade the dominant lab held. A domain where one lab holds 90%+ for a hundred months is a runaway, not a race — this panel exists to make that visible rather than arguable.</p>
+  <p class="note">Dots mark a shipped pretrained model; stars mark a run that landed well above trend. Flat stretches are real: a run that comes in below what a lab already sells gets shelved rather than released, so capability never steps down — it waits. <br><br>The badge on each chart counts how many times the lead actually changed hands, and how much of the decade the dominant lab held. A domain where one lab holds 90%+ for a hundred months is a runaway, not a race — this panel exists to make that visible rather than arguable.</p>
 </div>
 
 <div class="panel">
@@ -237,7 +237,7 @@
 
 <footer>
   <span>CGP / R-06 / sim</span>
-  <span id="fit">calibrated to 2020–2026 at ~1.7× typical error</span>
+  <span id="fit">calibrated at ~1.85× · competitiveness 1.8 · seed 7</span>
 </footer>
 </div>
 
@@ -319,6 +319,26 @@
       });
       s += '<path d="' + d + '" fill="none" stroke="' + hex(i) + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
     });
+    if(isCap){
+      var dom = metric.slice(4);
+      shown.forEach(function(l){
+        var i = LABS.indexOf(l);
+        (M.releases[l] || []).forEach(function(rel){
+          if(rel[1] !== "pretrain") return;
+          var k = rel[0]; if(k >= F.length) return;
+          var v = F[k].labs[l] && F[k].labs[l].caps[dom] || 0;
+          if(v <= 0) return;
+          var x = X(k), y = Y(v);
+          if(rel[2] === "breakthrough"){
+            s += '<path d="M' + x + ' ' + (y-6.5) + 'l1.9 4.1 4.5.6-3.3 3.1.8 4.4-3.9-2.1-3.9 2.1.8-4.4-3.3-3.1 4.5-.6z" fill="' +
+                 hex(i) + '" stroke="var(--surface)" stroke-width="1"/>';
+          } else {
+            s += '<circle cx="' + x + '" cy="' + y + '" r="3" fill="' + hex(i) +
+                 '" stroke="var(--surface)" stroke-width="1.2"/>';
+          }
+        });
+      });
+    }
     var cx = X(cur);
     s += '<line class="cursor" x1="' + cx + '" y1="' + P.t + '" x2="' + cx + '" y2="' + (P.t + ih) + '"/>';
 
@@ -447,6 +467,25 @@
           if(d) g += '<path d="' + d + '" fill="none" stroke="' + hex(i) +
                      '" stroke-width="1.6" stroke-linejoin="round"/>';
         });
+        // release markers: where a new pretrained model actually shipped,
+        // and which of those were breakthrough runs
+        LABS.forEach(function(l, i){
+          if(hidden[l]) return;
+          (M.releases[l] || []).forEach(function(rel){
+            if(rel[1] !== "pretrain") return;
+            var k = rel[0]; if(k >= F.length) return;
+            var v = F[k].labs[l] && F[k].labs[l].caps[dom] || 0;
+            if(v <= 0) return;
+            var x = X(k), y = Y(v);
+            if(rel[2] === "breakthrough"){
+              g += '<path d="M' + x + ' ' + (y-4.6) + 'l1.3 2.9 3.2.4-2.3 2.2.6 3.1-2.8-1.5-2.8 1.5.6-3.1-2.3-2.2 3.2-.4z" fill="' +
+                   hex(i) + '" stroke="var(--panel)" stroke-width=".7"/>';
+            } else {
+              g += '<circle cx="' + x + '" cy="' + y + '" r="2.1" fill="' + hex(i) +
+                   '" stroke="var(--panel)" stroke-width=".8"/>';
+            }
+          });
+        });
         var cx = X(cur);
         g += '<line class="cursor" x1="' + cx + '" y1="' + RP.t + '" x2="' + cx +
              '" y2="' + (RP.t + ih) + '"/>';
@@ -496,7 +535,7 @@
     var f = F[cur];
     var head = '<thead><tr><th>Lab</th><th>Revenue $B/yr</th><th>Net $B/yr</th><th>Cash $B</th>' +
                '<th>Accelerators</th><th>MW</th><th>Researchers</th><th>Stars</th>' +
-               '<th>Algo vs field</th><th>$/Mtok</th></tr></thead>';
+               '<th>Algo vs field</th><th>Shelved</th><th>$/Mtok</th></tr></thead>';
     var rows = LABS.map(function(l, i){
       var d = f.labs[l]; if(!d) return "";
       return '<tr><td><span class="dot" style="background:' + hex(i) + '"></span>' + l + '</td>' +
@@ -505,7 +544,8 @@
         '<td class="' + (d.cash < 0 ? "neg" : "") + '">' + fmtB(d.cash) + '</td>' +
         '<td>' + fmtInt(d.accels) + '</td><td>' + fmtInt(d.mw) + '</td>' +
         '<td>' + fmtInt(d.res) + '</td><td>' + d.stars.toFixed(0) + '</td>' +
-        '<td>' + d.algo.toFixed(2) + '×</td><td>' + d.price.toFixed(2) + '</td></tr>';
+        '<td>' + d.algo.toFixed(2) + '×</td><td>' + (d.shelved || 0) + '</td>' +
+        '<td>' + d.price.toFixed(2) + '</td></tr>';
     }).join("");
     document.getElementById("labtable").innerHTML = head + "<tbody>" + rows + "</tbody>";
   }

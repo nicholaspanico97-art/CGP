@@ -11,6 +11,7 @@ from . import anchors as A
 from . import economics as E
 from . import domains as D
 from . import talent as T
+from . import release as REL
 from .capability import (BenchmarkModel, algo_efficiency, reasoning_multiplier,
                          capability_index, domain_capability)
 
@@ -18,12 +19,15 @@ from .capability import (BenchmarkModel, algo_efficiency, reasoning_multiplier,
 class Model:
     """A shipped model: what it can do, in each domain, and what it costs."""
 
-    def __init__(self, name, capability, active_params, month, caps=None):
+    def __init__(self, name, capability, active_params, month, caps=None,
+                 tag="", generation=0):
         self.name = name
         self.capability = capability          # headline, for reporting only
         self.caps = caps or {}                # the real answer: per domain
         self.active_params = active_params
         self.shipped = month
+        self.tag = tag                        # 'breakthrough' / 'dud' / ''
+        self.generation = generation          # post-training releases so far
 
     def can_serve(self, segment):
         return all(self.caps.get(d, 0.0) >= th
@@ -54,6 +58,11 @@ class Lab:
         self.train_bank = 0.0             # FLOP accumulated in the current run
         self.largest_run = 0.0            # engineering experience, in FLOP
         self.cooldown = 0                 # months between finishing and starting
+        self.shelved = 0                  # runs completed but not worth shipping
+        self.post_gen = 0                 # post-training releases on this base
+        self.post_timer = 0
+        self.ships = []                   # (month, kind, tag, capability)
+        self.rng = None                   # seeded by the World
         self.run_target = None
         self.model = None
         self.price_per_mtok = 40.0
@@ -111,10 +120,17 @@ class Lab:
             return 0.0
         return frac * (1.0 - used / capacity)
 
-    def maybe_ship(self, month):
+    def maybe_ship(self, month, frontier_cap):
+        """
+        Finish a run, see how it went, and decide whether it is worth
+        shipping. A run that lands below what the lab already sells is
+        shelved - the compute is spent, the lesson is kept, and the trajectory
+        goes flat rather than down.
+        """
         if (self.run_target is None or self.train_bank <= 0.0
                 or self.train_bank < self.run_target):
             return None
+
         # recipe knowledge: the sector's best, reached early by labs whose
         # algorithmic efficiency runs ahead of the frontier track
         edge = max(0.0, math.log10(max(self.algo_mult, 1e-6))) * 6.0
@@ -124,17 +140,71 @@ class Lab:
         moe = min(self.doctrine.get("moe_sparsity", 1.0), era_moe)
         shape = E.run_shape(self.train_bank, r, moe)
         tt = self.doctrine.get("test_time_oom", 0.0)
-        cap = capability_index(self.train_bank, month, self.algo_mult,
+
+        own = max(self.model.caps.values()) if self.model and self.model.caps else 0.0
+        behind = max(0.0, frontier_cap - own) if own > 0 else 0.0
+
+        mult, tag = REL.outcome_multiplier(
+            self.rng, self.researcher_quality, self.stars, behind)
+
+        cap = capability_index(self.train_bank * mult, month, self.algo_mult,
                                self.rl_investment, tt)
         caps = domain_capability(10 ** cap, self.mixture, shape["tokens"],
                                  self.data, D.DOMAIN_KEYS)
-        self.model = Model(f"{self.name}-{month}", cap, shape["active_params"],
-                           month, caps)
-        if not self.doctrine.get("always_eval", True):
-            self.safety_debt += 2.0
+
+        # every completed run teaches you to land a bigger one, shipped or not
         self.largest_run = max(self.largest_run, self.train_bank)
         self.train_bank = 0.0
         self.run_target = None
+
+        current = self.model.caps if self.model else None
+        if not REL.should_ship(caps, current, behind):
+            # shelved. The lesson is real even when the model is not.
+            self.shelved += 1
+            self.algo_mult *= (1.0 + 0.004 * K.SHELVE_LEARNING)
+            self.last_outcome = ("shelved", tag, cap)
+            return None
+
+        self.model = Model(f"{self.name}-{month}", cap, shape["active_params"],
+                           month, caps, tag)
+        self.post_gen = 0
+        self.post_budget = REL.post_train_budget(self.rng, self.researcher_quality)
+        self.post_timer = K.POST_TRAIN_MONTHS + self.rng.randint(0, 2)
+        self.ships.append((month, "pretrain", tag, round(cap, 3)))
+        self.last_outcome = ("shipped", tag, cap)
+        if not self.doctrine.get("always_eval", True):
+            self.safety_debt += 2.0
+        return self.model
+
+    # Post-training lifts these domains far more than the others: RL on
+    # verifiable rewards works where answers can be checked.
+    POST_TRAIN_WEIGHT = {"REASON": 1.00, "CODE": 0.95, "AGENT": 0.90,
+                         "LANG": 0.60, "ROBOT": 0.50, "AUDIO": 0.30,
+                         "IMAGE": 0.25, "VIDEO": 0.20}
+
+    def maybe_post_train(self, month):
+        """
+        The x.5 release. Between pretraining runs a lab can improve what it
+        already ships two or three times, with sharply diminishing returns.
+        This is what gives a release history its real shape: a big jump, a
+        couple of small ones, then a big jump.
+        """
+        if not self.model or self.post_gen >= getattr(self, "post_budget", 0):
+            return None
+        self.post_timer -= 1
+        if self.post_timer > 0:
+            return None
+        gain = REL.post_train_gain(self.post_gen)
+        if gain <= 0:
+            return None
+        for dom, c in list(self.model.caps.items()):
+            if c > 0:
+                self.model.caps[dom] = c + gain * self.POST_TRAIN_WEIGHT.get(dom, 0.5)
+        self.model.capability = max(self.model.caps.values())
+        self.post_gen += 1
+        self.model.generation = self.post_gen
+        self.post_timer = K.POST_TRAIN_MONTHS + self.rng.randint(0, 3)
+        self.ships.append((month, "post", "", round(self.model.capability, 3)))
         return self.model
 
     # -------------------------------------------------------------- research
@@ -321,7 +391,12 @@ class Lab:
 
 class World:
     def __init__(self, labs, benchmarks=None, seed=0):
+        import random
+        self.seed = seed
+        self.rng = random.Random(seed)
         self.labs = labs
+        for i, lab in enumerate(labs):
+            lab.rng = random.Random(seed * 1009 + i * 7919 + 13)
         self.month = 0
         self.bm = benchmarks or BenchmarkModel().fit()
         self.log = []
@@ -355,10 +430,16 @@ class World:
             lab.serve_frac = d["serve"] + spare
             lab.research_step(d["experiment"])
             lab.diffuse(frontier_algo)
-            if lab.maybe_ship(m) is not None:
-                # post-training, evals, safety review and launch prep all
-                # happen before the next pretraining run starts
-                lab.cooldown = lab.doctrine.get("ship_cooldown", 3)
+            fc = self.frontier_capability()
+            if lab.maybe_ship(m, fc) is not None:
+                # the cooldown is where post-training, evals, safety review
+                # and launch prep happen - it is not idle time
+                base = lab.doctrine.get("ship_cooldown", 3)
+                jitter = lab.rng.randint(-1, K.SHIP_JITTER_MONTHS)
+                behind = max(0.0, fc - (lab.model.capability if lab.model else 0))
+                # a lab that is behind does not take a leisurely cooldown
+                lab.cooldown = max(1, int(round(base + jitter - 2.0 * behind)))
+            lab.maybe_post_train(m)
             if lab.run_target is None:
                 if lab.cooldown > 0:
                     lab.cooldown -= 1
@@ -501,6 +582,10 @@ class World:
                 "subs": lab.subscribers,
                 "algo": lab.algo_mult, "largest": lab.largest_run,
                 "researchers": lab.researchers, "stars": lab.stars,
+                "shelved": lab.shelved, "postgen": lab.post_gen,
+                "shipped_this_month": bool(lab.ships and lab.ships[-1][0] == m),
+                "ship_kind": lab.ships[-1][1] if lab.ships and lab.ships[-1][0] == m else "",
+                "ship_tag": lab.ships[-1][2] if lab.ships and lab.ships[-1][0] == m else "",
             })
 
     def _talent_market(self, m):

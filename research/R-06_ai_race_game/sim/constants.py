@@ -95,7 +95,9 @@ ALGO_DIFFUSION_HALFLIFE_M = 11  # months for a follower to close half the
 POST_TRAIN_ERA_START = (2022, 11)
 POST_TRAIN_RL_ERA_START = (2024, 9)
 RLHF_ERA_TOTAL_GAIN = 3.0      # effective-compute multiple by the RL era
-REASONING_OOM_PER_YEAR = 0.40  # RL-era post-training gains, OOM/yr    (LOW)
+REASONING_OOM_PER_YEAR = 0.42  # lowered when per-model x.5 releases
+                               # were added: they now carry part of what
+                               # this sector-wide term used to absorb  # RL-era post-training gains, OOM/yr    (LOW)
 REASONING_DECAY_YEARS = 2.5    # halving time of that rate
 
 # Inference-time scaling: spending more FLOP per query buys capability.
@@ -126,7 +128,7 @@ RECIPE_ERA_MOE = {                # (year, month): sector-best sparsity factor
 # Engineering, not physics: the largest run a lab can actually land grows
 # with experience. Runs in the real record grew ~3-5x per generation, never
 # 100x, because the failure modes at each new scale have to be learned.
-MAX_RUN_GROWTH_PER_SHIP = 2.0   # calibrated, not assumed: see sim/score.py
+MAX_RUN_GROWTH_PER_SHIP = 2.1   # calibrated, not assumed: see sim/score.py
 
 # Mass-market adoption needed a conversational product, which needed a
 # capability level that arrived in late 2022 - not a moment earlier.
@@ -166,6 +168,49 @@ CONSUMER_USAGE_MULT = 2.6    # flat-rate consumers burn this many times the
 
 RESEARCHER_COST_PER_YEAR = 900_000  # fully loaded frontier researcher (MED)
 ENGINEER_COST_PER_YEAR = 420_000    # everyone else                    (MED)
+
+# --------------------------------------------------- run outcomes & releases
+# A training run does not return what the scaling law says. It returns what
+# the scaling law says times how the run actually went: the data mix, the
+# architecture bet, the loss spikes you never fully recovered from. Most runs
+# land near trend, some disappoint, and occasionally one lands well above it.
+#
+# Crucially, a lab does NOT ship a model worse than the one it already sells.
+# So this variance never shows up as capability going DOWN - it shows up as
+# flat stretches while a disappointing run is shelved, and as the occasional
+# jump when one lands. The ratchet is the whole point.
+RUN_SIGMA_LOG10 = 0.105        # ordinary run-to-run spread, in OOM
+RUN_BREAKTHROUGH_P = 0.06      # a genuine architectural win
+RUN_BREAKTHROUGH_OOM = 0.44
+RUN_DUD_P = 0.13               # a bet that did not transfer
+RUN_DUD_OOM = -0.30
+TALENT_VARIANCE_DAMP = 0.40    # good teams get fewer surprises in both
+                               # directions - they know what works
+BEHIND_RISK_APPETITE = 0.55    # a trailing lab takes bigger architectural
+                               # swings, because parity is not good enough
+SHIP_THRESHOLD_OOM = 0.035     # won't replace a shipped model for less
+SHELVE_LEARNING = 0.40         # a shelved run still teaches you something
+SHIP_JITTER_MONTHS = 3         # release timing is not a metronome
+
+# Post-training releases - the x.5 between pretrains. A shipped model can be
+# improved two or three times without a new pretraining run, with sharply
+# diminishing returns, which is what gives the real release cadence its
+# shape: a big jump, then a couple of smaller ones, then a big jump.
+POST_TRAIN_GAIN_OOM = 0.155
+POST_TRAIN_DECAY = 0.55
+POST_TRAIN_MAX = 3             # ceiling; how many a given base model
+                               # actually gets is drawn per model
+POST_TRAIN_MONTHS = 2
+
+# Scenario dial. 1.0 is the historical-realism setting. Higher values widen
+# run variance and speed diffusion, producing a more contested race at some
+# cost in fidelity - the realism/fun trade, made explicit and tunable.
+# 1.0 reproduces history's concentration (one lab holding ~87% of the
+# decade). 1.8 is the default because the game wants a race: it costs about
+# 1% of aggregate calibration, and the anchors cannot tell the difference -
+# they are all sector-level, so they do not know who is winning. This is a
+# values choice, not a fit. Set it to 1.0 for a historical-realism campaign.
+COMPETITIVENESS = 1.8
 
 # ------------------------------------------------------------------ talent
 # Progress shifts from people to compute across the decade. In 2020 a small

@@ -1,0 +1,20 @@
+BALANCE over 20 seeds
+
+  domain            lead changes    dominant holds  longest reign
+  LANG        20.6 (min 11, max 33)             53%          21 mo
+  REASON      20.0 (min 9, max 29)             53%          23 mo
+  CODE        19.9 (min 10, max 27)             56%          24 mo
+  AGENT       16.9 (min 8, max 26)             64%          29 mo
+  IMAGE       14.6 (min 3, max 23)             67%          39 mo
+  VIDEO        9.4 (min 4, max 18)             78%          58 mo
+  AUDIO        4.5 (min 0, max 12)             89%          98 mo
+  ROBOT        0.0 (min 0, max 0)            100%         131 mo
+
+  total lead changes per run : mean 105.7  median 113  range 59-138
+  top lab's revenue share    : mean 46%  range 29-65%
+  runs ending in a runaway   : 20%  (top lab over 60%)
+  labs still viable at 2030  : 4.7 of 7
+
+  pretrained models shipped  : 92 per run, all labs combined
+  runs shelved as not better : 17 per run (15% of runs)
+  breakthrough runs          : 20.8 per run

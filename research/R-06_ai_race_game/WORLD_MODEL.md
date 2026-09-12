@@ -1,4 +1,4 @@
-# Frontier — World Model v0.2
+# Frontier — World Model v0.4
 
 **What changed:** the paper prototype (`PAPER_PROTOTYPE.md`) is superseded.
 Nick's direction, Sep 11 2026: *model the world really well, run the sims,
@@ -12,6 +12,14 @@ compute *and data*, and the market is segmented with each segment gated on a
 domain. This is the structural reason a niche leader survives a frontier leap
 somewhere else. Calibration improved from 2.6x to **1.58x** typical error in
 the process — segmentation made the economics more accurate, not less.
+
+**v0.4, Sep 12 2026 — uncertain runs and the release ratchet.** A training
+run no longer returns what the scaling law says; it returns that times how
+the run actually went. And a lab never ships a model worse than the one it
+already sells, so that variance shows up as *flat stretches and jumps*,
+never as capability going down. Plus talent (v0.3), demand unlocked by
+capability rather than by the calendar (v0.3), and a `COMPETITIVENESS` dial
+that trades a little fidelity for a much more contested race.
 
 **Status:** running. `sim/` is a zero-dependency Python model, 2020→2030,
 monthly ticks. `python3 -m sim.score` prints the calibration error;
@@ -184,6 +192,58 @@ with 3,500 accelerators against a hyperscaler's 26,000):
 - The two generalist giants end near-tied at ~$328B each, and neither one
   can take the creative segments.
 
+## 2c. Runs, releases, and the ratchet
+
+### A run is a bet, not a calculation
+On completion, a run draws an outcome multiplier on effective compute:
+ordinary spread of ±0.105 OOM, a 6% chance of a **breakthrough** (+0.44 OOM
+— an architecture bet that transfers), a 13% chance of a **dud**. Strong
+teams see a narrower distribution in both directions; a lab that is behind
+takes bigger swings, because matching the leader is not good enough when
+you are losing.
+
+### Labs do not ship backwards
+A completed run whose model is not better than what the lab already sells
+is **shelved**. The compute is spent, the engineering lesson is kept — the
+lab can still attempt a bigger run next time — and the shipped capability
+stays flat. About 15% of runs end this way.
+
+This asymmetry is the whole design. Variance plus a no-regression rule
+produces a **ratchet**: long plateaus while nothing ships, punctuated by
+jumps when something lands. One lab's language capability in a sample run
+sits at 25.22 for seven months, then a breakthrough takes it to 26.48 in a
+single release. Another sits dead flat for fourteen months in 2029.
+
+### The x.5 release
+Between pretraining runs a lab improves what it already ships one to three
+times (drawn per base model), with each release worth about half the last
+and post-training weighted toward the domains where RL works — reasoning,
+code, agency — far more than toward image or video. Release timing jitters.
+This is what gives a release history its real shape: a big jump, a couple
+of small ones, a plateau, then a big jump.
+
+*Note on double counting:* the sector-wide `reasoning_multiplier` already
+absorbed post-training gains. Adding per-model releases on top double-counted
+them, and the calibration sweep caught it — the fix was letting the sweep
+re-split the two terms rather than hand-waving it.
+
+### The COMPETITIVENESS dial
+| Setting | Calibration | Lead changes | Dominant lab holds | Runaway runs |
+|---|---|---|---|---|
+| 1.0 | 1.83x | 69 | 87% | 25% |
+| **1.8 (default)** | **1.85x** | **106** | **~60%** | **20%** |
+
+Going from a coronation to a real race costs about 1% of aggregate
+calibration. That sounds free, and it is not: **every anchor in this model
+is sector-level** — revenue, capex, power, frontier run size — so none of
+them knows *which lab* is leading. History's concentration is closer to the
+1.0 setting. 1.8 is the default because the game wants a race. That is a
+values choice, stated as one, and it is one line to change.
+
+At the default, across 20 seeds: 106 lead changes per run, the top lab
+averaging 46% of revenue (range 29–65%), 20% of runs ending with someone
+genuinely running away, and 4.7 of 7 labs still viable in 2030.
+
 ## 3. Calibration
 
 Scored as mean `|log10(model/actual)|` across four independent families,
@@ -196,7 +256,11 @@ HIGH/MED/LOW.
 | Power | 0.223 | 1.7x | Was the worst family at 4.9x before segmentation |
 | Frontier run size | 0.228 | 1.7x | |
 | Revenue | 0.210 | **1.6x** | 2022 lands at $0.40B vs $0.40B; 2023 $3.9B vs $2.6B |
-| **Weighted** | **0.198** | **1.58x** | |
+| **Weighted** | **0.266** | **1.85x** | |
+
+(v0.2 scored 1.58x. Talent, capability-driven demand and run variance each
+cost a little aggregate accuracy and each bought a mechanism the model
+needed. Power remains the worst family and the top fix.)
 
 Every free parameter that could be calibrated was swept against the anchors
 rather than chosen. The per-ship run-growth ceiling has a clear interior
@@ -246,6 +310,9 @@ sim/capability.py   scaling, efficiency, reasoning, benchmark curves
 sim/economics.py    hardware, fleets, serving cost, demand
 sim/world.py        labs, the market, capital, power, the monthly tick
 sim/domains.py      8 domains, 10 data sources, 9 gated market segments
+sim/talent.py       researchers, stars, and the people-to-compute shift
+sim/release.py      run outcomes, the ship decision, x.5 releases
+sim/balance.py      multi-seed lead-change instrument: is it a race?
 sim/scenarios.py    seven lab doctrines and mixtures, Jan 2020 positions
 sim/score.py        calibration error across all anchor families
 sim/fit_report.py   capability curve fit and residuals

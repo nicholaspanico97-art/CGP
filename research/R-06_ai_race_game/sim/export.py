@@ -16,8 +16,8 @@ def r(x, n=3):
     return round(float(x), n)
 
 
-def run(months=132):
-    w = World(historical_2020())
+def run(months=132, seed=7):
+    w = World(historical_2020(), seed=seed)
     bm = w.bm
     frames = []
     for m in range(months):
@@ -47,6 +47,9 @@ def run(months=132):
                          {d: 0 for d in D.DOMAIN_KEYS},
                 "segrev": {k: r(v * 12 / 1e9, 3) for k, v in l.seg_revenue.items() if v > 0},
                 "excl": sorted(l.data.exclusives),
+                "ship": (l.ships[-1][1] if l.ships and l.ships[-1][0] == m else ""),
+                "tag": (l.ships[-1][2] if l.ships and l.ships[-1][0] == m else ""),
+                "shelved": l.shelved,
                 "data": {d: r(math.log10(max(l.data.effective(d), 1)), 2)
                          for d in D.DOMAIN_KEYS},
             }
@@ -61,6 +64,7 @@ def run(months=132):
             "labs": labs,
         })
     meta = {
+        "releases": {l.name: [[int(x[0]), x[1], x[2]] for x in l.ships] for l in w.labs},
         "domains": D.DOMAIN_KEYS,
         "domain_names": {k: v["name"] for k, v in D.DOMAINS.items()},
         "anchored": {k: v["anchored"] for k, v in D.DOMAINS.items()},
