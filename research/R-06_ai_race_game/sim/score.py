@@ -13,8 +13,16 @@ def log_err(model, actual):
     return abs(math.log10(model / actual))
 
 
-def score(months=84, verbose=False):
-    w = World(historical_2020())
+def score(months=84, verbose=False, seeds=(0, 1, 2, 3, 4)):
+    """
+    Calibration error, averaged over several seeded runs of the fixed
+    calibration roster. A single run is noisy enough that a change can look
+    like a 0.2 improvement purely from where the dice landed.
+    """
+    if len(seeds) > 1 and not verbose:
+        vals = [score(months, False, (s,))[0] for s in seeds]
+        return sum(vals) / len(vals), None
+    w = World(historical_2020(), seed=seeds[0])
     for _ in range(months):
         w.step()
     parts, detail = {}, []

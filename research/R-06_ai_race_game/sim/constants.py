@@ -143,7 +143,7 @@ RECIPE_ERA_MOE = {                # (year, month): sector-best sparsity factor
 # Engineering, not physics: the largest run a lab can actually land grows
 # with experience. Runs in the real record grew ~3-5x per generation, never
 # 100x, because the failure modes at each new scale have to be learned.
-MAX_RUN_GROWTH_PER_SHIP = 1.7   # calibrated, not assumed: see sim/score.py
+MAX_RUN_GROWTH_PER_SHIP = 1.5   # calibrated, not assumed: see sim/score.py
 
 # Mass-market adoption needed a conversational product, which needed a
 # capability level that arrived in late 2022 - not a moment earlier.

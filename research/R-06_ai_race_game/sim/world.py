@@ -180,7 +180,7 @@ class Lab:
 
         candidate = Model(f"{self.name}-{month}", cap, shape["active_params"],
                           month, caps, tag)
-        candidate.eval_noise = {k: self.rng.gauss(0.0, TASKS.EVAL_NOISE_PTS)
+        candidate.eval_noise = {k: self.rng_eval.gauss(0.0, TASKS.EVAL_NOISE_PTS)
                                 for k in TASKS.SUITES}
         if STRAT.withholds(self.doctrine, self, world, month, cap):
             # better than what it sells, and deliberately not released
@@ -496,6 +496,11 @@ class World:
         self.labs = labs
         for i, lab in enumerate(labs):
             lab.rng = random.Random(seed * 1009 + i * 7919 + 13)
+            # Evaluation noise draws from its own stream. Sharing lab.rng
+            # would mean that adding or removing a benchmark reshuffles every
+            # training-run outcome in the game, which makes calibration
+            # incomparable across changes for no reason.
+            lab.rng_eval = random.Random(seed * 6421 + i * 104729 + 7)
         self.month = 0
         # The sector's algorithmic frontier, as a stock that labs advance.
         self.algo_frontier = 1.0

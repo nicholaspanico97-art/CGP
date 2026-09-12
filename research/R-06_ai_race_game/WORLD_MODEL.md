@@ -1,4 +1,4 @@
-# Frontier — World Model v0.8
+# Frontier — World Model v0.9
 
 **What changed:** the paper prototype (`PAPER_PROTOTYPE.md`) is superseded.
 Nick's direction, Sep 11 2026: *model the world really well, run the sims,
@@ -20,6 +20,12 @@ already sells, so that variance shows up as *flat stretches and jumps*,
 never as capability going down. Plus talent (v0.3), demand unlocked by
 capability rather than by the calendar (v0.3), and a `COMPETITIVENESS` dial
 that trades a little fidelity for a much more contested race.
+
+**v0.9, Sep 12 2026 — the AA index**, one number for where the frontier is,
+built by inverting each suite's score back to the difficulty it implies so
+that it does not saturate when the suites underneath it do. Plus per-model
+evaluation noise, and a calibration score that finally averages over seeds.
+See `ROADMAP.md` for what is still missing before a game sits on this.
 
 **v0.8, Sep 12 2026 — benchmarks became measurements.** Capability is now a
 difficulty frontier and a benchmark is a distribution over task difficulty,
