@@ -10,6 +10,8 @@ from . import talent as T
 
 SUITE = {"LANG": "MMLU", "REASON": "GPQA", "CODE": "SWE", "AGENT": "AGENT",
          "IMAGE": "IMAGE", "VIDEO": "VIDEO", "AUDIO": "AUDIO", "ROBOT": "ROBOT"}
+# published score = what the market sees: perceived frontier, this lab's
+# elicitation, the suite generation currently in use.
 
 
 def r(x, n=3):
@@ -47,9 +49,13 @@ def run(months=132, seed=7, randomized=True):
                 "rsi": r(T.research_index(l), 2),
                 "caps": {d: r(l.model.caps.get(d, 0), 2) for d in D.DOMAIN_KEYS}
                         if l.model else {d: 0 for d in D.DOMAIN_KEYS},
-                "bench": {d: r(bm.score(SUITE[d], l.model.caps.get(d, 0)), 1)
-                          for d in D.DOMAIN_KEYS} if l.model else
-                         {d: 0 for d in D.DOMAIN_KEYS},
+                "bench": ({d: r(w.suites.score(SUITE[d],
+                                               l.perceived_caps().get(d, 0),
+                                               softness=l.elicitation), 1)
+                           for d in D.DOMAIN_KEYS} if l.model
+                          else {d: 0 for d in D.DOMAIN_KEYS}),
+                "chase": r(sum(l.chase.values()) / max(len(l.chase), 1), 3),
+                "caught": l.caught,
                 "segrev": {k: r(v * 12 / 1e9, 3) for k, v in l.seg_revenue.items() if v > 0},
                 "excl": sorted(l.data.exclusives),
                 "ship": (l.ships[-1][1] if l.ships and l.ships[-1][0] == m else ""),
@@ -67,6 +73,8 @@ def run(months=132, seed=7, randomized=True):
             "comp": r(getattr(w, "market_comp", 0) / 1000, 1),
             "algo_frontier": r(getattr(w, "algo_frontier", 1.0), 1),
             "openness": r(getattr(w, "openness", 0.0), 3),
+            "suites": {d: w.suites.label[SUITE[d]] for d in D.DOMAIN_KEYS},
+            "suitegen": {d: w.suites.gen[SUITE[d]] for d in D.DOMAIN_KEYS},
             "segments": segs,
             "labs": labs,
         })
@@ -97,6 +105,7 @@ def run(months=132, seed=7, randomized=True):
             "ships": len([x for x in l.ships if x[1] == "pretrain"]),
         } for l in w.labs},
         "seed": seed,
+        "retirements": [[int(m), s_, lab] for m, s_, lab in w.suites.retirements],
         "sources": {k: {"name": v["name"], "exclusive": v["exclusive"]}
                     for k, v in D.DATA_SOURCES.items()},
     }

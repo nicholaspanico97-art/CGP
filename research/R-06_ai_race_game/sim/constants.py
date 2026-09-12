@@ -87,7 +87,7 @@ FAB_OUTPUT_PER_MONTH = {
 # capability curve could never bend.
 ALGO_EFF_RATE_2020 = 3.0      # x per year the historical period must show
 ALGO_EFF_RATE_2030 = 1.7      # the no-automation baseline it decays toward
-SECTOR_ALGO_SCALE = 0.15     # calibrated: research output -> frontier growth
+SECTOR_ALGO_SCALE = 0.1     # calibrated: research output -> frontier growth
 SECTOR_ALGO_ALPHA = 0.45      # diminishing returns to piling on researchers
 IDEA_DIFFICULTY = 0.6         # ideas get harder to find: each further
                               # doubling of efficiency costs more research
@@ -143,7 +143,7 @@ RECIPE_ERA_MOE = {                # (year, month): sector-best sparsity factor
 # Engineering, not physics: the largest run a lab can actually land grows
 # with experience. Runs in the real record grew ~3-5x per generation, never
 # 100x, because the failure modes at each new scale have to be learned.
-MAX_RUN_GROWTH_PER_SHIP = 2.1   # calibrated, not assumed: see sim/score.py
+MAX_RUN_GROWTH_PER_SHIP = 1.7   # calibrated, not assumed: see sim/score.py
 
 # Mass-market adoption needed a conversational product, which needed a
 # capability level that arrived in late 2022 - not a moment earlier.
@@ -183,6 +183,25 @@ CONSUMER_USAGE_MULT = 2.6    # flat-rate consumers burn this many times the
 
 RESEARCHER_COST_PER_YEAR = 900_000  # fully loaded frontier researcher (MED)
 ENGINEER_COST_PER_YEAR = 420_000    # everyone else                    (MED)
+
+# --------------------------------------------------- benchmarks as measures
+# Elicitation: how well a lab gets its own model to actually perform, through
+# scaffolding, prompting and tooling. Lower is sharper. Two labs at the same
+# difficulty frontier do not score the same.
+ELICITATION_BEST = 0.26
+ELICITATION_WORST = 0.62
+
+# Benchmark chasing. Optimising for the published suites lifts the MEASURED
+# score without moving the frontier. The market prices what it can see, so
+# this buys real share now - and it is worthless to the self-improvement
+# loop, which keys off what the model can actually do. That fork is the
+# whole point of separating the two.
+CHASE_MAX_OOM = 0.55          # most a determined chaser can fake
+CHASE_RATE = 0.020            # OOM per month of sustained optimisation
+CHASE_DECAY = 0.010           # fades when a new suite arrives or effort stops
+CONTAMINATION_BASE = 0.004    # monthly chance of being caught, per OOM chased
+CONTAMINATION_TRUST = 16.0    # trust lost when caught
+CONTAMINATION_SETBACK = 0.75  # fraction of the chased advantage destroyed
 
 # ------------------------------------------------ the self-improvement loop
 # Research is itself a task, and it is a task made of code, long-horizon

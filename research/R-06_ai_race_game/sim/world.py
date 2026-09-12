@@ -13,7 +13,8 @@ from . import domains as D
 from . import talent as T
 from . import release as REL
 from . import strategy as STRAT
-from .capability import (BenchmarkModel, algo_efficiency, reasoning_multiplier,
+from . import tasks as TASKS
+from .capability import (BenchmarkModel, FrontierHistory, algo_efficiency, reasoning_multiplier,
                          capability_index, domain_capability)
 
 
@@ -34,8 +35,9 @@ class Model:
         return all(self.caps.get(d, 0.0) >= th
                    for d, th in D.SEGMENTS[segment]["gates"].items())
 
-    def quality_for(self, segment):
-        return sum(w * self.caps.get(d, 0.0)
+    def quality_for(self, segment, caps=None):
+        c = caps if caps is not None else self.caps
+        return sum(w * c.get(d, 0.0)
                    for d, w in D.SEGMENTS[segment]["weight_domains"].items())
 
 
@@ -64,6 +66,9 @@ class Lab:
         self.post_timer = 0
         self.ships = []                   # (month, kind, tag, capability)
         self.internal = None              # built, better, deliberately unreleased
+        self.elicitation = doctrine.get("elicitation", 0.42)
+        self.chase = {}                   # per-domain measured-score padding
+        self.caught = 0                   # contamination scandals
         self.withheld_months = 0
         self.rng = None                   # seeded by the World
         self.run_target = None
@@ -292,6 +297,34 @@ class Lab:
             decay = K.LEADER_EDGE_DECAY * (0.35 + 1.15 * openness)
             self.algo_mult -= (self.algo_mult - 1.0) * k * decay
 
+    def perceived_caps(self):
+        """
+        What the outside world believes this model can do: the true frontier
+        plus whatever suite-specific optimisation has been bought. The market
+        prices this. The research loop does not.
+        """
+        if not self.model:
+            return {}
+        return {d: c + self.chase.get(d, 0.0)
+                for d, c in self.model.caps.items()}
+
+    def chase_step(self, month):
+        """Pursue the published numbers, and occasionally get caught at it."""
+        rate = self.doctrine.get("chase_rate", 0.0)
+        for d in list(self.model.caps) if self.model else []:
+            cur = self.chase.get(d, 0.0)
+            target = K.CHASE_MAX_OOM * rate
+            cur += (K.CHASE_RATE * rate if cur < target else -K.CHASE_DECAY)
+            self.chase[d] = max(0.0, min(K.CHASE_MAX_OOM, cur))
+        total = sum(self.chase.values())
+        if total > 0 and self.rng.random() < K.CONTAMINATION_BASE * total:
+            self.trust = max(5.0, self.trust - K.CONTAMINATION_TRUST)
+            for d in self.chase:
+                self.chase[d] *= (1.0 - K.CONTAMINATION_SETBACK)
+            self.caught += 1
+            return True
+        return False
+
     # ----------------------------------------------------------------- data
     def strategic_value(self, source_key):
         """
@@ -462,6 +495,7 @@ class World:
         self.algo_frontier = 1.0
         self.sector_research = 0.0
         self.bm = benchmarks or BenchmarkModel().fit()
+        self.suites = TASKS.SuiteSet(TASKS.fit_anchored(FrontierHistory()))
         self.log = []
 
     # ---------------------------------------------------------- the market
@@ -551,6 +585,10 @@ class World:
                 lab.algo_mult = min(K.MAX_ALGO_ADVANTAGE,
                                     max(0.25, lab.algo_mult / mean_algo))
 
+        for lab in self.labs:
+            if lab.model:
+                lab.chase_step(m)
+        self._score_suites(m)
         self._resolve_market(m)
         self._finance(m)
         self._procure(m)
@@ -600,11 +638,15 @@ class World:
         sector_month = self._sector_spend(m)
 
         for seg_key, seg in D.SEGMENTS.items():
-            eligible = [l for l in serving if l.model.can_serve(seg_key)]
+            eligible = [l for l in serving
+                        if all(l.perceived_caps().get(dd, 0.0) >= th
+                               for dd, th in D.SEGMENTS[seg_key]["gates"].items())]
             if not eligible:
                 self.segment_state[seg_key] = (0.0, [])
                 continue
-            qual = {l: l.model.quality_for(seg_key) for l in eligible}
+            # buyers price the published numbers, not the private truth
+            qual = {l: l.model.quality_for(seg_key, l.perceived_caps())
+                    for l in eligible}
             best = max(qual.values())
 
             # a segment barely past its gate captures only part of its budget;
@@ -783,6 +825,29 @@ class World:
         self.spend_stock = stock
         self.spend_unlocked = unlocked
         return stock / 12.0
+
+    def _score_suites(self, m):
+        """
+        Publish this month's benchmark table, and retire any suite the field
+        has exhausted. A retiring suite takes the chasers' padding with it:
+        a new distribution of tasks is not the one you optimised for.
+        """
+        self.scores = {}
+        for suite, spec in TASKS.SUITES.items():
+            dom = spec["domain"]
+            best = 0.0
+            for lab in self.labs:
+                if not lab.model:
+                    continue
+                f = lab.perceived_caps().get(dom, 0.0)
+                if f <= 0:
+                    continue
+                sc = self.suites.score(suite, f, softness=lab.elicitation)
+                self.scores.setdefault(suite, {})[lab.name] = sc
+                best = max(best, sc)
+            if best > 0 and self.suites.maybe_retire(suite, best, m):
+                for lab in self.labs:
+                    lab.chase[dom] = lab.chase.get(dom, 0.0) * 0.25
 
     def _data_auction(self, m):
         """

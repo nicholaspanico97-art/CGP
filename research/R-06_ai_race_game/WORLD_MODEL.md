@@ -1,4 +1,4 @@
-# Frontier — World Model v0.6
+# Frontier — World Model v0.8
 
 **What changed:** the paper prototype (`PAPER_PROTOTYPE.md`) is superseded.
 Nick's direction, Sep 11 2026: *model the world really well, run the sims,
@@ -20,6 +20,15 @@ already sells, so that variance shows up as *flat stretches and jumps*,
 never as capability going down. Plus talent (v0.3), demand unlocked by
 capability rather than by the calendar (v0.3), and a `COMPETITIVENESS` dial
 that trades a little fidelity for a much more contested race.
+
+**v0.8, Sep 12 2026 — benchmarks became measurements.** Capability is now a
+difficulty frontier and a benchmark is a distribution over task difficulty,
+so saturation, suite retirement, elicitation quality and benchmark-chasing
+all fall out of one structure instead of being configured. See
+`BENCHMARKS_PROPOSAL.md` for the design and the outcome.
+
+**v0.7, Sep 12 2026 — the self-improvement loop, distillation, endogenous
+algorithmic progress.** See the commit log.
 
 **v0.6, Sep 12 2026 — each strategy is scored on its own goals.** Revenue
 share was the wrong scoreboard. An open-weights lab is not trying to
@@ -422,6 +431,7 @@ sim/world.py        labs, the market, capital, power, the monthly tick
 sim/domains.py      8 domains, 10 data sources, 9 gated market segments
 sim/talent.py       researchers, stars, and the people-to-compute shift
 sim/release.py      run outcomes, the ship decision, x.5 releases
+sim/tasks.py        benchmarks as task-difficulty distributions
 sim/objectives.py   what each strategy is actually trying to do
 sim/balance.py      multi-seed instrument: is it a race, and did each
                     strategy reach its own goals?

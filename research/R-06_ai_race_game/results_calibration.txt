@@ -1,37 +1,37 @@
   calibration error, mean |log10(model/actual)| per family:
-    revenue        0.188   (1.54x typical error)
-    capex          0.155   (1.43x typical error)
-    power          0.154   (1.43x typical error)
-    frontier_flop  0.338   (2.18x typical error)
-    WEIGHTED       0.221   (1.66x)
+    revenue        0.189   (1.54x typical error)
+    capex          0.210   (1.62x typical error)
+    power          0.098   (1.25x typical error)
+    frontier_flop  0.297   (1.98x typical error)
+    WEIGHTED       0.208   (1.62x)
 
   revenue $B      model   actual
     2020            0.02     0.05
-    2021            0.23     0.15
-    2022            0.98     0.40
-    2023            2.68     2.60
-    2024            8.79     7.00
-    2025           18.08    26.00
-    2026           78.80    62.00
+    2021            0.18     0.15
+    2022            1.16     0.40
+    2023            2.79     2.60
+    2024            8.97     7.00
+    2025           24.18    26.00
+    2026           89.23    62.00
   sector GW       model   actual
-    2023            0.91     1.50
-    2024            2.36     4.00
-    2025            6.69     9.00
-    2026           15.42    17.00
+    2023            1.12     1.50
+    2024            2.81     4.00
+    2025            6.96     9.00
+    2026           17.05    17.00
   capex $B        model   actual
-    2020             3.9      2.0
-    2021             7.2      5.0
-    2022            17.1     12.0
-    2023            48.1     30.0
-    2024            94.2     95.0
-    2025           266.0    220.0
-    2026           590.1    380.0
+    2020             4.0      2.0
+    2021             7.7      5.0
+    2022            19.8     12.0
+    2023            62.5     30.0
+    2024           109.5     95.0
+    2025           300.6    220.0
+    2026           677.1    380.0
   frontier run    model   actual
     2020-06     5.20e+23 3.10e+23  GPT-3 class
-    2021-12     3.58e+24 6.30e+23  Gopher class
-    2022-04     9.84e+24 2.50e+24  PaLM class
-    2023-03     2.58e+25 2.10e+25  GPT-4 class
-    2024-07     8.67e+25 3.80e+25  Llama 3.1 405B
-    2024-12     1.70e+26 1.00e+26  o1 class
-    2025-06     4.47e+26 4.00e+26  2025 frontier
-    2026-03     5.97e+26 1.50e+27  2026 frontier
+    2021-12     2.77e+24 6.30e+23  Gopher class
+    2022-04     5.40e+24 2.50e+24  PaLM class
+    2023-03     2.44e+25 2.10e+25  GPT-4 class
+    2024-07     1.19e+26 3.80e+25  Llama 3.1 405B
+    2024-12     2.34e+26 1.00e+26  o1 class
+    2025-06     4.98e+26 4.00e+26  2025 frontier
+    2026-03     1.06e+27 1.50e+27  2026 frontier
