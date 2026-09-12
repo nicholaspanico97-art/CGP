@@ -1,0 +1,420 @@
+<title>Frontier Sim Scope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e8eaee; --surface:#fdfdfc; --surface-2:#dfe3e8; --panel:#f4f6f8;
+    --ink:#151a22; --ink-2:#454e5c; --ink-3:#6d7789;
+    --rule:#c3cad3; --rule-soft:#d8dde4; --accent:#0d6673; --grid:#dde2e8;
+    --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+    --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7;
+    --good:#2f6b45; --warn:#8a5a06; --bad:#9a3324;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0e1218; --surface:#161c24; --surface-2:#1e252f; --panel:#141a21;
+      --ink:#dde2ea; --ink-2:#a9b3c1; --ink-3:#7d8899;
+      --rule:#2c3644; --rule-soft:#232c38; --accent:#5cc2ce; --grid:#232c38;
+      --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+      --s5:#d55181; --s6:#008300; --s7:#9085e9;
+      --good:#67b98c; --warn:#d9a441; --bad:#e0776a;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0e1218; --surface:#161c24; --surface-2:#1e252f; --panel:#141a21;
+    --ink:#dde2ea; --ink-2:#a9b3c1; --ink-3:#7d8899;
+    --rule:#2c3644; --rule-soft:#232c38; --accent:#5cc2ce; --grid:#232c38;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+    --s5:#d55181; --s6:#008300; --s7:#9085e9;
+    --good:#67b98c; --warn:#d9a441; --bad:#e0776a;
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--ground);color:var(--ink);
+    font-family:"IBM Plex Sans",-apple-system,"Segoe UI",sans-serif;
+    font-size:14px;line-height:1.5;padding-inline:16px;padding-block:0;}
+  .wrap{max-width:1180px;margin:0 auto;}
+  .mono,.num{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;}
+  h1{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:700;
+    font-size:clamp(28px,5vw,42px);line-height:1;letter-spacing:-.015em;margin:0;}
+  h2{font-family:"IBM Plex Sans Condensed",sans-serif;font-weight:600;
+    font-size:18px;margin:0 0 2px;letter-spacing:.005em;}
+  .sub{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-3);}
+
+  header{padding-block:28px 14px;}
+  .hrow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px 24px;}
+  .lede{color:var(--ink-2);max-width:64ch;margin:10px 0 0;}
+
+  /* ---- transport ---- */
+  .transport{position:sticky;top:0;z-index:20;background:var(--ground);
+    border-bottom:1px solid var(--rule);padding-block:10px 12px;margin-bottom:6px;}
+  .tbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .clock{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:26px;
+    letter-spacing:.01em;min-width:132px;color:var(--ink);}
+  .clock small{font-size:12px;color:var(--ink-3);font-weight:400;display:block;letter-spacing:.08em;}
+  button.play{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;
+    letter-spacing:.08em;text-transform:uppercase;background:var(--accent);
+    color:var(--surface);border:none;padding:9px 16px;cursor:pointer;min-width:82px;}
+  button.play:hover{filter:brightness(1.12);}
+  button.play:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  input[type=range]{flex:1 1 260px;min-width:200px;accent-color:var(--accent);height:22px;}
+  select{font-family:"IBM Plex Mono",monospace;font-size:12px;background:var(--surface);
+    color:var(--ink);border:1px solid var(--rule);padding:7px 9px;}
+  .marks{display:flex;justify-content:space-between;font-family:"IBM Plex Mono",monospace;
+    font-size:10px;color:var(--ink-3);letter-spacing:.06em;margin-top:2px;}
+
+  /* ---- tiles ---- */
+  .tiles{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:16px 0;}
+  .tile{background:var(--surface);padding:12px 14px 14px;}
+  .tile .k{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--ink-3);}
+  .tile .v{font-family:"IBM Plex Mono",monospace;font-size:25px;font-weight:600;
+    font-variant-numeric:tabular-nums;margin-top:3px;line-height:1.1;}
+  .tile .n{font-size:12px;color:var(--ink-2);margin-top:3px;}
+
+  /* ---- panels ---- */
+  .panel{background:var(--surface);border:1px solid var(--rule);padding:16px;margin-bottom:16px;}
+  .phead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+    flex-wrap:wrap;margin-bottom:12px;}
+  .note{font-size:12.5px;color:var(--ink-3);max-width:70ch;margin:10px 0 0;}
+
+  /* ---- legend ---- */
+  .legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-bottom:10px;}
+  .lg{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);cursor:pointer;
+    font-family:"IBM Plex Mono",monospace;}
+  .lg i{width:14px;height:3px;border-radius:2px;display:block;}
+  .lg.off{opacity:.35;}
+
+  svg{display:block;width:100%;height:auto;overflow:visible;}
+  .gridline{stroke:var(--grid);stroke-width:1;}
+  .axis{fill:var(--ink-3);font-family:"IBM Plex Mono",monospace;font-size:10px;}
+  .cursor{stroke:var(--ink-3);stroke-width:1;stroke-dasharray:3 3;}
+  .dlabel{font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;}
+
+  /* ---- capability cards ---- */
+  .profiles{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));}
+  .prof{border:1px solid var(--rule-soft);background:var(--panel);padding:11px 12px 12px;}
+  .prof .ph{display:flex;align-items:center;gap:7px;margin-bottom:9px;}
+  .prof .ph i{width:9px;height:9px;border-radius:50%;flex:none;}
+  .prof .ph b{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:15px;font-weight:600;}
+  .prof .ph span{margin-left:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-3);}
+  .drow{display:grid;grid-template-columns:52px 1fr 42px;gap:7px;align-items:center;margin-bottom:3px;}
+  .drow .dn{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.06em;color:var(--ink-3);}
+  .drow .db{height:9px;background:var(--surface-2);position:relative;}
+  .drow .db i{position:absolute;left:0;top:0;bottom:0;}
+  .drow .dv{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-2);text-align:right;
+    font-variant-numeric:tabular-nums;}
+  .drow.dead .dn,.drow.dead .dv{color:var(--ink-3);opacity:.5;}
+  .est{font-size:9px;color:var(--warn);}
+
+  /* ---- segments ---- */
+  .seg{margin-bottom:11px;}
+  .seghd{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px;}
+  .seghd b{font-family:"IBM Plex Sans Condensed",sans-serif;font-size:14.5px;font-weight:600;}
+  .seghd .g{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-3);}
+  .bar{display:flex;height:20px;background:var(--surface-2);gap:2px;}
+  .bar i{display:block;position:relative;}
+  .bar .lbl{position:absolute;inset:0;display:grid;place-items:center;
+    font-family:"IBM Plex Mono",monospace;font-size:9.5px;font-weight:600;color:#fff;
+    text-shadow:0 1px 2px rgba(0,0,0,.55);pointer-events:none;}
+  .closed{height:20px;background:repeating-linear-gradient(135deg,var(--surface-2),var(--surface-2) 5px,transparent 5px,transparent 10px);
+    display:grid;place-items:center;font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--ink-3);}
+
+  /* ---- table ---- */
+  .scroll{overflow-x:auto;}
+  table{border-collapse:collapse;width:100%;font-size:13px;min-width:720px;}
+  th{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--ink-3);text-align:right;font-weight:600;
+    border-bottom:1.5px solid var(--rule);padding:0 10px 6px 0;white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;}
+  td{border-bottom:1px solid var(--rule-soft);padding:7px 10px 7px 0;text-align:right;
+    font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;color:var(--ink-2);}
+  td:first-child{font-family:"IBM Plex Sans",sans-serif;color:var(--ink);font-weight:600;white-space:nowrap;}
+  td .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;}
+  tr:last-child td{border-bottom:none;}
+  td.neg{color:var(--bad);}
+
+  footer{padding-block:22px 46px;font-family:"IBM Plex Mono",monospace;font-size:11px;
+    letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);
+    display:flex;flex-wrap:wrap;gap:6px 20px;}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;}}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="hrow">
+    <h1>Scope</h1>
+    <div class="sub" style="padding-bottom:6px">Frontier world model · v0.3 · 2020–2030</div>
+  </div>
+  <p class="lede">A window into the simulation. Seven labs, eight capability domains, nine gated markets, one month at a time. Everything here is computed — no value is scripted to happen on a date.</p>
+</header>
+
+<div class="transport">
+  <div class="tbar">
+    <div class="clock"><span id="clock">—</span><small id="clocksub">month 0 of 132</small></div>
+    <button class="play" id="play">▶ Play</button>
+    <input type="range" id="scrub" min="0" max="131" value="83" aria-label="Month">
+  </div>
+  <div class="marks"><span>2020</span><span>2022</span><span>2024</span><span>2026</span><span>2028</span><span>2030</span></div>
+</div>
+
+<div class="tiles" id="tiles"></div>
+
+<div class="panel">
+  <div class="phead">
+    <div><h2>Sector over time</h2><div class="sub">lines are labs · dashed rule is the current month</div></div>
+    <select id="metric">
+      <option value="rev">Revenue, $B/yr</option>
+      <option value="accels">Accelerators held</option>
+      <option value="mw">Power drawn, MW</option>
+      <option value="run">Largest training run, FLOP</option>
+      <option value="cash">Cash, $B</option>
+      <option value="res">Researchers</option>
+      <option value="stars">Star researchers</option>
+      <option value="algo">Algorithmic advantage vs field</option>
+      <option value="price">Price, $/Mtok</option>
+    </select>
+  </div>
+  <div class="legend" id="legend"></div>
+  <svg id="chart" viewBox="0 0 960 300" role="img" aria-label="Sector time series"></svg>
+</div>
+
+<div class="panel">
+  <div class="phead"><div><h2>Capability profile</h2>
+    <div class="sub">per domain, at the current month · bars are log₁₀ effective FLOP</div></div></div>
+  <div class="profiles" id="profiles"></div>
+  <p class="note">A model is not one number. Each bar is one domain, bought with a share of the training mixture <em>and</em> the data to feed it — a domain with no data is compute set on fire. Domains marked <span class="est">est</span> have hand-set capability curves with no public score history behind them.</p>
+</div>
+
+<div class="panel">
+  <div class="phead"><div><h2>Markets</h2>
+    <div class="sub">share of each segment, at the current month</div></div></div>
+  <div id="segments"></div>
+  <p class="note">Each segment is gated on a domain. Below the gate a lab has no product at all — not a worse one. Gates are on capability, never on the date: a segment opens the month someone clears it.</p>
+</div>
+
+<div class="panel">
+  <div class="phead"><div><h2>Labs</h2><div class="sub">state at the current month</div></div></div>
+  <div class="scroll"><table id="labtable"></table></div>
+</div>
+
+<footer>
+  <span>CGP / R-06 / sim</span>
+  <span id="fit">calibrated to 2020–2026 at ~1.7× typical error</span>
+</footer>
+</div>
+
+<script src="rundata.js"></script>
+<script>
+(function(){
+  var R = window.RUN, M = R.meta, F = R.frames;
+  var LABS = M.labs;
+  var COLORS = ["--s1","--s2","--s3","--s4","--s5","--s6","--s7"];
+  var cs = getComputedStyle(document.documentElement);
+  function col(i){ return "var(" + COLORS[i % COLORS.length] + ")"; }
+  function hex(i){ return cs.getPropertyValue(COLORS[i % COLORS.length]).trim() || "#888"; }
+  var hidden = {};
+  var cur = 83, timer = null, metric = "rev";
+
+  var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  function fmtB(v){ return v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2); }
+  function fmtInt(v){ return Math.round(v).toLocaleString(); }
+  function fmtExp(v){
+    if(!v || v <= 0) return "—";
+    var e = Math.floor(Math.log10(v)), m = v / Math.pow(10, e);
+    return m.toFixed(1) + "e" + e;
+  }
+  function LOG(m){ return m.run > 0 ? Math.log10(m.run) : 0; }
+
+  // ---------- value accessor ----------
+  function val(lab, f){
+    var d = f.labs[lab]; if(!d) return 0;
+    if(metric === "run") return d.run > 0 ? Math.log10(d.run) : 0;
+    return d[metric] || 0;
+  }
+  function axisLabel(v){
+    if(metric === "run") return v > 0 ? "1e" + v.toFixed(0) : "0";
+    if(metric === "accels" || metric === "res") return fmtInt(v);
+    if(metric === "rev" || metric === "cash") return "$" + fmtB(v);
+    if(metric === "price") return "$" + v.toFixed(2);
+    if(metric === "algo") return v.toFixed(1) + "x";
+    return v >= 1000 ? fmtInt(v) : v.toFixed(1);
+  }
+
+  // ---------- chart ----------
+  var W = 960, H = 300, P = {l:56, r:74, t:12, b:26};
+  function drawChart(){
+    var shown = LABS.filter(function(l){ return !hidden[l]; });
+    var max = 0;
+    F.forEach(function(f){ shown.forEach(function(l){ var v = val(l, f); if(v > max) max = v; }); });
+    if(max <= 0) max = 1;
+    var iw = W - P.l - P.r, ih = H - P.t - P.b;
+    function X(i){ return P.l + i / (F.length - 1) * iw; }
+    function Y(v){ return P.t + ih - (v / max) * ih; }
+
+    var s = "";
+    for(var g = 0; g <= 4; g++){
+      var v = max * g / 4, y = Y(v);
+      s += '<line class="gridline" x1="' + P.l + '" y1="' + y + '" x2="' + (W - P.r) + '" y2="' + y + '"/>';
+      s += '<text class="axis" x="' + (P.l - 8) + '" y="' + (y + 3) + '" text-anchor="end">' + axisLabel(v) + '</text>';
+    }
+    for(var yr = 2020; yr <= 2030; yr += 2){
+      var idx = (yr - 2020) * 12; if(idx >= F.length) idx = F.length - 1;
+      s += '<text class="axis" x="' + X(idx) + '" y="' + (H - 8) + '" text-anchor="middle">' + yr + '</text>';
+    }
+    shown.forEach(function(l, n){
+      var i = LABS.indexOf(l), d = "";
+      F.forEach(function(f, k){
+        var x = X(k), y = Y(val(l, f));
+        d += (k === 0 ? "M" : "L") + x.toFixed(1) + " " + y.toFixed(1);
+      });
+      s += '<path d="' + d + '" fill="none" stroke="' + hex(i) + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    });
+    var cx = X(cur);
+    s += '<line class="cursor" x1="' + cx + '" y1="' + P.t + '" x2="' + cx + '" y2="' + (P.t + ih) + '"/>';
+
+    // direct labels at the cursor, de-collided
+    var pts = shown.map(function(l){
+      return {l:l, i:LABS.indexOf(l), v:val(l, F[cur]), y:Y(val(l, F[cur]))};
+    }).sort(function(a, b){ return a.y - b.y; });
+    for(var q = 1; q < pts.length; q++){
+      if(pts[q].y - pts[q-1].y < 12) pts[q].y = pts[q-1].y + 12;
+    }
+    pts.forEach(function(p){
+      s += '<circle cx="' + cx + '" cy="' + Y(p.v) + '" r="3.5" fill="' + hex(p.i) + '" stroke="var(--surface)" stroke-width="2"/>';
+      s += '<text class="dlabel" x="' + (cx + 8) + '" y="' + (p.y + 3.5) + '" fill="' + hex(p.i) + '">' + p.l + '</text>';
+    });
+    document.getElementById("chart").innerHTML = s;
+  }
+
+  // ---------- legend ----------
+  function drawLegend(){
+    document.getElementById("legend").innerHTML = LABS.map(function(l, i){
+      return '<span class="lg' + (hidden[l] ? " off" : "") + '" data-lab="' + l + '" role="button" tabindex="0">' +
+             '<i style="background:' + hex(i) + '"></i>' + l + '</span>';
+    }).join("");
+  }
+
+  // ---------- tiles ----------
+  function drawTiles(){
+    var f = F[cur], rev = 0, mw = 0, run = 0, ac = 0;
+    LABS.forEach(function(l){
+      var d = f.labs[l]; if(!d) return;
+      rev += d.rev; mw += d.mw; ac += d.accels; if(d.run > run) run = d.run;
+    });
+    var t = [
+      ["Sector revenue", "$" + fmtB(rev) + "B", "per year, run-rate"],
+      ["Power drawn", (mw/1000).toFixed(2) + " GW", fmtInt(ac) + " accelerators"],
+      ["Largest run", fmtExp(run), "FLOP, pretraining"],
+      ["Demand unlocked", "$" + fmtB(f.unlocked) + "B", "realised $" + fmtB(f.spend) + "B — adoption lags"],
+      ["Researcher pay", "$" + f.comp + "k", "market rate, per year"]
+    ];
+    document.getElementById("tiles").innerHTML = t.map(function(x){
+      return '<div class="tile"><div class="k">' + x[0] + '</div><div class="v">' + x[1] + '</div><div class="n">' + x[2] + '</div></div>';
+    }).join("");
+  }
+
+  // ---------- capability profiles ----------
+  var DMIN = 21, DMAX = 34;
+  function drawProfiles(){
+    var f = F[cur];
+    document.getElementById("profiles").innerHTML = LABS.map(function(l, i){
+      var d = f.labs[l]; if(!d) return "";
+      var rows = M.domains.map(function(dom){
+        var c = d.caps[dom] || 0, b = d.bench[dom] || 0;
+        var pct = c > 0 ? Math.max(2, Math.min(100, (c - DMIN) / (DMAX - DMIN) * 100)) : 0;
+        var est = M.anchored[dom] ? "" : ' <span class="est">est</span>';
+        return '<div class="drow' + (c > 0 ? "" : " dead") + '">' +
+          '<span class="dn">' + dom + est + '</span>' +
+          '<span class="db">' + (c > 0 ? '<i style="width:' + pct + '%;background:' + hex(i) + '"></i>' : '') + '</span>' +
+          '<span class="dv">' + (c > 0 ? b.toFixed(0) : "—") + '</span></div>';
+      }).join("");
+      var ex = d.excl.length ? d.excl.length + " excl. corpora" : "no exclusives";
+      return '<div class="prof"><div class="ph"><i style="background:' + hex(i) + '"></i><b>' + l + '</b>' +
+             '<span>' + ex + '</span></div>' + rows + '</div>';
+    }).join("");
+  }
+
+  // ---------- segments ----------
+  function drawSegments(){
+    var f = F[cur];
+    document.getElementById("segments").innerHTML = Object.keys(M.segments).map(function(k){
+      var seg = M.segments[k], st = f.segments[k];
+      var gate = Object.keys(seg.gates).map(function(g){ return g + " " + seg.gates[g].toFixed(1); }).join(" + ");
+      var head = '<div class="seghd"><b>' + seg.name + '</b><span class="g">gate ' + gate +
+                 (st && st.tam ? ' · $' + fmtB(st.tam) + 'B/yr' : '') + '</span></div>';
+      if(!st || !Object.keys(st.shares).length)
+        return '<div class="seg">' + head + '<div class="closed">no lab clears the gate</div></div>';
+      var entries = Object.keys(st.shares).map(function(n){ return [n, st.shares[n]]; })
+                    .sort(function(a, b){ return b[1] - a[1]; });
+      var bar = entries.map(function(e){
+        var i = LABS.indexOf(e[0]), w = e[1] * 100;
+        return '<i style="width:' + w + '%;background:' + hex(i) + '">' +
+               (w > 13 ? '<span class="lbl">' + e[0] + ' ' + Math.round(w) + '%</span>' : '') + '</i>';
+      }).join("");
+      return '<div class="seg">' + head + '<div class="bar">' + bar + '</div></div>';
+    }).join("");
+  }
+
+  // ---------- table ----------
+  function drawTable(){
+    var f = F[cur];
+    var head = '<thead><tr><th>Lab</th><th>Revenue $B/yr</th><th>Net $B/yr</th><th>Cash $B</th>' +
+               '<th>Accelerators</th><th>MW</th><th>Researchers</th><th>Stars</th>' +
+               '<th>Algo vs field</th><th>$/Mtok</th></tr></thead>';
+    var rows = LABS.map(function(l, i){
+      var d = f.labs[l]; if(!d) return "";
+      return '<tr><td><span class="dot" style="background:' + hex(i) + '"></span>' + l + '</td>' +
+        '<td>' + fmtB(d.rev) + '</td>' +
+        '<td class="' + (d.net < 0 ? "neg" : "") + '">' + (d.net < 0 ? "−" : "") + fmtB(Math.abs(d.net)) + '</td>' +
+        '<td class="' + (d.cash < 0 ? "neg" : "") + '">' + fmtB(d.cash) + '</td>' +
+        '<td>' + fmtInt(d.accels) + '</td><td>' + fmtInt(d.mw) + '</td>' +
+        '<td>' + fmtInt(d.res) + '</td><td>' + d.stars.toFixed(0) + '</td>' +
+        '<td>' + d.algo.toFixed(2) + '×</td><td>' + d.price.toFixed(2) + '</td></tr>';
+    }).join("");
+    document.getElementById("labtable").innerHTML = head + "<tbody>" + rows + "</tbody>";
+  }
+
+  function render(){
+    var f = F[cur];
+    document.getElementById("clock").textContent = MONTHS[f.month - 1] + " " + f.year;
+    document.getElementById("clocksub").textContent = "month " + (cur + 1) + " of " + F.length;
+    drawTiles(); drawChart(); drawProfiles(); drawSegments(); drawTable();
+  }
+
+  // ---------- wiring ----------
+  var scrub = document.getElementById("scrub");
+  scrub.max = F.length - 1;
+  scrub.addEventListener("input", function(){ cur = +scrub.value; stop(); render(); });
+  document.getElementById("metric").addEventListener("change", function(e){
+    metric = e.target.value; drawChart();
+  });
+  function stop(){ if(timer){ clearInterval(timer); timer = null;
+    document.getElementById("play").textContent = "▶ Play"; } }
+  document.getElementById("play").addEventListener("click", function(){
+    if(timer){ stop(); return; }
+    if(cur >= F.length - 1) cur = 0;
+    this.textContent = "❚❚ Pause";
+    timer = setInterval(function(){
+      cur++; if(cur >= F.length - 1){ cur = F.length - 1; stop(); }
+      scrub.value = cur; render();
+    }, 110);
+  });
+  document.getElementById("legend").addEventListener("click", function(e){
+    var el = e.target.closest("[data-lab]"); if(!el) return;
+    var l = el.dataset.lab;
+    if(hidden[l]) delete hidden[l]; else hidden[l] = 1;
+    drawLegend(); drawChart();
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "ArrowRight" && cur < F.length - 1){ cur++; scrub.value = cur; stop(); render(); }
+    if(e.key === "ArrowLeft" && cur > 0){ cur--; scrub.value = cur; stop(); render(); }
+  });
+
+  drawLegend();
+  render();
+})();
+</script>
