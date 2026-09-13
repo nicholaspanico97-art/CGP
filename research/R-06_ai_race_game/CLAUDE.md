@@ -21,6 +21,7 @@ Python. Read this first, then `WORLD_MODEL.md`.
 
 ```
 python3 -m sim.checkpoints   # PRIMARY calibration: timing, in months
+python3 -m sim.replay        # the seam check: record, replay, must match bit for bit
 python3 -m sim.score         # secondary: magnitude sanity check only
 python3 -m sim.balance 24    # strategy goal attainment, lead changes
 python3 -m sim.fit_report    # benchmark curve fit
@@ -67,7 +68,10 @@ economics.py   accelerators, fleets, power, serving cost, demand
 talent.py      researchers, stars, the people-to-compute shift, the RSI loop
 intel.py       what a lab can see; beliefs with error bars; threat
 release.py     run outcomes, the ship decision, x.5 releases
-strategy.py    11 strategies with variation, drawn per game
+strategy.py    11 strategies with variation, drawn per game (what they WANT)
+policy.py      the decision seam: Observation, Actions, Policy; DoctrinePolicy
+               is the strategies' behaviour; ReplayPolicy replays a log
+replay.py      record -> save -> replay; must be bit-identical
 objectives.py  what each strategy is trying to do; how success is scored
 safety.py      incident hazard, three severity tiers, sector regulation
 world.py       the monthly tick: everything above, wired together
@@ -82,13 +86,23 @@ export.py      dump a run to JSON for the viewer
 
 - **`historical_2020()` must stay fixed.** It is the calibration roster.
   Randomised games use `randomized_2020(seed)`.
-- **Four separate RNG streams per lab** (`rng`, `rng_eval`, `rng_intel`,
-  `rng_safety`). Adding a draw to one must not reshuffle the others, or
-  calibration stops being comparable across changes. **A conditional draw
-  must still be consumed unconditionally** — an `always_eval` short-circuit
-  once made the safety-first strategy skip one `random()` per ship, which
-  desynchronised every later decision in the run and silently contaminated
-  every A/B run against it.
+- **Five separate RNG streams per lab** (`rng`, `rng_eval`, `rng_intel`,
+  `rng_safety`, `rng_policy`). Adding a draw to one must not reshuffle the
+  others, or calibration stops being comparable across changes. **A
+  conditional draw must still be consumed unconditionally** — an
+  `always_eval` short-circuit once made the safety-first strategy skip one
+  `random()` per ship, which desynchronised every later decision in the run
+  and silently contaminated every A/B run against it.
+- **A policy draws only from `rng_policy`; the world never does.** So the
+  world's realisation cannot depend on how a policy decided, and a replay
+  (which draws nothing) reproduces the run.
+- **`world.py` reads `lab.doctrine` only for identity, never for a
+  choice.** Anything a lab chooses goes through `lab.actions`, set by its
+  `Policy` in `World._decide` (standing) or `World.ask_release` (the
+  interrupt when a run lands). `python3 -m sim.replay` is the check: a
+  `ReplayPolicy` has no doctrine and no observation, so a mechanic that
+  reaches around the seam shows up as a divergence. Run it after any change
+  to `world.py`.
 - **A/B a mechanic by flipping ONE lab, not all of them.** Making every lab
   careless and comparing outcomes is a null experiment: the relative
   standings are unchanged by construction. Pair the same lab against itself
@@ -105,15 +119,16 @@ export.py      dump a run to JSON for the viewer
 ## Current state
 
 Timing 15/16 inside ±18 months, median offset −10, mean |offset| 9.4.
-Order 111/120. Eleven strategies score 60–95% on their own goals. ~90 lead
-changes per run, top lab ~40% of revenue, ~6 of 7 labs viable at 2030.
+Order 113/120. Eleven strategies score 54–89% on their own goals. ~86 lead
+changes per run, top lab ~39% of revenue, ~6 of 7 labs viable at 2030.
 Safety incidents fire with the intended severity gradient: nothing severe is
 possible before agentic capability exists, and by 2028–30 severe is ~6% of
-incidents.
+incidents. Every decision goes through the seam; replay is bit-identical.
 
 ## What is deliberately not modelled yet
 
 Events, government as an actor, labs dying, and the player. See
-`ROADMAP.md`. The next architectural item is the **decision seam** (item 2):
-policy is still read inline out of `doctrine` dicts, so nothing in `sim/`
-actually *decides* anything and there is nowhere for a player to plug in.
+`ROADMAP.md`. No architectural items remain. The next item is **events**
+(item 4): a JSON deck conditional on world state. After that, the player:
+a `Policy` that asks a human, and a turn structure that batches the monthly
+seam into quarters.

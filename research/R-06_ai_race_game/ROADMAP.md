@@ -54,7 +54,13 @@ rival — hire from them, buy their API in volume, read their papers.
 Doing this later means rewriting every consumer of lab state. Doing it now
 costs a day.
 
-## 2. The decision seam — **next**
+## 2. The decision seam — **DONE, v1.4.** See `WORLD_MODEL.md` §2g and
+`sim/policy.py`. `python3 -m sim.replay` is the standing check that
+nothing reaches around it.
+
+Original entry kept below for the record.
+
+### The decision seam — *was: next*
 
 Policy is currently baked into `doctrine` dicts read inline all over
 `world.py`. A lab does not *decide* anything; the loop reaches in and reads
@@ -138,15 +144,19 @@ costs.
 
 1. **Observability seam** (1) — architectural, cheap now, expensive later,
    and it retroactively makes the benchmark and hoarding mechanics honest.
-2. **Decision seam** (2) — same argument, and it is what the player plugs
-   into.
+2. ~~**Decision seam** (2)~~ — **done in v1.4.**
 3. ~~**Safety and regulation** (3)~~ — **done in v1.3.**
 4. **Events** (4) — cheap, and the biggest gain in run-to-run variety.
+   **Next.**
 
 5-8 are content and can follow in any order.
 
-The honest summary as of v1.3: the **economy, the capability race, the
-information structure and the consequence structure are all modelled. What
-is not modelled is the game** — nothing in `sim/` decides anything; policy
-is still read inline out of `doctrine` dicts. That is item 2, and it is now
-the only architectural item left.
+The honest summary as of v1.4: the **economy, the capability race, the
+information structure, the consequence structure and the decision
+structure are all modelled.** Every choice a lab makes goes through one
+seam, is validated and logged, and a player can be plugged in as one more
+policy. No architectural items remain; what is left is content (events,
+government, named people, fab supply) and the player's own charter and
+report (6). The first thing a game needs that does not exist is a
+`Policy` that asks a human — and a turn structure that batches the
+monthly seam into quarters.

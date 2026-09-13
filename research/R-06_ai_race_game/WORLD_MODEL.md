@@ -1,4 +1,4 @@
-# Frontier — World Model v1.3
+# Frontier — World Model v1.4
 
 **What changed:** the paper prototype (`PAPER_PROTOTYPE.md`) is superseded.
 Nick's direction, Sep 11 2026: *model the world really well, run the sims,
@@ -20,6 +20,14 @@ already sells, so that variance shows up as *flat stretches and jumps*,
 never as capability going down. Plus talent (v0.3), demand unlocked by
 capability rather than by the calendar (v0.3), and a `COMPETITIVENESS` dial
 that trades a little fidelity for a much more contested race.
+
+**v1.4, Sep 13 2026 — the decision seam.** Nothing in `sim/` decided
+anything: the tick read each lab's parameters inline out of a `doctrine`
+dict, so policy and physics were the same code. Now every month each lab
+observes, its policy decides, and the world applies — validated and
+logged. The eleven strategies are policies; a player is one more. The
+log plus the seed is a saved game, and replaying it reproduces the run
+bit for bit. See §2g.
 
 **v1.3, Sep 12 2026 — safety, incidents and regulation.** `safety_debt`
 used to accumulate and do nothing, which made shipping without
@@ -586,6 +594,68 @@ enters segment share through `brand_weight`, which is 1.4 in enterprise and
 0.4 in the undifferentiated API market — reputation is worth most exactly
 where the contracts are largest.
 
+## 2g. The decision seam
+
+Until v1.4 a lab did not decide anything. `world.py` reached into
+`lab.doctrine` wherever it needed a number — the compute split, the price
+stance, how hard to panic — so the physics of the world and the policy of
+the labs were one body of code, and there was nowhere for a player to plug
+in. `sim/policy.py` separates them:
+
+```
+obs     = world.observe(lab)        # own books in full; rivals as beliefs;
+                                    # the market as it was published
+actions = lab.policy.decide(obs)    # a strategy AI, or a human
+world.apply(lab, actions)           # validated, logged, in force
+```
+
+**What is a decision and what is identity.** `Actions` carries everything a
+lab *chooses* each month: the compute split; the run window and recipe
+(tokens per parameter, sparsity, test-time compute); the training mixture;
+release cadence; benchmark chasing; which corpus to license and what to bid
+at auction; price stance and loss-leading; hiring appetite and the
+compensation actually offered; safety spend; capex aggression, power
+lookahead, lease-vs-build; when to raise and how much to sell; intel spend;
+openness. `doctrine` keeps what a lab *is* — its strategy, researcher
+quality, corporate parent, geopolitical supply share, paranoia, its first
+run — and the world reads only those.
+
+**The release interrupt.** One decision cannot be standing: a run lands
+mid-month with an outcome nobody knew in advance. `decide_release` is asked
+right then, result in hand — *ship it, or sit on it; and if shipping, run
+the real evaluation first or carry the debt.* A game surfaces this as a
+modal; a strategy AI answers from a rule. A held model is re-asked every
+month, and a held model that is finally released now faces the same eval
+question as any other (before v1.4 it skipped it).
+
+**The spiral is now something a lab does.** Fear compressing the run
+window, bidding up compensation, raising capex aggression, widening the
+wallet at a data auction — all of it moved out of the world and into
+`DoctrinePolicy`, where it reads `obs.threat`. A player gets no automatic
+panic. The world still prices the *consequence* of over-reach (the ambition
+term in the outcome distribution); it no longer decides the over-reach.
+
+**Two proofs.** First, the mechanical refactor was checked bit for bit:
+`DoctrinePolicy` reproduces v1.3 exactly on three full exports and the
+five-seed checkpoint table. Second, and the one that matters going forward:
+`ReplayPolicy` replays a recorded action log with no access to the doctrine
+or the observation, and a replayed game matches the original exactly. Any
+future mechanic that reaches around the seam and reads `doctrine` for a
+choice will show up there as a divergence. `python3 -m sim.replay` runs it.
+
+**A policy has its own dice.** Policies draw from `lab.rng_policy`, a fifth
+stream the world never touches, so the world's realisation cannot depend on
+how a policy decided — a human draws nothing, a replay draws nothing, the
+run is the same run. This moved the per-release evaluation roll off
+`lab.rng`, which changed the realisation of every run. Calibration was
+re-measured over seeds: 15/16 inside ±18 months, median −10, mean |offset|
+9.4, order 113/120 — the same standing.
+
+**What the log is.** `World.action_log` is `(month, lab, what changed)`,
+diffs only, plus every release interrupt. With the seed it is the whole
+game: save, resume, replay, and — later — run a strategy against a recorded
+game to see whether it would have done better.
+
 ## 3. Calibration
 
 Scored as mean `|log10(model/actual)|` across four independent families,
@@ -651,6 +721,9 @@ sim/anchors.py      the 2020-2026 record: what actually happened
 sim/capability.py   scaling, efficiency, reasoning, benchmark curves
 sim/economics.py    hardware, fleets, serving cost, demand
 sim/world.py        labs, the market, capital, power, the monthly tick
+sim/policy.py       the decision seam: Observation, Actions, Policy,
+                    DoctrinePolicy (the strategies), ReplayPolicy
+sim/replay.py       record -> save -> replay, must match bit for bit
 sim/domains.py      8 domains, 10 data sources, 9 gated market segments
 sim/talent.py       researchers, stars, and the people-to-compute shift
 sim/release.py      run outcomes, the ship decision, x.5 releases

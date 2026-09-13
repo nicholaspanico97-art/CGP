@@ -1,126 +1,144 @@
-# HANDOFF — Frontier (R-06), Sep 12 2026
+# HANDOFF — Frontier (R-06), Sep 13 2026
 
-Written at the end of the session that built safety. If you are a new
-session, read `CLAUDE.md` first (it auto-loads), then this, then
-`WORLD_MODEL.md`. This file is the *session* record: what was just done, what
-is known to be true about it, and what I would do next. `CLAUDE.md` is the
-permanent orientation; this one goes stale.
+Written at the end of the session that built the decision seam. If you are
+a new session, read `CLAUDE.md` first (it auto-loads), then this, then
+`WORLD_MODEL.md`. This file is the *session* record: what was just done,
+what is known to be true about it, and what I would do next. `CLAUDE.md` is
+the permanent orientation; this one goes stale.
 
 ## Where the project actually is
 
 A calibrated, zero-dependency simulation of the AI race 2020–2030 lives in
-`sim/`. It is a *world model*, not a game. There is no player, no turn
-structure, no UI beyond a read-only viewer. The plan of record
-(`DESIGN.md`, `ROADMAP.md`) is that the game is a window onto this
-simulation, and the window comes last.
+`sim/`. As of v1.4 it is a world model *with a seam a player can stand in*:
+every choice a lab makes goes through `observe → decide → apply`, is
+validated and logged, and the log plus the seed is a saved game. There is
+still no player, no turn structure, no UI beyond a read-only viewer. The
+plan of record (`DESIGN.md`, `ROADMAP.md`) is that the game is a window
+onto this simulation, and the window comes last. No architectural items
+remain on the roadmap; what is left is content and the player.
 
-Branch: `claude/ai-race-game-plan-vl6gi3`. No PR has been opened and none
-was asked for.
+Branch: `claude/ai-race-game-plan-vl6gi3`. Two commits this session, not
+pushed at the time of writing (Nick's standing rule: ask before pushing).
+No PR has been opened and none was asked for.
 
 ## What this session added
 
-**Safety, incidents and regulation** — `ROADMAP.md` item 3, the largest
-missing pillar. `sim/safety.py` is new; `sim/world.py` gained a `_safety(m)`
-step, a fourth per-lab RNG stream (`rng_safety`) and regulation effects in
-the market and finance steps; `sim/constants.py` gained a tagged safety
-block; all eleven strategies in `sim/strategy.py` gained `safety_spend` and
-`eval_rate`.
+**The decision seam** — `ROADMAP.md` item 2, the last architectural item.
+`sim/policy.py` is new: `Observation` (what a lab can see), `Actions` (its
+standing decisions for the month, ~24 fields, bounds-checked), `Policy`
+(decide + the release interrupt), `DoctrinePolicy` (the eleven strategies
+as behaviour) and `ReplayPolicy` (replays a log, reads nothing else).
+`sim/world.py` gained `observe`, `apply`, `ask_release`, `_decide` and an
+`action_log`; lost every inline `doctrine.get(...)` that was a *choice*.
+`sim/strategy.py` now only says what each strategy wants — its behaviour
+(`withholds`, the bids, the spiral) moved to the policy. `sim/replay.py`
+is the standing check. The action log is exported in `meta.actions`.
 
-Design, per Nick's brief: three tiers (minor / moderate / severe),
-catastrophic deliberately deferred, and the governing principle that *a
-glorified chatbot misaligning is not dangerous, while any deviation in
-something with real agency is*. So **frequency** is driven by sloppiness and
-deployment surface, and **severity** is gated on AGENT capability and on how
-much agentic product is actually deployed. Full spec: `WORLD_MODEL.md` §2f.
+Design choices worth knowing, because they were choices:
+
+- **Decision vs identity.** The cut is in `WORLD_MODEL.md` §2g. If you add
+  a mechanic and find yourself writing `lab.doctrine.get(...)` in
+  `world.py`, stop and ask whether a player could choose it. If yes it is
+  an `Actions` field, set by the policy, read from `lab.actions`.
+- **The release decision is an interrupt, not a standing order.** A run
+  lands with an outcome nobody knew; `decide_release` is asked at that
+  moment with the result in hand: ship or hold, and if shipping, evaluate
+  first or carry the debt. I chose the interrupt over deferring the
+  question to the next tick because it is bit-compatible with v1.3 and
+  because for a player "your run landed — ship it?" is the right modal.
+  If a quarterly turn structure later wants the question batched, the
+  place to change is `World.ask_release`.
+- **The spiral moved into the policy.** Fear compressing the run window,
+  bidding up compensation, raising capex aggression, widening the data
+  wallet — all now computed in `DoctrinePolicy` from `obs.threat`. The
+  world only prices the *consequence* (the ambition term in the outcome
+  distribution). A player gets no automatic panic.
+- **Policies have their own dice.** `lab.rng_policy` is a fifth stream.
+  This was forced, not chosen: the first cut drew the eval roll from
+  `lab.rng` and the replay check failed instantly, because a replay draws
+  nothing and every world draw after the first ship was shifted. The
+  general rule is now in `CLAUDE.md`: the world never draws from the
+  policy's stream, and the policy never draws from the world's.
+- **A held model that is finally released now faces the eval question.**
+  Before v1.4 it skipped it entirely (no eval, no debt). Small behaviour
+  change, affects RSI labs only, correct.
 
 ## What is verified, and what is not
 
 **Verified.**
 
-*The severity gradient is what Nick asked for.* Over 24 seeded runs:
+*The refactor was mechanical.* Commit 1 (`08c42cf`) is bit-identical to
+v1.3: three full 132-month exports (historical seed 0, randomised seeds
+7 and 11) and the five-seed checkpoint table match the pre-refactor output
+exactly. Two things had to be got right to achieve that and are worth
+knowing: a lab's auction bids are computed with the cash left *after* this
+month's non-exclusive licence (the old code spent first, then bid), and
+`ship_cooldown` is allowed to go negative in `Actions` because the doctrine
+cut can exceed the base and the world floors it at one month.
 
-```
-  era          minor  moderate  severe   severe share
-  2019-2021       83        11       0             0%
-  2022-2024      218        33       0             0%
-  2025-2027      154        71       5             2%
-  2028-2030      110       150      16             6%
-```
+*The seam is complete.* `python3 -m sim.replay`: a `ReplayPolicy` with no
+doctrine and no observation reproduces the recorded run bit for bit on
+seeds 0 (historical) and 7 (randomised), through a JSON round trip of the
+save. Four illegal actions are refused. This is the check to run after any
+change to `world.py`.
 
-Nothing severe is possible before agentic capability exists. First severe
-incident 2026; median year 2029. The early decade is embarrassment, the late
-decade is liability.
+*Calibration survived the realisation change.* Commit 2 moved the eval
+roll to `rng_policy`, which changes every run's dice. Over five seeds:
+15/16 inside ±18 months, median −10, mean |offset| 9.4, worst −22, order
+113/120 (was 15/16, −10, 9.4, −24, 111/120). Balance over 24 seeds: eleven
+strategies at 54–89% of their own goals (was 60–95%), 86 lead changes a
+run (was 90), 5.8 of 7 viable (was 5.7). Same standing; the movement is
+seed noise. `results_checkpoints.txt` and `results_balance.txt` are
+regenerated.
 
-*Safety is a real decision, not a tax.* 84 paired lab-runs (12 seeds x 7
-labs), careless against diligent, same lab, same world, same seed:
+**Not verified.**
 
-```
-             ARR $B  trust   minor   mod   sev   incident $B   safety $B
-  careless    121.3    6.3    2698  1436   105        3820.6         0.0
-  diligent    148.3   32.7     306   175    17         975.0       244.4
-
-  paired delta in 2030 ARR (diligent - careless), $B
-    p10  -50.5    p25  -7.3    median  +19.1    p75  +58.4    p90  +145.9
-    mean +27.0    diligence ahead in 51 of 84 pairs
-```
-
-Positive on average, positive at the median, **negative at p10 and p25**.
-Insurance you resent paying — which is the stated target.
-
-*Calibration survived.* 15/16 checkpoints inside +/-18 months, median offset
--10, mean |offset| 9.4, order 111/120. (Was 16/16 and 113/120 before; the
-difference is a different random realisation, not a regression — see the RNG
-note below.) Strategy goal attainment is unchanged: all eleven still score in
-the same band.
-
-**Not verified, and worth saying plainly.**
-
-Every number in the safety block is a judgment call. There is no reference
-class for a severe AI incident, so nothing anchors the cost of one. The
-*structure* is defensible and is what produces the behaviour; the magnitudes
-were tuned until the posture was a decision rather than a tax. See
-`PREMISES.md`, structural issue 2.
-
-The one checkpoint now outside the band is "an enterprise agent market opens"
-at -24 months. It was inside before this session. I believe that is the RNG
-realisation rather than the regulation gate lift — regulation is still 0 in
-2023, so it cannot be touching that milestone — but I did not prove it, and
-it is the first thing to check if the next session sees agentic markets
-opening too early.
+- The safety severity gradient and the paired careless/diligent A/B from
+  v1.3 were not re-run. The gradient is gated on capability, not on dice,
+  so it should be unchanged; the A/B numbers (mean +$27B, ahead in 51/84)
+  will have moved with the realisation and should be re-measured before
+  anyone quotes them. `scratchpad/ab.py` from last session was never
+  committed; the paired-lab shape is described in `CLAUDE.md`.
+- "An enterprise agent market opens" is still outside the band, at −22
+  (was −24), on a different realisation. Two different draws both landing
+  two years early says this is structural, not noise. It is the first
+  calibration item to look at, and it is not the regulation gate.
+- `sim/checkpoints.py:85` still reads `doctrine["run_months"]` to estimate
+  cluster size. It is an instrument, not a decision, and switching it to
+  the window actually used (`lab.run_window`, threat-compressed) would
+  move the 100k-cluster checkpoint for a non-model reason. Left alone,
+  flagged.
 
 ## Where the bodies are buried
 
-Things that cost real time this session and that will cost it again:
-
-- **Changing an RNG draw changes the world.** `eval_rate` originally
-  short-circuited on `always_eval`, so the safety-first strategy consumed
-  one fewer random number per ship and every subsequent decision in the run
-  diverged. Any A/B on safety posture was measuring that divergence, not
-  safety. The draw is now always consumed. If you add a decision, consume
-  its randomness unconditionally.
-- **A/B across *all* labs measures nothing.** Making every lab careless and
-  comparing run outcomes is a null experiment by construction — the relative
-  standings are unchanged. The right test is paired: flip *one* lab's
-  posture in an otherwise identical world, same seed, and compare that lab
-  to itself. `scratchpad/ab.py` does this; it is not committed because it is
-  a one-off, but the shape is worth keeping.
-- **Runs are slow.** 132 monthly ticks × 7 labs. A paired A/B over 12 seeds
-  is 168 runs and takes ~20 minutes. Budget for it; do not iterate
-  interactively on a full sweep.
+- **Floating-point order matters for bit-identity.** Moving an expression
+  from the world into the policy is only exact if the operands multiply in
+  the same order. I kept the original left-to-right forms; if you refactor
+  one and the golden diff starts showing ±1 in the third decimal, this is
+  why, and it is not a bug.
+- **`Actions.diff` logs only what changed**, and threat moves every month,
+  so `run_months`, `comp_offer`, `ship_cooldown` and `capex_aggression`
+  log every month for every lab (~900 entries a run). Fine for a save
+  file; if a viewer shows the log it should filter those.
+- **Runs are slow.** ~8 s each. `sim.balance 24` is ~3.5 min,
+  `sim.checkpoints` ~1 min, `sim.replay` ~35 s. Same advice as before:
+  budget for it, do not iterate interactively on a full sweep.
 
 ## What I would do next, in order
 
-1. **`ROADMAP.md` item 2, the decision seam.** Policy is still baked into
-   `doctrine` dicts read inline all over `world.py`. Nothing *decides*
-   anything. Until `observe → decide → apply` exists there is nowhere for a
-   player to plug in, and every session that adds a mechanic adds another
-   inline `doctrine.get(...)` to unpick later. This is the last
-   architectural change that is cheap now and expensive later.
-2. **Events** (item 4) — a JSON deck, conditional on world state. Cheapest
-   large gain in run-to-run variety.
-3. **Demand as a labour market, not a spend ceiling** (`PREMISES.md`
-   structural issue 2). The late game is where the interesting decisions
-   are and it is the weakest part of the model.
+1. **Events** (`ROADMAP.md` item 4). A JSON deck, conditional on world
+   state, visible in the viewer as a timeline. Cheapest large gain in
+   run-to-run variety, and now there is a clean place for an event to
+   *act*: it can change an `Observation`, constrain `Actions` (an export
+   control is a bound on `capex_aggression` or `supply_share`), or force
+   an interrupt.
+2. **The first human-facing policy.** A `Policy` whose `decide` builds
+   `Actions` from a dict (a form, a CLI prompt, a JSON file per quarter)
+   and whose `decide_release` asks. Plus a turn structure: hold the
+   player's `Actions` for three ticks, batch the interrupts. This is the
+   moment the game becomes playable headlessly, and it is now small.
+3. **Demand as a labour market** (`PREMISES.md` structural issue 3). Still
+   the weakest part of the late game.
 
 ## Standing instructions from Nick, for the record
 

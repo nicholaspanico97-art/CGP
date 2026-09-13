@@ -73,7 +73,8 @@ class Observation:
         self.scores = scores                  # last month's published table
         self.segment_state = segment_state    # last month's market shares
         self.sector_incidents = sector_incidents
-        self.rng = rng                        # this lab's decision stream
+        self.rng = rng                        # the policy's own stream; the
+                                              # world never draws from it
 
 
 # ------------------------------------------------------------------ actions
@@ -195,11 +196,25 @@ def validate(actions):
             raise IllegalAction(f"bid for {key} must be positive")
 
 
+class Release:
+    """
+    The answer to the release interrupt. `ship`: release it, or sit on it.
+    `evaluate`: run a real evaluation before launch - which covers most of
+    the capability jump - or skip it and carry the safety debt.
+    """
+
+    __slots__ = ("ship", "evaluate")
+
+    def __init__(self, ship, evaluate=True):
+        self.ship = bool(ship)
+        self.evaluate = bool(evaluate)
+
+
 # ------------------------------------------------------------------- policy
 class Policy:
     """
     Something that decides for a lab. Subclass and implement `decide`;
-    override `decide_release` if the default (always ship) is wrong.
+    override `decide_release` if the default (ship, evaluated) is wrong.
     """
 
     def decide(self, obs):
@@ -208,9 +223,9 @@ class Policy:
     def decide_release(self, obs, candidate_cap, held):
         """
         A run has landed at `candidate_cap` (or a held model is being
-        reconsidered, `held=True`). Return True to ship, False to sit on it.
+        reconsidered, `held=True`). Return a `Release`.
         """
-        return True
+        return Release(ship=True, evaluate=True)
 
 
 class DoctrinePolicy(Policy):
@@ -334,7 +349,7 @@ class DoctrinePolicy(Policy):
         a.openness = p.get("openness", 0.1)
         return a
 
-    def decide_release(self, obs, candidate_cap, held):
+    def _withholds(self, obs, candidate_cap):
         """
         Only the self-improvement racer declines to release on purpose:
         shipping hands rivals something to measure themselves against and to
@@ -344,15 +359,27 @@ class DoctrinePolicy(Policy):
         """
         p, lab = self.p, obs.lab
         if p.get("strategy") != "RSI":
-            return True
+            return False
         costs = max(getattr(lab, "last_costs", 1.0), 1.0)
         runway = lab.cash / costs
         if runway < p.get("hoard_runway", 20.0):
-            return True                   # needs the revenue more than the secrecy
+            return False                  # needs the revenue more than the secrecy
         # against what the lab BELIEVES the frontier is. A hoarder that thinks
         # a rival is closer than it really is releases earlier than it needed to.
         lead = candidate_cap - obs.perceived_frontier
-        return not (lead > -p.get("hoard_lead", 0.25))
+        return lead > -p.get("hoard_lead", 0.25)
+
+    def decide_release(self, obs, candidate_cap, held):
+        if self._withholds(obs, candidate_cap):
+            return Release(ship=False)
+        # Whether to evaluate before launch is a per-release roll. The draw
+        # is always consumed on a ship, whatever `always_eval` says, so that
+        # changing a lab's eval posture does not desynchronise every other
+        # random decision in the run.
+        p = self.p
+        roll = obs.rng.random()
+        evaluate = p.get("always_eval", False) or roll < p.get("eval_rate", 0.5)
+        return Release(ship=True, evaluate=evaluate)
 
 
 class ReplayPolicy(Policy):
@@ -372,7 +399,8 @@ class ReplayPolicy(Policy):
             if who != name:
                 continue
             if "release" in changed:
-                self.releases.append(changed["release"] == "ship")
+                self.releases.append(Release(changed["release"] == "ship",
+                                             changed.get("evaluate", True)))
             else:
                 self.standing.append((month, changed))
         self._i = 0
@@ -393,6 +421,6 @@ class ReplayPolicy(Policy):
     def decide_release(self, obs, candidate_cap, held):
         if self._r >= len(self.releases):
             raise IllegalAction("replay ran out of release decisions")
-        ship = self.releases[self._r]
+        rel = self.releases[self._r]
         self._r += 1
-        return ship
+        return Release(rel.ship, rel.evaluate)

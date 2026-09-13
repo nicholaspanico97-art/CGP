@@ -205,8 +205,10 @@ class Lab:
         candidate.eval_noise = {k: self.rng_eval.gauss(0.0, TASKS.EVAL_NOISE_PTS)
                                 for k in TASKS.SUITES}
         # The interrupt: the run has landed and the lab is asked, with the
-        # result in hand, whether to release it. Logged like any action.
-        if not world.ask_release(self, cap, held=False):
+        # result in hand, whether to release it and whether to evaluate it
+        # first. Logged like any action.
+        rel = world.ask_release(self, cap, held=False)
+        if not rel.ship:
             # better than what it sells, and deliberately not released
             self.internal = candidate
             self.withheld_months += 1
@@ -222,17 +224,18 @@ class Lab:
         self.ships.append((month, "pretrain", tag, round(cap, 3)))
         self.scale_at_release = self.fleet.count()
         self.last_outcome = ("shipped", tag, cap)
-        # the draw is always consumed so that changing eval posture does not
-        # desynchronise every other random decision in the run
-        roll = self.rng.random()
-        if self.doctrine.get("always_eval", False) or roll < self.doctrine.get("eval_rate", 0.5):
-            # a real evaluation covers most of the jump you just shipped
+        self._launch_eval(rel, cap)
+        return self.model
+
+    def _launch_eval(self, rel, cap):
+        """A real evaluation covers most of the jump you just shipped. Skipping
+        it is cheaper now and is carried as safety debt."""
+        if rel.evaluate:
             self.evaluated_at = (self.evaluated_at
                                  + K.EVAL_CAPABILITY_COVERAGE
                                  * (cap - self.evaluated_at))
         else:
             self.safety_debt += 2.0
-        return self.model
 
     def maybe_release_held(self, month, world):
         """
@@ -243,7 +246,8 @@ class Lab:
         if self.internal is None:
             return None
         cap = self.internal.capability
-        if not world.ask_release(self, cap, held=True):
+        rel = world.ask_release(self, cap, held=True)
+        if not rel.ship:
             self.withheld_months += 1
             self.hoarding = True
             # You are visibly not shipping, and the market notices. The
@@ -258,6 +262,7 @@ class Lab:
         self.post_budget = REL.post_train_budget(self.rng, self.researcher_quality)
         self.post_timer = K.POST_TRAIN_MONTHS
         self.ships.append((month, "pretrain", "held", round(cap, 3)))
+        self._launch_eval(rel, cap)
         return self.model
 
     # Post-training lifts these domains far more than the others: RL on
@@ -498,6 +503,11 @@ class World:
             lab.rng_eval = random.Random(seed * 6421 + i * 104729 + 7)
             lab.rng_intel = random.Random(seed * 3571 + i * 15485863 + 31)
             lab.rng_safety = random.Random(seed * 8191 + i * 2750159 + 53)
+            # A policy that wants randomness draws from its own stream, so
+            # the world's realisation never depends on how a policy decided
+            # (a human draws nothing; a replay draws nothing; the run is
+            # the same run).
+            lab.rng_policy = random.Random(seed * 4093 + i * 3145739 + 71)
         self.month = 0
         # The sector's algorithmic frontier, as a stock that labs advance.
         self.algo_frontier = 1.0
@@ -538,7 +548,7 @@ class World:
             regulation=self.regulation, openness=self.openness,
             market_comp=self.market_comp, scores=self.scores,
             segment_state=self.segment_state,
-            sector_incidents=self.incident_log, rng=lab.rng)
+            sector_incidents=self.incident_log, rng=lab.rng_policy)
 
     def apply(self, lab, actions):
         """Validate, log what changed, and put the actions in force."""
@@ -550,12 +560,16 @@ class World:
         lab.mixture = dict(actions.mixture)
 
     def ask_release(self, lab, candidate_cap, held):
-        """The release interrupt: ship, or sit on it. Logged either way."""
-        ship = bool(lab.policy.decide_release(self.observe(lab), candidate_cap, held))
+        """The release interrupt: ship or sit on it, evaluated or not.
+        Logged either way."""
+        rel = lab.policy.decide_release(self.observe(lab), candidate_cap, held)
+        if not isinstance(rel, POL.Release):
+            raise POL.IllegalAction(f"decide_release must return a Release, got {rel!r}")
         self.action_log.append((self.month, lab.name,
-                                {"release": "ship" if ship else "hold",
+                                {"release": "ship" if rel.ship else "hold",
+                                 "evaluate": rel.evaluate if rel.ship else None,
                                  "held": held, "cap": round(candidate_cap, 3)}))
-        return ship
+        return rel
 
     def _decide(self, m):
         """observe -> decide -> apply, for every lab, once a month."""
