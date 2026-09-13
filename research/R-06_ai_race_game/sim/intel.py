@@ -87,7 +87,7 @@ def observe(observer, target, world, month):
     b.price = target.price_per_mtok
 
     # --- inferable: iron and power are hard to hide, but not easy to count
-    intel = observer.doctrine.get("intel_spend", 0.25)
+    intel = observer.actions.intel_spend
     obs_noise = K.SCALE_OBS_NOISE / (1.0 + K.INTEL_SPEND_EFFECT * intel * 3.0)
     true_scale = max(target.fleet.count(), 1)
     b.scale = true_scale * (10 ** observer.rng_intel.gauss(0.0, obs_noise))

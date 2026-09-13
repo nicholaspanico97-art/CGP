@@ -127,6 +127,9 @@ def run(months=132, seed=7, randomized=True):
             "ships": len([x for x in l.ships if x[1] == "pretrain"]),
         } for l in w.labs},
         "seed": seed,
+        # every decision, as (month, lab, what changed): with the seed this
+        # is the whole game, and it is what a viewer can show as "why"
+        "actions": [[int(m), who, changed] for m, who, changed in w.action_log],
         "incident_log": [[int(x["month"]), x["lab"], x["severity"], x["text"],
                           r(x["cost"] / 1e9, 3)] for x in w.incident_log],
         "retirements": [[int(m), s_, lab] for m, s_, lab in w.suites.retirements],

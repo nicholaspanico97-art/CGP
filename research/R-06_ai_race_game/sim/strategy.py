@@ -17,7 +17,6 @@ A lab racing for self-improving research does not want to hand rivals a
 target to distill, so it sits on capability until it needs the money - and
 while it sits, the open-weights lab it is racing cannot catch up by copying.
 """
-import math
 
 
 def _u(rng, lo, hi):
@@ -276,29 +275,6 @@ def draw(key, rng):
     return p
 
 
-# --------------------------------------------------------------- behaviour
-def withholds(params, lab, world, month, candidate_cap):
-    """
-    Does this lab choose NOT to release a model it could release?
-
-    Only the self-improvement racer does this on purpose: shipping hands
-    rivals something to measure themselves against and to distill from, and
-    the whole plan is to compound privately. It releases when the money runs
-    short, or when it is behind and needs the revenue anyway.
-    """
-    if params.get("strategy") != "RSI":
-        return False
-    costs = max(getattr(lab, "last_costs", 1.0), 1.0)
-    runway = lab.cash / costs
-    if runway < params.get("hoard_runway", 20.0):
-        return False                      # needs the revenue more than the secrecy
-    # against what the lab BELIEVES the frontier is. A hoarder that thinks
-    # a rival is closer than it really is releases earlier than it needed to.
-    frontier = getattr(lab, "perceived_frontier", 0.0)
-    lead = candidate_cap - frontier
-    return lead > -params.get("hoard_lead", 0.25)
-
-
-def openness(params):
-    """How much this lab's behaviour speeds the whole field up."""
-    return params.get("openness", 0.1)
+# The behaviour these parameters produce - what to ship, what to bid, how
+# hard to panic - lives in sim/policy.py (DoctrinePolicy). This module only
+# says what each strategy WANTS.

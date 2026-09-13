@@ -16,6 +16,7 @@ from . import strategy as STRAT
 from . import intel as INTEL
 from . import safety as SAFE
 from . import tasks as TASKS
+from . import policy as POL
 from .capability import (BenchmarkModel, FrontierHistory, algo_efficiency, reasoning_multiplier,
                          capability_index, domain_capability)
 
@@ -49,9 +50,14 @@ class Model:
 
 class Lab:
     def __init__(self, name, doctrine, cash, researchers, fleet_accel,
-                 fleet_count, start_month=0):
+                 fleet_count, start_month=0, policy=None):
         self.name = name
-        self.doctrine = doctrine          # dict of policy weights
+        # What the lab IS: strategy, quality, parent, paranoia. The world
+        # reads identity from here. Anything the lab CHOOSES comes through
+        # `self.actions`, set each month by `self.policy` (sim/policy.py).
+        self.doctrine = doctrine
+        self.policy = policy or POL.DoctrinePolicy(doctrine)
+        self.actions = None               # in force this month; set by World.apply
         self.cash = cash
         self.researchers = researchers
         self.engineers = researchers * 2
@@ -160,10 +166,10 @@ class Lab:
         edge = max(0.0, math.log10(max(self.algo_mult, 1e-6))) * 6.0
         era_r = E.era_recipe(month + int(edge), K.RECIPE_ERA_TOKENS_PER_PARAM)
         era_moe = E.era_recipe(month + int(edge), K.RECIPE_ERA_MOE)
-        r = min(self.doctrine.get("tokens_per_param", 20.0), era_r)
-        moe = min(self.doctrine.get("moe_sparsity", 1.0), era_moe)
+        r = min(self.actions.tokens_per_param, era_r)
+        moe = min(self.actions.moe_sparsity, era_moe)
         shape = E.run_shape(self.train_bank, r, moe)
-        tt = self.doctrine.get("test_time_oom", 0.0)
+        tt = self.actions.test_time_oom
 
         own = max(self.model.caps.values()) if self.model and self.model.caps else 0.0
         # frontier_cap is this lab's BELIEF about the frontier. A lab that
@@ -198,7 +204,9 @@ class Lab:
                           month, caps, tag)
         candidate.eval_noise = {k: self.rng_eval.gauss(0.0, TASKS.EVAL_NOISE_PTS)
                                 for k in TASKS.SUITES}
-        if STRAT.withholds(self.doctrine, self, world, month, cap):
+        # The interrupt: the run has landed and the lab is asked, with the
+        # result in hand, whether to release it. Logged like any action.
+        if not world.ask_release(self, cap, held=False):
             # better than what it sells, and deliberately not released
             self.internal = candidate
             self.withheld_months += 1
@@ -235,7 +243,7 @@ class Lab:
         if self.internal is None:
             return None
         cap = self.internal.capability
-        if STRAT.withholds(self.doctrine, self, world, month, cap):
+        if not world.ask_release(self, cap, held=True):
             self.withheld_months += 1
             self.hoarding = True
             # You are visibly not shipping, and the market notices. The
@@ -341,7 +349,7 @@ class Lab:
 
     def chase_step(self, month):
         """Pursue the published numbers, and occasionally get caught at it."""
-        rate = self.doctrine.get("chase_rate", 0.0)
+        rate = self.actions.chase_rate
         for d in list(self.model.caps) if self.model else []:
             cur = self.chase.get(d, 0.0)
             target = K.CHASE_MAX_OOM * rate
@@ -357,44 +365,12 @@ class Lab:
         return False
 
     # ----------------------------------------------------------------- data
-    def strategic_value(self, source_key):
-        """
-        How much this corpus is worth to THIS lab: the overlap between what
-        the source contains and what the lab is actually training for. A
-        catalogue of stock footage is worth far more to a media specialist
-        than to a generalist who would spend 7% of a run on it.
-        """
-        src = D.DATA_SOURCES[source_key]
-        overlap = sum(self.mixture.get(dom, 0.0) * w
-                      for dom, w in src["mix"].items())
-        return 1.0 + 7.0 * overlap
-
-    def data_bid(self, source_key, month):
-        """What this lab will pay for an exclusive licence, or None."""
-        if source_key in self.data.sources:
-            return None
-        if source_key not in self.doctrine.get("data_priority", []):
-            return None
-        src = D.DATA_SOURCES[source_key]
-        if A.month_index(src["available"]) > month:
-            return None
-        ask = (src["annual_cost"]
-               + src["one_off_cost_per_btok"] * src["volume"]
-               * self.doctrine.get("data_share", 0.6) / 1e9)
-        if ask <= 0:
-            return None
-        # a licence is an annual commitment, not a lump of cash, so revenue
-        # matters as much as the balance sheet
-        budget = max(self.cash * 0.20, self.arr * 0.18)
-        # fear widens the wallet: a corpus looks cheaper when you believe a
-        # rival is pulling away with something you cannot see
-        panic = 1.0 + K.SPIRAL * K.THREAT_BID_GAIN * getattr(self, "threat", 0.0)
-        ceiling = min(budget, ask * self.strategic_value(source_key) * panic)
-        return ceiling if ceiling >= ask else None
-
+    # Which corpora to want, and what to pay, is a decision: it lives in the
+    # policy (`Actions.data_buy`, `Actions.data_bids`). The world only does
+    # the acquiring.
     def take_data(self, source_key, month, price):
-        share = self.doctrine.get("data_share", 0.6)
-        res = D.acquire(self.data, source_key, month, share)
+        """An exclusive licence, won at auction for `price`."""
+        res = D.acquire(self.data, source_key, month, self.actions.data_share)
         if res is None:
             return
         _dollars, flop = res
@@ -404,31 +380,22 @@ class Lab:
         self.annual_data_cost = (getattr(self, "annual_data_cost", 0.0)
                                  + src["annual_cost"])
 
-    def buy_data(self, month, claimed):
-        """Non-exclusive sources only; exclusives are auctioned by the World."""
-        for key in self.doctrine.get("data_priority", []):
-            if key in self.data.sources:
-                continue
-            src = D.DATA_SOURCES[key]
-            if src["exclusive"]:
-                continue
-            if A.month_index(src["available"]) > month:
-                continue
-            share = self.doctrine.get("data_share", 0.6)
-            tokens = src["volume"] * share
-            price = (src["annual_cost"]
-                     + src["one_off_cost_per_btok"] * tokens / 1e9)
-            if price > self.cash * 0.18:
-                continue
-            res = D.acquire(self.data, key, month, share)
-            if res is None:
-                continue
-            dollars, flop = res
-            self.cash -= dollars
-            self.data_flop_debt = getattr(self, "data_flop_debt", 0.0) + flop
-            self.annual_data_cost = (getattr(self, "annual_data_cost", 0.0)
-                                     + src["annual_cost"])
-            break      # one deal a month; these take negotiating
+    def buy_data(self, month):
+        """The non-exclusive source the policy chose this month, if any."""
+        key = self.actions.data_buy
+        if key is None or key in self.data.sources:
+            return
+        src = D.DATA_SOURCES[key]
+        if src["exclusive"]:
+            return
+        res = D.acquire(self.data, key, month, self.actions.data_share)
+        if res is None:
+            return
+        dollars, flop = res
+        self.cash -= dollars
+        self.data_flop_debt = getattr(self, "data_flop_debt", 0.0) + flop
+        self.annual_data_cost = (getattr(self, "annual_data_cost", 0.0)
+                                 + src["annual_cost"])
 
     def accrue_telemetry(self, month):
         """
@@ -503,10 +470,10 @@ class Lab:
         # An efficiency strategy wins by having a lower cost and passing it
         # on, which is a low absolute price and a positive margin - not by
         # selling below what the iron costs it.
-        stance = self.doctrine.get("price_stance", 1.0)
+        stance = self.actions.price_stance
         markup = 1.0 + (markup - 1.0) * stance
         # Deliberately selling below cost is a separate, explicit choice.
-        markup *= self.doctrine.get("loss_leader", 1.0)
+        markup *= self.actions.loss_leader
         self.price_per_mtok = max(cost * markup, cost * 0.35)
 
     # --------------------------------------------------------------- money
@@ -540,6 +507,64 @@ class World:
         self.bm = benchmarks or BenchmarkModel().fit()
         self.suites = TASKS.SuiteSet(TASKS.fit_anchored(FrontierHistory()))
         self.log = []
+        self.openness = 0.0
+        self.market_comp = K.RESEARCHER_COST_PER_YEAR
+        self.scores = {}
+        self.segment_state = {}
+        self.claimed_exclusives = set()
+        # Every decision every lab made, as (month, lab, what changed). With
+        # the seed this is the whole game: a run can be saved, resumed and
+        # replayed from it, and a strategy can be run against a recorded game.
+        self.action_log = []
+        # Before the first tick a lab still needs standing orders: the intel
+        # step reads `intel_spend` before anything has been decided. Ask each
+        # policy once, at month -1, with an empty view of the world.
+        self.month = -1
+        for lab in self.labs:
+            lab._month = -1
+            self.apply(lab, lab.policy.decide(self.observe(lab)))
+        self.month = 0
+
+    # ---------------------------------------------------- the decision seam
+    def observe(self, lab):
+        """
+        What `lab` can see this month. Own state in full; rivals only as the
+        beliefs `_observe` formed; the market only as it was published.
+        """
+        return POL.Observation(
+            month=self.month, lab=lab,
+            beliefs=lab.beliefs, threat=lab.threat, feared=lab.feared,
+            perceived_frontier=getattr(lab, "perceived_frontier", 0.0),
+            regulation=self.regulation, openness=self.openness,
+            market_comp=self.market_comp, scores=self.scores,
+            segment_state=self.segment_state,
+            sector_incidents=self.incident_log, rng=lab.rng)
+
+    def apply(self, lab, actions):
+        """Validate, log what changed, and put the actions in force."""
+        POL.validate(actions)
+        changed = actions.diff(lab.actions)
+        if changed:
+            self.action_log.append((self.month, lab.name, changed))
+        lab.actions = actions
+        lab.mixture = dict(actions.mixture)
+
+    def ask_release(self, lab, candidate_cap, held):
+        """The release interrupt: ship, or sit on it. Logged either way."""
+        ship = bool(lab.policy.decide_release(self.observe(lab), candidate_cap, held))
+        self.action_log.append((self.month, lab.name,
+                                {"release": "ship" if ship else "hold",
+                                 "held": held, "cap": round(candidate_cap, 3)}))
+        return ship
+
+    def _decide(self, m):
+        """observe -> decide -> apply, for every lab, once a month."""
+        # the going rate for people is public; every lab prices against it
+        supply = T.global_researcher_pool(m)
+        demand = sum(l.researchers for l in self.labs)
+        self.market_comp = T.market_comp(m, demand * 1.25, supply)
+        for lab in self.labs:
+            self.apply(lab, lab.policy.decide(self.observe(lab)))
 
     # ---------------------------------------------------------- the market
     def frontier_capability(self):
@@ -551,18 +576,16 @@ class World:
         for lab in self.labs:
             lab._month = m
         self._observe(m)
+        self._decide(m)
         frontier_algo = max(l.algo_mult for l in self.labs)
         # How freely ideas move this month. Open-weights labs lift it for
         # everyone; a field of secretive labs grinds diffusion down, which is
         # exactly what a hoarding strategy is buying.
         wts = [(1.0 + max(0.0, (l.model.capability - 22.0)) if l.model else 1.0)
                for l in self.labs]
-        self.openness = (sum(STRAT.openness(l.doctrine) * w
+        self.openness = (sum(l.actions.openness * w
                              for l, w in zip(self.labs, wts)) / max(sum(wts), 1e-9))
         self._talent_market(m)
-
-        if not hasattr(self, "claimed_exclusives"):
-            self.claimed_exclusives = set()
         # Distillation pressure per lab: how much the labs AHEAD of it are
         # serving. A leader that sells a lot of tokens is teaching the field.
         ahead = {}
@@ -577,30 +600,26 @@ class World:
             lab.deliver(m)
             lab.deliver_power(m)
             lab.fleet.retire(m)
-            lab.buy_data(m, self.claimed_exclusives)
+            lab.buy_data(m)
         self._data_auction(m)
 
         for lab in self.labs:
-            d = lab.doctrine
-            spare = lab.train_step(m, d["train"])
+            a = lab.actions
+            spare = lab.train_step(m, a.train)
             # capacity the current run cannot absorb is turned to serving,
             # which is what a lab with idle accelerators actually does
-            lab.serve_frac = d["serve"] + spare
-            lab.research_step(d["experiment"])
+            lab.serve_frac = a.serve + spare
+            lab.research_step(a.experiment)
             lab.diffuse(frontier_algo, openness=self.openness,
                         distill=self.distill.get(lab.name, 0.0))
             fc = self.frontier_capability()
             lab.maybe_release_held(m, self)
             if lab.maybe_ship(m, fc, self) is not None:
                 # the cooldown is where post-training, evals, safety review
-                # and launch prep happen - it is not idle time
-                base = lab.doctrine.get("ship_cooldown", 3)
+                # and launch prep happen - it is not idle time. The policy
+                # chose the length; the world adds its own jitter.
                 jitter = lab.rng.randint(-1, K.SHIP_JITTER_MONTHS)
-                # a lab that BELIEVES it is behind does not take a leisurely
-                # cooldown, whether or not it actually is
-                lab.cooldown = max(1, int(round(
-                    base + jitter
-                    - K.SPIRAL * K.THREAT_COOLDOWN_CUT * lab.threat)))
+                lab.cooldown = max(1, int(round(lab.actions.ship_cooldown + jitter)))
             lab.maybe_post_train(m)
             if lab.run_target is None:
                 if lab.cooldown > 0:
@@ -647,13 +666,11 @@ class World:
         by what this lab has learned to land. Ambition is limited by the last
         run you actually finished, which is why nobody jumps two OOMs at once.
         """
-        # Wall-clock a lab is willing to spend. Competitive fear compresses
-        # it: real labs threw more accelerators at a run to finish sooner,
-        # because time-to-market is what they are racing on.
-        window = lab.doctrine.get("run_months", 4.0)
-        window = max(1.2, window - 0.8 * K.SPIRAL * getattr(lab, "threat", 0.0))
+        # Wall-clock the lab is willing to spend - the policy's call, and
+        # where competitive fear shows up as a shorter window.
+        window = lab.actions.run_months
         lab.run_window = window
-        by_fleet = (lab.fleet.train_flops() * lab.doctrine["train"]
+        by_fleet = (lab.fleet.train_flops() * lab.actions.train
                     * K.FRONTIER_RUN_SHARE
                     * K.SECONDS_PER_MONTH * window / 1.18)
         if lab.largest_run <= 0:
@@ -728,7 +745,7 @@ class World:
                     + 0.9 * seg["brand_weight"] * math.log10(max(l.trust, 5) / 50.0)
                     # open weights buy developer mindshare rather than revenue:
                     # people build on what they can run themselves
-                    + (0.85 * STRAT.openness(l.doctrine)
+                    + (0.85 * l.actions.openness
                        if seg_key in ("api_general", "coding") else 0.0))
             shares = E.logit_share(scores, temperature=seg["temperature"])
             shares = [max(sh, K.MIN_VIABLE_SHARE) for sh in shares]
@@ -776,7 +793,7 @@ class World:
 
             cap_mtok = E.serving_capacity_mtok(
                 lab.fleet, lab.model.active_params,
-                getattr(lab, "serve_frac", lab.doctrine["serve"]))
+                getattr(lab, "serve_frac", lab.actions.serve))
             served = min(want_mtok, cap_mtok)
             lab.served_mtok = served
             lab.unmet = max(0.0, want_mtok - served)
@@ -848,11 +865,10 @@ class World:
         """
         supply = T.global_researcher_pool(m)
         demand = sum(l.researchers for l in self.labs)
-        rate = T.market_comp(m, demand * 1.25, supply)
-        self.market_comp = rate
+        rate = self.market_comp            # priced in _decide, this month
 
         for lab in self.labs:
-            target = lab.doctrine.get("headcount_ambition", 1.0)
+            target = lab.actions.headcount_ambition
             # you can only hire what you can pay for and what exists
             want = lab.researchers * (1.0 + 0.035 * target)
             scarcity = max(0.0, supply - demand) / max(supply, 1.0)
@@ -860,10 +876,8 @@ class World:
             if afford and scarcity > 0.02:
                 lab.researchers = want
                 lab.engineers = lab.researchers * 2.2
-            # pay to keep people, or lose them
-            # a lab that believes it is losing bids up for people
-            lab.comp_offer = rate * lab.doctrine.get("comp_stance", 1.0) * (
-                1.0 + K.SPIRAL * K.THREAT_COMP_GAIN * getattr(lab, "threat", 0.0))
+            # pay to keep people, or lose them - the offer is the policy's
+            lab.comp_offer = lab.actions.comp_offer
             if lab.comp_offer < rate * 0.85:
                 lab.researchers *= 0.985
                 lab.mission_alignment = max(5.0, lab.mission_alignment - 0.3)
@@ -939,7 +953,7 @@ class World:
             if not lab.model:
                 continue
             # safety work: a deliberate spend that buys down debt
-            want = lab.doctrine.get("safety_spend", 0.3)
+            want = lab.actions.safety_spend
             if want > 0 and lab.safety_debt > 0 and lab.cash > 0:
                 budget = min(lab.cash * 0.02,
                              want * K.SAFETY_SPEND_PER_POINT * 2.0)
@@ -998,8 +1012,8 @@ class World:
                 continue
             bids = []
             for lab in self.labs:
-                b = lab.data_bid(key, m)
-                if b:
+                b = lab.actions.data_bids.get(key)
+                if b and key not in lab.data.sources:
                     bids.append((b, lab))
             if not bids:
                 continue
@@ -1053,10 +1067,10 @@ class World:
 
             # ---- raise, if the market will have you
             runway = lab.cash / max(lab.last_costs, 1.0)
-            if (runway < lab.doctrine.get("raise_runway", 14)
+            if (runway < lab.actions.raise_runway
                     and lab.doctrine.get("can_raise", True)
                     and m - getattr(lab, "last_raise", -99) >= 11):
-                dilution = lab.doctrine.get("raise_fraction", 0.16)
+                dilution = lab.actions.raise_fraction
                 amount = lab.valuation * dilution
                 lab.cash += amount
                 lab.last_raise = m
@@ -1078,12 +1092,12 @@ class World:
             planned = lab.fleet.megawatts() + sum(
                 a.megawatts(c) for a, c, _m, _p in lab.orders)
             pipeline = sum(mw for mw, _a in lab.mw_pipeline)
-            target = max(planned, 5.0) * lab.doctrine.get("power_lookahead", 5.0)
+            target = max(planned, 5.0) * lab.actions.power_lookahead
             lease_market = K.LEASE_MARKET_MW.get(year, 52_000)
             lease_cap = lease_market * lab.doctrine.get("supply_share", 0.2)
             if lab.contracted_mw + pipeline < target:
                 need = min(target - lab.contracted_mw - pipeline, lease_cap)
-                share = lab.doctrine.get("lease_share", 0.6)
+                share = lab.actions.lease_share
                 cost = need * (1 - share) * K.DC_CAPEX_PER_MW
                 if cost < lab.cash * 0.45:
                     lab.cash -= cost
@@ -1091,11 +1105,10 @@ class World:
                     lab.capex_by_year[year] = lab.capex_by_year.get(year, 0.0) + cost
 
             # ---- buy accelerators
-            # Perceived deficit raises capex aggression. This is the spiral:
-            # planning against the bad case means over-building, and the
-            # over-building is itself the signal that worries everyone else.
-            aggression = min(0.94, lab.doctrine.get("capex_aggression", 0.5)
-                             * (1.0 + K.SPIRAL * K.THREAT_CAPEX_GAIN * lab.threat))
+            # capex posture is the policy's call - including the spiral,
+            # where perceived deficit raises aggression and the over-building
+            # is itself the signal that worries everyone else
+            aggression = lab.actions.capex_aggression
             lab.effective_aggression = aggression
             budget = max(0.0, lab.cash * aggression)
             count = int(budget / accel.capex)
