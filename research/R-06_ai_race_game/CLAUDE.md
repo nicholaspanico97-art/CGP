@@ -22,6 +22,7 @@ Python. Read this first, then `WORLD_MODEL.md`.
 ```
 python3 -m sim.checkpoints   # PRIMARY calibration: timing, in months
 python3 -m sim.replay        # the seam check: record, replay, must match bit for bit
+python3 -m sim.play --seed 7 --lab 2   # PLAY IT: one lab is yours, a turn is a quarter
 python3 -m sim.score         # secondary: magnitude sanity check only
 python3 -m sim.balance 24    # strategy goal attainment, lead changes
 python3 -m sim.fit_report    # benchmark curve fit
@@ -72,6 +73,8 @@ strategy.py    11 strategies with variation, drawn per game (what they WANT)
 policy.py      the decision seam: Observation, Actions, Policy; DoctrinePolicy
                is the strategies' behaviour; ReplayPolicy replays a log
 replay.py      record -> save -> replay; must be bit-identical
+game.py        the player's seat: PlayerPolicy, Game (quarterly turn, board letter)
+play.py        terminal front end for game.py; `--auto N` watches autopilot
 objectives.py  what each strategy is trying to do; how success is scored
 safety.py      incident hazard, three severity tiers, sector regulation
 world.py       the monthly tick: everything above, wired together
@@ -128,7 +131,8 @@ incidents. Every decision goes through the seam; replay is bit-identical.
 ## What is deliberately not modelled yet
 
 Events, government as an actor, labs dying, and the player. See
-`ROADMAP.md`. No architectural items remain. Next, per Nick (Sep 13):
-**a way to play it** — a `Policy` that asks a human and a turn structure
-that batches the monthly seam into quarters — because *play testing is its
-own calibration*. Events (item 4) after that.
+`ROADMAP.md`. No architectural items remain. **It is playable** (v1.5,
+`sim/play.py`): plain text, one lab, quarterly turns, the release
+interrupt. Nick's direction (Sep 13): *play testing is its own
+calibration* — so the next work is whatever playing it turns up, then
+events (item 4).

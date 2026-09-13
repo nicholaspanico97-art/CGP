@@ -220,10 +220,11 @@ class Policy:
     def decide(self, obs):
         raise NotImplementedError
 
-    def decide_release(self, obs, candidate_cap, held):
+    def decide_release(self, obs, candidate, held):
         """
-        A run has landed at `candidate_cap` (or a held model is being
-        reconsidered, `held=True`). Return a `Release`.
+        A run has landed as `candidate` (a Model: `.capability` headline,
+        `.caps` per domain), or a held model is being reconsidered
+        (`held=True`). Return a `Release`.
         """
         return Release(ship=True, evaluate=True)
 
@@ -369,8 +370,8 @@ class DoctrinePolicy(Policy):
         lead = candidate_cap - obs.perceived_frontier
         return lead > -p.get("hoard_lead", 0.25)
 
-    def decide_release(self, obs, candidate_cap, held):
-        if self._withholds(obs, candidate_cap):
+    def decide_release(self, obs, candidate, held):
+        if self._withholds(obs, candidate.capability):
             return Release(ship=False)
         # Whether to evaluate before launch is a per-release roll. The draw
         # is always consumed on a ship, whatever `always_eval` says, so that
@@ -418,7 +419,7 @@ class ReplayPolicy(Policy):
             raise IllegalAction(f"replay has no decisions by month {obs.month}")
         return self._cur.copy()
 
-    def decide_release(self, obs, candidate_cap, held):
+    def decide_release(self, obs, candidate, held):
         if self._r >= len(self.releases):
             raise IllegalAction("replay ran out of release decisions")
         rel = self.releases[self._r]

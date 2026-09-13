@@ -207,7 +207,7 @@ class Lab:
         # The interrupt: the run has landed and the lab is asked, with the
         # result in hand, whether to release it and whether to evaluate it
         # first. Logged like any action.
-        rel = world.ask_release(self, cap, held=False)
+        rel = world.ask_release(self, candidate, held=False)
         if not rel.ship:
             # better than what it sells, and deliberately not released
             self.internal = candidate
@@ -221,7 +221,7 @@ class Lab:
         self.post_gen = 0
         self.post_budget = REL.post_train_budget(self.rng, self.researcher_quality)
         self.post_timer = K.POST_TRAIN_MONTHS + self.rng.randint(0, 2)
-        self.ships.append((month, "pretrain", tag, round(cap, 3)))
+        self.ships.append((month, "pretrain", tag, round(max(caps.values()), 3)))
         self.scale_at_release = self.fleet.count()
         self.last_outcome = ("shipped", tag, cap)
         self._launch_eval(rel, cap)
@@ -246,7 +246,7 @@ class Lab:
         if self.internal is None:
             return None
         cap = self.internal.capability
-        rel = world.ask_release(self, cap, held=True)
+        rel = world.ask_release(self, self.internal, held=True)
         if not rel.ship:
             self.withheld_months += 1
             self.hoarding = True
@@ -261,7 +261,8 @@ class Lab:
         self.post_gen = 0
         self.post_budget = REL.post_train_budget(self.rng, self.researcher_quality)
         self.post_timer = K.POST_TRAIN_MONTHS
-        self.ships.append((month, "pretrain", "held", round(cap, 3)))
+        self.ships.append((month, "pretrain", "held",
+                           round(max(self.model.caps.values()), 3)))
         self._launch_eval(rel, cap)
         return self.model
 
@@ -518,7 +519,8 @@ class World:
         self.suites = TASKS.SuiteSet(TASKS.fit_anchored(FrontierHistory()))
         self.log = []
         self.openness = 0.0
-        self.market_comp = K.RESEARCHER_COST_PER_YEAR
+        self.market_comp = T.market_comp(
+            0, sum(l.researchers for l in labs) * 1.25, T.global_researcher_pool(0))
         self.scores = {}
         self.segment_state = {}
         self.claimed_exclusives = set()
@@ -559,16 +561,16 @@ class World:
         lab.actions = actions
         lab.mixture = dict(actions.mixture)
 
-    def ask_release(self, lab, candidate_cap, held):
+    def ask_release(self, lab, candidate, held):
         """The release interrupt: ship or sit on it, evaluated or not.
-        Logged either way."""
-        rel = lab.policy.decide_release(self.observe(lab), candidate_cap, held)
+        `candidate` is the Model in question. Logged either way."""
+        rel = lab.policy.decide_release(self.observe(lab), candidate, held)
         if not isinstance(rel, POL.Release):
             raise POL.IllegalAction(f"decide_release must return a Release, got {rel!r}")
         self.action_log.append((self.month, lab.name,
                                 {"release": "ship" if rel.ship else "hold",
                                  "evaluate": rel.evaluate if rel.ship else None,
-                                 "held": held, "cap": round(candidate_cap, 3)}))
+                                 "held": held, "cap": round(candidate.capability, 3)}))
         return rel
 
     def _decide(self, m):

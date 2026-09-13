@@ -86,10 +86,40 @@ def check_illegal():
     return n == len(bad)
 
 
+def check_game(seed=7, player=2, quarters=8):
+    """A played game - human orders and interrupt answers - replays too."""
+    from .game import Game
+    from .policy import Release
+    answers = iter([Release(True, True), Release(False), Release(True, False)])
+    def ask(obs, cand, held):
+        return next(answers, Release(True, True))
+    g = Game(seed=seed, player=player, ask_release=ask)
+    o = g.orders
+    o.data_buy = "web_crawl"
+    o.train, o.serve, o.experiment = 0.5, 0.35, 0.15
+    o.comp_offer = 950e3
+    for q in range(quarters):
+        g.commit()
+        if q == 3:
+            o = g.orders
+            o.price_stance = 0.8
+            o.data_buy = "code_repos"
+    save = {"seed": seed, "randomized": True, "months": g.world.month,
+            "log": [[m, who, c] for m, who, c in g.world.action_log]}
+    save = json.loads(json.dumps(save))
+    w2 = replay(save)
+    ok = same_run(g.world, w2)
+    n = len(g.policy.interrupts)
+    print(f"  played game, seed {seed}, {quarters} quarters, {n} interrupts answered"
+          f"  -> {'IDENTICAL' if ok else 'DIVERGED'}")
+    return ok
+
+
 if __name__ == "__main__":
     seeds = [int(x) for x in sys.argv[1:]]
     print("REPLAY CHECK  (record -> save -> replay, must match bit for bit)")
     ok = check_illegal()
+    ok &= check_game()
     if seeds:
         for s in seeds:
             ok &= check(s, randomized=True)
