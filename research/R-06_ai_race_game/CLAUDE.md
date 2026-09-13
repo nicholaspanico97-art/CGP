@@ -128,7 +128,7 @@ incidents. Every decision goes through the seam; replay is bit-identical.
 ## What is deliberately not modelled yet
 
 Events, government as an actor, labs dying, and the player. See
-`ROADMAP.md`. No architectural items remain. The next item is **events**
-(item 4): a JSON deck conditional on world state. After that, the player:
-a `Policy` that asks a human, and a turn structure that batches the monthly
-seam into quarters.
+`ROADMAP.md`. No architectural items remain. Next, per Nick (Sep 13):
+**a way to play it** — a `Policy` that asks a human and a turn structure
+that batches the monthly seam into quarters — because *play testing is its
+own calibration*. Events (item 4) after that.

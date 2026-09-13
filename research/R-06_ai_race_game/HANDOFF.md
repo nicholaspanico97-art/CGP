@@ -126,17 +126,24 @@ regenerated.
 
 ## What I would do next, in order
 
-1. **Events** (`ROADMAP.md` item 4). A JSON deck, conditional on world
+Re-ordered after Nick's note at the end of this session (below): the goal
+is a viable simulation model, *then* a way to play it — **because play
+testing is its own calibration.** A playable path is an instrument, not a
+feature, so it comes before content.
+
+1. **The first human-facing policy, and a turn.** A `Policy` whose
+   `decide` builds `Actions` from a dict (a CLI prompt, a JSON file per
+   quarter, a form) and whose `decide_release` asks. Plus a turn
+   structure: hold the player's `Actions` for three ticks, batch the
+   interrupts, print a quarterly report. Headless is fine — the point is
+   that Nick can sit in a lab's seat and feel where the model is wrong.
+   The seam makes this small.
+2. **Events** (`ROADMAP.md` item 4). A JSON deck, conditional on world
    state, visible in the viewer as a timeline. Cheapest large gain in
    run-to-run variety, and now there is a clean place for an event to
    *act*: it can change an `Observation`, constrain `Actions` (an export
    control is a bound on `capex_aggression` or `supply_share`), or force
    an interrupt.
-2. **The first human-facing policy.** A `Policy` whose `decide` builds
-   `Actions` from a dict (a form, a CLI prompt, a JSON file per quarter)
-   and whose `decide_release` asks. Plus a turn structure: hold the
-   player's `Actions` for three ticks, batch the interrupts. This is the
-   moment the game becomes playable headlessly, and it is now small.
 3. **Demand as a labour market** (`PREMISES.md` structural issue 3). Still
    the weakest part of the late game.
 
@@ -152,3 +159,7 @@ regenerated.
   the instrument, not magnitude.
 - Target feeling: *"staring at benchmarks pissed they lost on AA by 2
   points, seeing how long they can burn cash on inference."*
+- Sep 13: *"our goal is to make a viable simulation model, and then make a
+  way for the game to be played because play testing is its own
+  calibration."* The playable path is an instrument; sequence it ahead of
+  content.

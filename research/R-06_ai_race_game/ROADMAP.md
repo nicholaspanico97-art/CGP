@@ -146,8 +146,9 @@ costs.
    and it retroactively makes the benchmark and hoarding mechanics honest.
 2. ~~**Decision seam** (2)~~ — **done in v1.4.**
 3. ~~**Safety and regulation** (3)~~ — **done in v1.3.**
-4. **Events** (4) — cheap, and the biggest gain in run-to-run variety.
-   **Next.**
+4. **A way to play it** — the first human-facing `Policy` and a quarterly
+   turn. **Next**, per Nick, Sep 13: play testing is its own calibration.
+5. **Events** (4) — cheap, and the biggest gain in run-to-run variety.
 
 5-8 are content and can follow in any order.
 
