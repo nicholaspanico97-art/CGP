@@ -1,6 +1,7 @@
 # HANDOFF — Frontier (R-06), Sep 13 2026
 
-Written at the end of the session that built the decision seam. If you are
+Written at the end of the session that built the decision seam and then
+made the sim playable on top of it (v1.4, v1.5). If you are
 a new session, read `CLAUDE.md` first (it auto-loads), then this, then
 `WORLD_MODEL.md`. This file is the *session* record: what was just done,
 what is known to be true about it, and what I would do next. `CLAUDE.md` is
@@ -17,9 +18,8 @@ plan of record (`DESIGN.md`, `ROADMAP.md`) is that the game is a window
 onto this simulation, and the window comes last. No architectural items
 remain on the roadmap; what is left is content and the player.
 
-Branch: `claude/ai-race-game-plan-vl6gi3`. Two commits this session, not
-pushed at the time of writing (Nick's standing rule: ask before pushing).
-No PR has been opened and none was asked for.
+Branch: `claude/ai-race-game-plan-vl6gi3`, pushed. No PR has been
+opened and none was asked for.
 
 ## What this session added
 
@@ -62,6 +62,53 @@ Design choices worth knowing, because they were choices:
 - **A held model that is finally released now faces the eval question.**
   Before v1.4 it skipped it entirely (no eval, no debt). Small behaviour
   change, affects RSI labs only, correct.
+
+## Then: it is playable (v1.5, same session)
+
+Nick's direction mid-session: *the goal is a viable simulation model, and
+then a way for the game to be played, because play testing is its own
+calibration.* So the playable path was built immediately, headless and
+deliberately plain:
+
+- `sim/game.py` — `PlayerPolicy` (holds your orders, hands them to the
+  world monthly; answers the release interrupt through a callback) and
+  `Game` (three ticks a turn; `letter()` is the board letter; `commit()`
+  returns the quarter's events in date order; `save()` is seed + log).
+- `sim/play.py` — the terminal: `split`, `set`, `mix`, `buy`, `bid`,
+  `end`, `save`, `auto`. A refused order changes nothing (edits go to a
+  copy and are validated before they land). `--auto N` watches autopilot.
+- The interrupt receives the candidate `Model` now, so the prompt shows
+  per-domain capability against what you currently sell.
+- `sim/replay.py` gained `check_game`: a played game — human orders,
+  three different interrupt answers — replays bit for bit from its save.
+
+**Playtest findings from the first scripted games** (this is the list the
+next session should start from; each is a model finding, not a UI one):
+
+1. **Labs cannot die, and the letter has to shout about it.** A frozen-
+   orders player is insolvent by 2021 and keeps operating; the letter now
+   prints `** INSOLVENT **`. `PREMISES.md` structural issue 5. A game
+   needs a rule: forced fire-sale, acquisition, or game over.
+2. **`model.capability` changes meaning after the first point upgrade.**
+   At ship it is the headline index; `maybe_post_train` overwrites it with
+   `max(caps)`, which is lower for any model with a spread mixture. It is
+   commented "for reporting only" but `frontier_capability()`, the
+   close-rival count in `set_price` and the narrative valuation all read
+   it. Pick one definition. (The game already displays best-domain
+   consistently; `ships[3]` now records that too.)
+3. **The opening is a stampede.** Every lab ships in 2020-02 and again in
+   2020-03. Fine for the GPT-3 checkpoint (−4 months); as a game the first
+   turn has no decision in it. Consider a staggered first run.
+4. **The wage rate falls from $900k to $371k in month 1.** The $900k was
+   a placeholder (fixed — the opening rate is now the real one), but the
+   real 2020 rate of ~$370k against a per-strategy opening offer of $810k
+   still reads oddly. Check `talent.market_comp` at m=0.
+5. **Frozen orders are a bad player.** Left alone from the strategy's
+   opening book, the player lab does not panic, does not raise comp, does
+   not buy data beyond the first corpus, and lags the AI running the same
+   strategy. Expected — the point is that a human steers — but it means
+   the opening book should probably include the strategy's data priority
+   list rather than a single `data_buy`.
 
 ## What is verified, and what is not
 
@@ -126,18 +173,12 @@ regenerated.
 
 ## What I would do next, in order
 
-Re-ordered after Nick's note at the end of this session (below): the goal
-is a viable simulation model, *then* a way to play it — **because play
-testing is its own calibration.** A playable path is an instrument, not a
-feature, so it comes before content.
+Per Nick (below): play testing is its own calibration. The playable path
+exists now, so:
 
-1. **The first human-facing policy, and a turn.** A `Policy` whose
-   `decide` builds `Actions` from a dict (a CLI prompt, a JSON file per
-   quarter, a form) and whose `decide_release` asks. Plus a turn
-   structure: hold the player's `Actions` for three ticks, batch the
-   interrupts, print a quarterly report. Headless is fine — the point is
-   that Nick can sit in a lab's seat and feel where the model is wrong.
-   The seam makes this small.
+1. **Nick plays a decade** (`python3 -m sim.play --seed 7 --lab 2`, ~40
+   turns, each `end` is ~25 s of sim) and writes down where the model
+   felt wrong. Then fix those, starting with the five findings above.
 2. **Events** (`ROADMAP.md` item 4). A JSON deck, conditional on world
    state, visible in the viewer as a timeline. Cheapest large gain in
    run-to-run variety, and now there is a clean place for an event to
