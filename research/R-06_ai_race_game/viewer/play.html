@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frontier</title>
+<style>
+  :root {
+    --bg: #F3F4F6; --panel: #FFFFFF; --ink: #1B2230; --muted: #5F6977; --line: #D9DEE5;
+    --soft: #EEF1F5; --accent: #2B4C7E; --accent-soft: #E3EAF5;
+    --you: #2a78d6; --them: #eb6834;
+    --good: #0ca30c; --warn: #fab219; --bad: #d03b3b;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #13171E; --panel: #1B2029; --ink: #E5E9EF; --muted: #98A2B1; --line: #2B333F;
+      --soft: #232A35; --accent: #8FB2E6; --accent-soft: #223247;
+      --you: #3987e5; --them: #d95926; color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .mono { font-family: Consolas, "Cascadia Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+           display: flex; align-items: center; gap: 18px; padding: 10px 18px; flex-wrap: wrap; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .date { font-size: 15px; }
+  header .spacer { flex: 1; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+           padding: 7px 14px; border-radius: 4px; cursor: pointer; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; padding: 8px 18px; }
+  button:disabled { opacity: .5; cursor: default; }
+  .status { color: var(--muted); font-size: 13px; }
+  .status.err { color: var(--bad); }
+  main { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px 18px 60px; max-width: 1500px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
+  section.panel h2 { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  .right { display: grid; gap: 16px; align-content: start; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 1200px) { .row2 { grid-template-columns: 1fr; } }
+
+  /* orders */
+  .group { margin-bottom: 14px; }
+  .group h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); margin: 14px 0 6px; }
+  .order { display: grid; grid-template-columns: 1fr 96px; gap: 4px 10px; padding: 7px 0; border-top: 1px solid var(--line); }
+  .order label { font-weight: 600; }
+  .order .why { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
+  .order input[type=number], .order select { width: 96px; font: inherit; padding: 4px 6px; border: 1px solid var(--line);
+      border-radius: 3px; background: var(--soft); color: var(--ink); text-align: right; }
+  .order select { text-align: left; }
+  .split { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .split div { display: grid; gap: 2px; }
+  .split input[type=range] { width: 100%; }
+  .split .v { font-size: 12px; color: var(--muted); }
+  .mix { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .mix label { display: grid; gap: 2px; font-size: 12px; color: var(--muted); min-width: 0; }
+  .mix input { width: 100%; min-width: 0; font: inherit; padding: 3px 5px; border: 1px solid var(--line); border-radius: 3px; background: var(--soft); color: var(--ink); text-align: right; }
+  .bids div { display: grid; grid-template-columns: 1fr 96px; gap: 8px; align-items: center; padding: 3px 0; }
+  .bids .name { font-size: 13px; }
+  .bids .ask { color: var(--muted); font-size: 12px; }
+
+  /* dashboard */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 12px; }
+  .tile { background: var(--soft); border-radius: 4px; padding: 8px 10px; }
+  .tile .k { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .tile .v { font-size: 20px; font-weight: 600; margin-top: 2px; }
+  .tile .v.bad { color: var(--bad); }
+  .charts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 1200px) { .charts { grid-template-columns: 1fr; } }
+  .chart { position: relative; }
+  .chart .t { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .chart svg { width: 100%; height: 110px; display: block; }
+  .legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .legend i { display: inline-block; width: 10px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+  .tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 3px;
+         padding: 3px 7px; font-size: 12px; white-space: nowrap; display: none; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11.5px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.n, th.n { text-align: right; }
+  tr.me td { background: var(--accent-soft); }
+  .behind { color: var(--them); font-weight: 600; }
+  .dim { color: var(--muted); }
+  .warnline { background: #fff3e0; color: #7a4a00; border-left: 3px solid var(--warn); padding: 6px 10px; margin-bottom: 10px; font-size: 13px; }
+  @media (prefers-color-scheme: dark) { .warnline { background: #3a2c1b; color: #f2d5a8; } }
+  .badline { background: #fde8e8; color: #7a1f1f; border-left: 3px solid var(--bad); padding: 6px 10px; margin-bottom: 10px; font-size: 13px; }
+  @media (prefers-color-scheme: dark) { .badline { background: #3d1f1f; color: #f5c2c2; } }
+  .events { max-height: 380px; overflow: auto; font-size: 13px; }
+  .events .q { color: var(--accent); font-weight: 600; margin: 8px 0 3px; }
+  .events div.e { padding: 2px 0 2px 8px; border-left: 2px solid var(--line); margin-left: 2px; }
+  .events div.e.me { border-left-color: var(--you); }
+  .events div.e.inc { border-left-color: var(--warn); }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 20; }
+  .overlay.on { display: flex; }
+  .modal { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 20px 24px; max-width: 560px; width: calc(100% - 32px); }
+  .modal h2 { margin: 0 0 6px; font-size: 18px; }
+  .modal p { margin: 6px 0; }
+  .modal .btns { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .help { color: var(--muted); font-size: 12.5px; margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="who">Frontier</h1>
+  <span class="date mono" id="date">—</span>
+  <span class="status" id="status"></span>
+  <span class="spacer"></span>
+  <label class="status">seed <input id="seed" type="number" value="7" style="width:64px"> lab <input id="lab" type="number" value="0" min="0" max="6" style="width:48px"></label>
+  <button id="new">New game</button>
+  <button id="auto" title="Hand your seat to the strategy AI for the rest of the game">Autopilot</button>
+  <button class="primary" id="end">End quarter ▸</button>
+</header>
+
+<main>
+  <section class="panel" id="orders">
+    <h2>Your standing orders</h2>
+    <p class="help">Changes take effect at the next quarter and stay in force until you change them. Anything the world refuses is shown in the status line and left unchanged.</p>
+    <div id="orders-body"></div>
+  </section>
+
+  <div class="right">
+    <section class="panel">
+      <h2>Money</h2>
+      <div id="money-warn"></div>
+      <div class="tiles" id="money"></div>
+      <div class="charts" id="charts"></div>
+    </section>
+    <div class="row2">
+      <section class="panel"><h2>Your model</h2><div id="model"></div></section>
+      <section class="panel"><h2>Rivals — what you believe, not what is true</h2><div id="rivals"></div></section>
+    </div>
+    <div class="row2">
+      <section class="panel"><h2>Markets</h2><div id="markets"></div></section>
+      <section class="panel"><h2>Compute, people, safety</h2><div id="ops"></div></section>
+    </div>
+    <div class="row2">
+      <section class="panel"><h2>Data on the table</h2><div id="data"></div></section>
+      <section class="panel"><h2>What happened</h2><div class="events" id="events"></div></section>
+    </div>
+  </div>
+</main>
+
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let S = null, editing = false, lastBusy = false;
+
+const fmtB = x => (Math.abs(x) >= 1e11 ? `$${(x/1e9).toFixed(0)}B` : `$${(x/1e9).toFixed(2)}B`);
+const fmtM = x => `$${(x/1e6).toFixed(0)}M`;
+const n0 = x => Math.round(x).toLocaleString();
+const f = (x, d=2) => (x == null ? '—' : Number(x).toFixed(d));
+
+async function api(path, body) {
+  const post = path !== '/api/state';
+  const r = await fetch(path, post ? {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body || {})} : {});
+  const j = await r.json();
+  if (j.error) { setStatus(j.error, true); }
+  return j;
+}
+function setStatus(msg, err) { const s = $('#status'); s.textContent = msg || ''; s.className = 'status' + (err ? ' err' : ''); }
+
+// ------------------------------------------------------------- orders
+function buildOrders() {
+  const o = S.orders, ex = S.explain, host = $('#orders-body');
+  const rep = S.report;
+  let h = '';
+  for (const [title, fields] of S.groups) {
+    h += `<div class="group"><h3>${title}</h3>`;
+    for (const fld of fields) {
+      if (fld === 'train') {
+        h += `<div class="order"><label>Compute split</label><span></span>
+          <div class="split" style="grid-column:1/-1">
+            ${['train','serve','experiment'].map(k => `<div><span class="v">${k} <b id="v-${k}">${(o[k]*100).toFixed(0)}%</b></span>
+              <input type="range" min="0" max="100" step="1" value="${Math.round(o[k]*100)}" data-split="${k}"></div>`).join('')}
+          </div><div class="why">${ex.train} ${ex.serve} ${ex.experiment}</div></div>`;
+        continue;
+      }
+      if (fld === 'serve' || fld === 'experiment') continue;
+      if (fld === 'mixture') {
+        h += `<div class="order"><label>Training mixture</label><span></span>
+          <div class="mix" style="grid-column:1/-1">${S.domains.map(d => `<label>${d}<input type="number" step="0.01" min="0" data-mix="${d}" value="${f(o.mixture[d]||0)}"></label>`).join('')}</div>
+          <div class="why">${ex.mixture} Renormalised to sum to 1.</div></div>`;
+        continue;
+      }
+      if (fld === 'data_buy') {
+        const opts = ['<option value="">— nothing —</option>'].concat(rep.data_offers.map(d =>
+          `<option value="${d.key}" ${o.data_buy===d.key?'selected':''}>${d.name} (${fmtM(d.price)})</option>`));
+        h += `<div class="order"><label>License a corpus</label><select data-field="data_buy">${opts.join('')}</select><div class="why">${ex.data_buy}</div></div>`;
+        continue;
+      }
+      if (fld === 'data_bids') {
+        const rows = rep.data_auctions.map(d => `<div><span class="name">${d.name}<br><span class="ask">ask ${fmtM(d.price)} + ${fmtM(d.annual)}/yr</span></span>
+          <input type="number" min="0" step="10" placeholder="$M" data-bid="${d.key}" value="${o.data_bids[d.key] ? f(o.data_bids[d.key],0) : ''}"></div>`);
+        h += `<div class="order"><label>Exclusive auctions</label><span></span><div class="bids" style="grid-column:1/-1">${rows.join('') || '<span class="dim">none open right now</span>'}</div><div class="why">${ex.data_bids} You pay just above the second-highest bid.</div></div>`;
+        continue;
+      }
+      const [lo, hi] = S.bounds[fld] || [null, null];
+      const step = (fld === 'comp_offer') ? 10 : (fld === 'tokens_per_param' ? 5 : (hi != null && hi <= 5 ? 0.05 : 0.5));
+      const label = fld.replace(/_/g, ' ') + (fld === 'comp_offer' ? ' ($k/yr)' : '');
+      h += `<div class="order"><label>${label}</label><input type="number" data-field="${fld}" step="${step}" ${lo!=null?`min="${lo}"`:''} ${hi!=null?`max="${hi}"`:''} value="${f(o[fld], fld==='comp_offer'||fld==='tokens_per_param'?0:2)}"><div class="why">${ex[fld]||''}</div></div>`;
+    }
+    h += '</div>';
+  }
+  host.innerHTML = h;
+  host.querySelectorAll('input[data-field], select[data-field]').forEach(el => el.addEventListener('change', () => send({[el.dataset.field]: el.value})));
+  host.querySelectorAll('input[data-split]').forEach(el => {
+    el.addEventListener('input', () => { $('#v-'+el.dataset.split).textContent = el.value + '%'; });
+    el.addEventListener('change', () => {
+      const p = {}; host.querySelectorAll('input[data-split]').forEach(e => p[e.dataset.split] = +e.value / 100);
+      send(p);
+    });
+  });
+  host.querySelectorAll('input[data-mix]').forEach(el => el.addEventListener('change', () => {
+    const mix = {}; host.querySelectorAll('input[data-mix]').forEach(e => mix[e.dataset.mix] = +e.value || 0);
+    send({mixture: mix});
+  }));
+  host.querySelectorAll('input[data-bid]').forEach(el => el.addEventListener('change', () => {
+    const bids = {}; host.querySelectorAll('input[data-bid]').forEach(e => { if (+e.value > 0) bids[e.dataset.bid] = +e.value; });
+    send({data_bids: bids});
+  }));
+  host.querySelectorAll('input, select').forEach(el => { el.addEventListener('focus', () => editing = true); el.addEventListener('blur', () => editing = false); });
+}
+async function send(patch) {
+  const j = await api('/api/orders', patch);
+  if (j.ok) { setStatus('orders updated'); await refresh(true); }
+}
+
+// ---------------------------------------------------------- dashboard
+function tile(k, v, cls='') { return `<div class="tile"><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`; }
+
+function renderDash() {
+  const r = S.report;
+  $('#who').textContent = `${r.name} — ${r.strategy}`;
+  $('#date').textContent = `${r.date} · Q${r.turn}`;
+  $('#money-warn').innerHTML = r.cash < 0 ? `<div class="badline"><b>Insolvent.</b> Cash is negative. The model lets you keep operating; a real board would not.</div>` : '';
+  const runway = (r.runway != null && isFinite(r.runway)) ? `${r.runway.toFixed(0)} mo` : '∞';
+  $('#money').innerHTML = tile('Cash', fmtB(r.cash), r.cash < 0 ? 'bad' : '') + tile('Runway', runway, (r.runway != null && r.runway < 12) ? 'bad' : '')
+    + tile('Revenue / yr', fmtB(r.arr)) + tile('Net / month', fmtM(r.net), r.net < 0 ? 'bad' : '') + tile('Valuation', fmtB(r.valuation));
+  renderCharts();
+
+  // model
+  let m = '';
+  if (r.model) {
+    const md = r.model;
+    m += `<p><b>${md.name}</b> shipped ${md.shipped_date} (${md.age} months ago), point release x.${md.gen}. Headline index <b>${f(md.cap)}</b>, published AA <b>${r.aa==null?'—':f(r.aa,1)}</b>.</p>`;
+    if (r.internal) m += `<div class="warnline">You are sitting on an unreleased model at ${f(r.internal)}.</div>`;
+    m += `<p>Price <b>$${f(r.price)}</b>/Mtok on a cost of $${f(r.cost_per_mtok)}. Served ${n0(r.served)} Mtok/month${r.unmet > 0 ? `, <span class="behind">turned away ${n0(r.unmet)}</span>` : ''}.</p>`;
+    m += `<table><tr><th>Benchmark</th><th class="n">You</th><th class="n">Best rival</th><th></th></tr>`;
+    for (const t of r.table) {
+      const behind = t.mine != null && t.best != null && t.mine < t.best;
+      m += `<tr><td>${t.label}</td><td class="n mono ${behind?'behind':''}">${t.mine==null?'—':f(t.mine,1)}</td><td class="n mono">${t.best==null?'—':f(t.best,1)}</td><td class="dim">${t.who||''}</td></tr>`;
+    }
+    m += '</table>';
+  } else {
+    m = `<p class="dim">Nothing shipped yet.</p>`;
+  }
+  if (r.run) m += `<p>Training run in progress: <b>${r.run.target.toExponential(1)} FLOP</b>${r.run.vs_last ? ` (${f(r.run.vs_last,1)}× your last)` : ''}, ${(r.run.frac*100).toFixed(0)}% done, ~${r.run.months_left != null ? r.run.months_left.toFixed(0) : '?'} months to go.</p>`;
+  else m += `<p class="dim">No run in progress. Largest landed ${r.largest_run.toExponential(1)} FLOP; ${r.shelved} shelved.</p>`;
+  $('#model').innerHTML = m;
+
+  // rivals
+  let rv = `<p>Your best, built: <b>${f(r.own_best)}</b>. The frontier as you fear it: <b class="behind">${f(r.perceived_frontier)}</b> (threat ${r.threat>=0?'+':''}${f(r.threat)}${r.feared?`, ${r.feared}`:''}).</p>`;
+  rv += `<table><tr><th>Lab</th><th class="n">AA</th><th class="n">True best, est.</th><th class="n">Accels, est.</th><th class="n">Quiet</th><th class="n">$/Mtok</th></tr>`;
+  for (const x of r.rivals) {
+    if (!x.est) { rv += `<tr><td>${x.name}</td><td class="dim" colspan="5">nothing shipped yet — nothing to read</td></tr>`; continue; }
+    rv += `<tr><td>${x.name}${x.feared?' <span class="behind">▲</span>':''}</td><td class="n mono">${x.aa==null?'—':f(x.aa,1)}</td><td class="n mono">${f(x.est)} ±${f(x.sigma)}</td><td class="n mono">${n0(x.scale)}</td><td class="n mono">${x.silent} mo</td><td class="n mono">${f(x.price)}</td></tr>`;
+  }
+  rv += '</table><p class="help" style="margin-top:6px">▲ = the rival you plan against. Estimates come from published scores, power footprint and silence — a quiet, growing rival might be hoarding, or stuck.</p>';
+  $('#rivals').innerHTML = rv;
+
+  // markets
+  let mk = `<table><tr><th>Segment</th><th class="n">Size / yr</th><th class="n">You</th><th>Leader</th></tr>`;
+  for (const s of r.segments) {
+    if (s.tam_yr <= 0) continue;
+    if (s.eligible) mk += `<tr><td>${s.name}</td><td class="n mono">${fmtB(s.tam_yr)}</td><td class="n mono">${(s.mine*100).toFixed(1)}%</td><td>${s.leader} <span class="dim">${(s.leader_share*100).toFixed(0)}%</span></td></tr>`;
+    else mk += `<tr><td>${s.name}</td><td class="n mono">${fmtB(s.tam_yr)}</td><td class="n dim" colspan="2">not eligible — needs ${Object.entries(s.gates).map(([d,v])=>`${d} ≥ ${f(v,1)}`).join(', ')}</td></tr>`;
+  }
+  mk += '</table>';
+  $('#markets').innerHTML = mk || '<p class="dim">No markets exist yet.</p>';
+
+  // ops
+  const below = r.comp_offer < r.market_comp * 0.85;
+  $('#ops').innerHTML = `
+    <p><b>${n0(r.accels)}</b> accelerators (${r.newest}), ${f(r.mw,0)} MW in use of ${f(r.contracted_mw,0)} contracted; ${n0(r.on_order)} on order, ${f(r.mw_pipeline,0)} MW in the pipeline. Algorithmic edge vs field ×${f(r.algo)}.</p>
+    <p><b>${n0(r.researchers)}</b> researchers, ${f(r.stars,1)} stars. You offer $${n0(r.comp_offer/1e3)}k against a market rate of $${n0(r.market_comp/1e3)}k${below?' <span class="behind">— below market, people are leaving</span>':''}.</p>
+    <p>Trust <b>${f(r.trust,0)}</b>/100 · safety debt <b>${f(r.safety_debt,1)}</b> · unevaluated capability ${f(r.unevaluated)} · incidents ${r.incidents} · sector regulation ${f(r.regulation)}${r.restricted?' · <span class="behind">barred from agentic markets</span>':''}</p>`;
+
+  // data
+  let d = `<p>Licensed: ${r.data_owned.length ? r.data_owned.join(', ') : '<span class="dim">nothing</span>'}</p>`;
+  if (r.data_offers.length) d += `<p class="dim">For sale: ${r.data_offers.map(x=>`${x.name} (${fmtM(x.price)})`).join(' · ')}</p>`;
+  if (r.data_auctions.length) d += `<p class="dim">At auction: ${r.data_auctions.map(x=>`${x.name} (ask ${fmtM(x.price)})`).join(' · ')}</p>`;
+  $('#data').innerHTML = d;
+
+  // events
+  let ev = '', q = null;
+  for (const e of [...S.events].reverse()) {
+    if (e.q !== q) { q = e.q; ev += `<div class="q">Quarter ${q}</div>`; }
+    const cls = /\byou\b|YOUR|your/.test(e.text) ? 'me' : (/incident/i.test(e.text) ? 'inc' : '');
+    ev += `<div class="e ${cls}">${e.text.trim()}</div>`;
+  }
+  $('#events').innerHTML = ev || '<p class="dim">Nothing yet. End a quarter.</p>';
+}
+
+// ------------------------------------------------------------- charts
+function chart(id, title, series, fmt) {
+  // series: [{name, color, values:[{x,y}]}]  one scale, y from 0 or min
+  const W = 320, H = 110, padL = 8, padR = 8, padT = 8, padB = 18;
+  const pts = series.flatMap(s => s.values);
+  if (!pts.length) return `<div class="chart"><div class="t">${title}</div><div class="dim">—</div></div>`;
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs, x0 + 1);
+  let y0 = Math.min(0, ...ys), y1 = Math.max(...ys);
+  if (y1 === y0) y1 = y0 + 1;
+  const X = x => padL + (x - x0) / (x1 - x0) * (W - padL - padR);
+  const Y = y => padT + (1 - (y - y0) / (y1 - y0)) * (H - padT - padB);
+  let g = `<line x1="${padL}" x2="${W-padR}" y1="${Y(0).toFixed(1)}" y2="${Y(0).toFixed(1)}" stroke="var(--line)"/>`;
+  g += `<text x="${padL}" y="${H-4}" font-size="10" fill="var(--muted)">${series[0].values[0].label}</text>`;
+  g += `<text x="${W-padR}" y="${H-4}" font-size="10" fill="var(--muted)" text-anchor="end">${series[0].values.at(-1).label}</text>`;
+  for (const s of series) {
+    const d = s.values.map((p,i) => `${i?'L':'M'}${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join(' ');
+    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`;
+    const e = s.values.at(-1);
+    g += `<circle cx="${X(e.x).toFixed(1)}" cy="${Y(e.y).toFixed(1)}" r="3.5" fill="${s.color}" stroke="var(--panel)" stroke-width="2"/>`;
+  }
+  const legend = series.length > 1 ? `<div class="legend">${series.map(s=>`<span><i style="background:${s.color}"></i>${s.name}</span>`).join('')}</div>` : '';
+  const data = encodeURIComponent(JSON.stringify(series.map(s => ({name:s.name, values:s.values}))));
+  return `<div class="chart" data-x0="${x0}" data-x1="${x1}" data-series="${data}" data-fmt="${fmt}"><div class="t">${title}</div><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${g}</svg>${legend}<div class="tip"></div></div>`;
+}
+function renderCharts() {
+  const H = S.history;
+  const p = (k) => H.map(h => ({x: h.q, y: h[k] || 0, label: h.date}));
+  $('#charts').innerHTML =
+    chart('cash', 'Cash, $B', [{name:'cash', color:'var(--you)', values: p('cash').map(v=>({...v, y:v.y/1e9}))}], 'B') +
+    chart('arr', 'Revenue run-rate, $B/yr', [{name:'revenue', color:'var(--you)', values: p('arr').map(v=>({...v, y:v.y/1e9}))}], 'B') +
+    chart('cap', 'Capability: yours vs the frontier you fear', [
+      {name:'your best, built', color:'var(--you)', values: p('own')},
+      {name:'frontier as you fear it', color:'var(--them)', values: p('feared')}], 'c');
+  document.querySelectorAll('.chart[data-series]').forEach(el => {
+    const series = JSON.parse(decodeURIComponent(el.dataset.series)), x0 = +el.dataset.x0, x1 = +el.dataset.x1, fmt = el.dataset.fmt;
+    const tip = el.querySelector('.tip'), svg = el.querySelector('svg');
+    svg.addEventListener('mousemove', ev => {
+      const r = svg.getBoundingClientRect();
+      const fx = (ev.clientX - r.left) / r.width;
+      const q = Math.round(x0 + fx * (x1 - x0));
+      const rows = series.map(s => { const v = s.values.find(p => p.x === q); return v ? `${s.name}: <b>${fmt==='B' ? '$'+v.y.toFixed(2)+'B' : v.y.toFixed(2)}</b>` : ''; }).filter(Boolean);
+      const lab = (series[0].values.find(p => p.x === q) || {}).label || '';
+      if (!rows.length) { tip.style.display = 'none'; return; }
+      tip.innerHTML = `${lab} · ${rows.join(' · ')}`; tip.style.display = 'block';
+      tip.style.left = Math.min(ev.clientX - r.left + 8, r.width - tip.offsetWidth - 4) + 'px'; tip.style.top = '18px';
+    });
+    svg.addEventListener('mouseleave', () => tip.style.display = 'none');
+  });
+}
+
+// ------------------------------------------------------------ interrupt
+let pendingKey = null;
+function renderPending() {
+  const p = S.pending, ov = $('#overlay');
+  if (!p) { ov.classList.remove('on'); pendingKey = null; return; }
+  const key = `${p.month}:${p.held}:${p.best_new}`;
+  if (key === pendingKey) return;          // already on screen; don't redraw under the cursor
+  pendingKey = key;
+  const rows = p.domains.map(d => `<tr><td>${d.d}</td><td class="n mono">${f(d.new,1)}</td><td class="n mono dim">${d.old==null?'—':f(d.old,1)}</td></tr>`).join('');
+  $('#modal').innerHTML = `
+    <h2>${p.date}: ${p.held ? 'the model you have been holding' : 'your training run has landed'}</h2>
+    <p>Best domain <b>${f(p.best_new)}</b> against the <b>${f(p.best_old)}</b> you sell now. The frontier as you fear it: <b class="behind">${f(p.frontier)}</b>.</p>
+    <table><tr><th>Domain</th><th class="n">New</th><th class="n">Selling now</th></tr>${rows}</table>
+    <p class="help" style="margin-top:10px"><b>Ship</b> puts it on sale. <b>Hold</b> keeps it private — nobody can copy what they can't see, but the market notices you're not shipping. A full <b>evaluation</b> costs nothing now; skipping it adds safety debt (yours is ${f(p.safety_debt,1)}), which raises the odds of an incident later.</p>
+    <div class="btns">
+      <button class="primary" data-ans="1,1">Ship, evaluated</button>
+      <button data-ans="1,0">Ship now, skip the evaluation</button>
+      <button data-ans="0,0">Hold it back</button>
+    </div>`;
+  $('#modal').querySelectorAll('button').forEach(b => b.addEventListener('click', async () => {
+    const [ship, ev] = b.dataset.ans.split(',').map(Number);
+    await api('/api/answer', {ship: !!ship, evaluate: !!ev});
+    ov.classList.remove('on'); refresh();
+  }));
+  ov.classList.add('on');
+}
+
+// ------------------------------------------------------------- polling
+async function refresh(force) {
+  const j = await api('/api/state');
+  if (j.error) return;
+  const wasBusy = S && S.busy;
+  S = j;
+  $('#end').disabled = S.busy || S.over;
+  if (!wasBusy && !S.busy && document.activeElement !== $('#seed') && document.activeElement !== $('#lab')) { $('#seed').value = S.seed; $('#lab').value = S.lab; }
+  $('#end').textContent = S.over ? '2030 — the decade is over' : (S.busy ? 'Running the quarter…' : 'End quarter ▸');
+  if (S.error) setStatus(S.error, true);
+  else if (S.busy) setStatus('the world is running…');
+  renderPending();
+  const quarterEnded = wasBusy && !S.busy;
+  if (force || quarterEnded || !$('#orders-body').innerHTML) {
+    if (!editing || force) buildOrders();
+    renderDash();
+    if (quarterEnded) setStatus('');
+  }
+}
+$('#end').addEventListener('click', async () => { await api('/api/end'); refresh(); });
+$('#new').addEventListener('click', async () => {
+  await api('/api/new', {seed: +$('#seed').value, lab: +$('#lab').value}); S = null; $('#orders-body').innerHTML = ''; refresh(true);
+});
+$('#auto').addEventListener('click', async () => { await api('/api/auto'); setStatus('autopilot: the strategy AI holds your seat'); });
+refresh(true);
+setInterval(() => refresh(false), 700);
+</script>
+</body>
+</html>

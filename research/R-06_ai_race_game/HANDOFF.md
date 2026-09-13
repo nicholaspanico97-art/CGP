@@ -82,6 +82,17 @@ deliberately plain:
 - `sim/replay.py` gained `check_game`: a played game — human orders,
   three different interrupt answers — replays bit for bit from its save.
 
+Nick played the terminal version and asked for a GUI - not the final
+game's, something to learn the model through. `sim/serve.py` +
+`viewer/play.html`: a stdlib HTTP server runs the game in a worker thread
+(so the release interrupt can block mid-quarter while the browser shows the
+question) and a single page shows orders with a one-line explanation each,
+money tiles and three small charts (cash, revenue, your best vs the
+frontier you fear), the scoreboard, markets, rivals as believed, ops, data,
+and the event log. `python3 -m sim.serve` then `http://localhost:8765`.
+The `EXPLAIN` dict in `serve.py` is the plain-English glossary of every
+order; keep it honest when an order's meaning changes.
+
 **Playtest findings from the first scripted games** (this is the list the
 next session should start from; each is a model finding, not a UI one):
 

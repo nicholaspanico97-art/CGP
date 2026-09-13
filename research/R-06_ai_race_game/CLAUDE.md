@@ -22,7 +22,8 @@ Python. Read this first, then `WORLD_MODEL.md`.
 ```
 python3 -m sim.checkpoints   # PRIMARY calibration: timing, in months
 python3 -m sim.replay        # the seam check: record, replay, must match bit for bit
-python3 -m sim.play --seed 7 --lab 2   # PLAY IT: one lab is yours, a turn is a quarter
+python3 -m sim.serve --seed 7 --lab 2  # PLAY IT in a browser: open http://localhost:8765
+python3 -m sim.play --seed 7 --lab 2   # or in the terminal
 python3 -m sim.score         # secondary: magnitude sanity check only
 python3 -m sim.balance 24    # strategy goal attainment, lead changes
 python3 -m sim.fit_report    # benchmark curve fit
@@ -75,6 +76,7 @@ policy.py      the decision seam: Observation, Actions, Policy; DoctrinePolicy
 replay.py      record -> save -> replay; must be bit-identical
 game.py        the player's seat: PlayerPolicy, Game (quarterly turn, board letter)
 play.py        terminal front end for game.py; `--auto N` watches autopilot
+serve.py       local web dashboard (viewer/play.html) on top of game.py; stdlib only
 objectives.py  what each strategy is trying to do; how success is scored
 safety.py      incident hazard, three severity tiers, sector regulation
 world.py       the monthly tick: everything above, wired together

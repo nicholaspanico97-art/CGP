@@ -223,7 +223,8 @@ class Game:
             researchers=me.researchers, stars=me.stars,
             comp_offer=me.comp_offer, market_comp=w.market_comp,
             model=(dict(name=me.model.name, cap=me.model.capability,
-                        shipped=me.model.shipped, age=m - me.model.shipped,
+                        shipped=me.model.shipped, shipped_date=date(me.model.shipped),
+                        age=m - me.model.shipped,
                         caps=dict(me.model.caps), gen=me.model.generation)
                    if me.model else None),
             internal=(me.internal.capability if me.internal else None),
