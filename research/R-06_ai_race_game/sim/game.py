@@ -387,7 +387,13 @@ class Game:
                 gain_by_domain={d: gain * w for d, w in me.POST_TRAIN_WEIGHT.items()
                                 if me.model.caps.get(d, 0) > 0},
                 gain=gain)
+        rsi = dict(factor=T.automation_factor(me), index=T.research_index(me),
+                   threshold=K.RSI_THRESHOLD, width=K.RSI_WIDTH, max=K.RSI_MAX_FACTOR,
+                   tax=K.RSI_COMPUTE_TAX, weights=dict(K.RSI_DOMAINS),
+                   caps={d: max((m.caps.get(d, 0.0) for m in (me.model, me.internal) if m and m.caps), default=0.0)
+                         for d in K.RSI_DOMAINS})
         idle = dict(lane_flops=me.fleet.train_flops() * o.train, lane_per_month=lane,
+                    rsi=rsi,
                     research_flop=getattr(me, "spare_research_flop", 0.0),
                     research_gain=getattr(me, "last_research", 0.0),
                     launch_prep=me.launch_prep, post=post,

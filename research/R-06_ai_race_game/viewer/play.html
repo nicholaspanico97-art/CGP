@@ -564,6 +564,7 @@ function renderDash() {
   $('#ops').innerHTML = `
     ${fleetTable(r.fleet)}
     <p><b>${n0(r.accels)}</b> accelerators in all, ${f(r.mw,0)} MW in use of ${f(r.contracted_mw,0)} contracted; ${n0(r.on_order)} on order, ${f(r.mw_pipeline,0)} MW in the pipeline. Algorithmic edge vs field ×${f(r.algo)}.</p>
+    ${rsiLine(r.idle.rsi)}
     <p><b>${n0(r.researchers)}</b> researchers, ${f(r.stars,1)} stars. You offer $${n0(r.comp_offer/1e3)}k against a market rate of $${n0(r.market_comp/1e3)}k${below?' <span class="behind">— below market, people are leaving</span>':''}.</p>
     ${r.arriving.length || r.run_eta ? `<table class="arrive"><tr><th>Arriving</th><th>What</th></tr>${r.run_eta ? `<tr><td class="mono">${r.run_eta}</td><td>training run lands (estimate; the popup asks you then)</td></tr>` : ''}${r.arriving.map(a => `<tr><td class="mono">${a.when}</td><td>${a.what}</td></tr>`).join('')}</table>` : '<p class="dim">Nothing on order and no run in progress.</p>'}
     <p>Trust <b>${f(r.trust,0)}</b>/100 · safety debt <b>${f(r.safety_debt,1)}</b> · unevaluated capability ${f(r.unevaluated)} · incidents ${r.incidents} · sector regulation ${f(r.regulation)}${r.restricted?' · <span class="behind">barred from agentic markets</span>':''}</p>`;
@@ -616,6 +617,15 @@ function logo(name, size) {
   return `<svg class="logo" width="${size}" height="${size}" viewBox="0 0 24 24" aria-label="${name}"><g fill="${fill}">${shapes[shape]}</g><text x="12" y="${ty}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="system-ui, sans-serif">${letter}</text></svg>`;
 }
 const h100e = v => v >= 1e6 ? (v/1e6).toFixed(2) + 'M' : v >= 1e3 ? (v/1e3).toFixed(1) + 'k' : v.toFixed(0);
+function rsiLine(x) {
+  // the self-improvement loop: research throughput from pointing your own
+  // models at your own research queue
+  const on = x.factor > 1.05;
+  const to = x.threshold - x.index;
+  const caps = Object.entries(x.weights).map(([d, w]) => `${d} ${f(x.caps[d], 1)} <span class="dim">(${(w*100).toFixed(0)}%)</span>`).join(' · ');
+  return `<div class="kv" style="margin:8px 0"><div>Automated research<b class="${on ? 'ok' : ''}">×${f(x.factor, 2)}</b>research throughput multiple; ceiling ×${f(x.max, 0)}</div><div>Research index<b>${f(x.index, 2)}</b>${to > 0 ? `${f(to, 2)} below where it starts to bite (${f(x.threshold, 1)})` : `${f(-to, 2)} past the threshold (${f(x.threshold, 1)})`}</div></div>
+    <p class="help">Your best <i>built</i> model doing your research, weighted ${caps}. Comes on as a sigmoid ${f(x.width, 2)} OOM wide around the threshold${on ? `; the agents eat ${(x.tax*100).toFixed(0)}% of the experiment lane at full strength` : ''}. This is the loop that bends the late decade: it also feeds the sector's frontier, so what you build here leaks to everyone through papers and hires.</p>`;
+}
 function fleetTable(fl) {
   if (!fl.rows.length) return '<p class="dim">No accelerators.</p>';
   let h = `<table><tr><th>Generation</th><th class="n">Count</th><th class="n">Each</th><th class="n">Training</th><th class="n">Share</th><th class="n">H100-eq</th><th class="n">MW</th><th class="n">Bought</th><th class="n">Retires</th></tr>`;
