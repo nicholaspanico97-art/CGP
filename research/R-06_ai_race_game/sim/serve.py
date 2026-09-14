@@ -117,6 +117,9 @@ class Session:
                         for d in sorted(new, key=lambda d: -new[d]) if new[d] > 0],
             "safety_debt": lab.safety_debt, "trust": lab.trust,
         }
+        board, projected = self.game.leaderboard(candidate)
+        self.pending["board"] = board
+        self.pending["projected_aa"] = projected
         rel = self.answers.get()            # blocks until the browser answers
         self.pending = None
         return rel
@@ -152,6 +155,7 @@ class Session:
             "own": r["own_best"], "feared": r["perceived_frontier"], "aa": r["aa"],
             "trust": r["trust"], "debt": r["safety_debt"], "accels": r["accels"],
             "researchers": r["researchers"], "valuation": r["valuation"],
+            "board": {row["name"]: row["aa"] for row in r["board"]},
         })
         self.snapshot = r
 

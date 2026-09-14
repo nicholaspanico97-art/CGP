@@ -150,6 +150,31 @@ class Game:
     def over(self):
         return self.world.month >= 132
 
+    # -------------------------------------------------------- the field
+    def leaderboard(self, candidate=None):
+        """
+        Every lab's published AA index, yours included - the public table.
+        Rivals are what your intel read off their published scores (a
+        belief, refreshed monthly); you are your own published number. With
+        `candidate`, adds what YOUR row would read if you shipped it.
+        """
+        w, me = self.world, self.player
+        obs = w.observe(me)
+        rows = [dict(name=b.target, aa=b.aa, you=False, silent=b.months_silent)
+                for b in obs.beliefs]
+        mine = w.aa(me)[0] if me.model else None
+        rows.append(dict(name=me.name, aa=mine, you=True, silent=0))
+        projected = None
+        if candidate is not None:
+            keep = me.model
+            me.model = candidate
+            try:
+                projected = w.aa(me)[0]
+            finally:
+                me.model = keep
+        rows.sort(key=lambda r: -(r["aa"] if r["aa"] is not None else -1))
+        return rows, projected
+
     # ------------------------------------------------------- explanations
     def preview(self, months=None, target_flop=None, tokens_per_param=None,
                 moe_sparsity=None, test_time_oom=None, mixture=None):
@@ -296,6 +321,7 @@ class Game:
             can_raise=me.doctrine.get("can_raise", True),
         )
 
+        board, _ = self.leaderboard()
         why = getattr(me.model, "why", None) if me.model else None
         run_plan = me.run_plan.to_dict() if me.run_plan else None
         run_preview = None
@@ -306,7 +332,7 @@ class Game:
             run_preview["risk"] = EXPL.risk(me, me.run_target, getattr(me, "believed_frontier", 0.0))
         return dict(
             month=m, date=date(m), turn=self.turn, name=me.name,
-            why=why, run_plan=run_plan, run_preview=run_preview,
+            why=why, run_plan=run_plan, run_preview=run_preview, board=board,
             data=EXPL.data_holdings(me),
             ledger_q=ledger_q, ledger_all=ledger_all, shopping=shopping,
             arriving=arriving, run_eta=run_eta, turn_months=self.last_months,
