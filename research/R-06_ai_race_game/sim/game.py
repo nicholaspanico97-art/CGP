@@ -30,7 +30,8 @@ from . import tasks as TASKS
 from . import talent as T
 from .world import World
 from .scenarios import randomized_2020, historical_2020
-from .policy import Policy, Actions, Release, DoctrinePolicy, validate
+from .policy import Policy, Actions, Release, RunPlan, DoctrinePolicy, validate
+from . import explain as EXPL
 
 MONTHS_PER_TURN = 3
 
@@ -43,11 +44,13 @@ class PlayerPolicy(Policy):
     evaluated, which is the cautious default.
     """
 
-    def __init__(self, doctrine, ask_release=None):
+    def __init__(self, doctrine, ask_release=None, ask_run=None):
         self.defaults = DoctrinePolicy(doctrine)   # a sensible opening book
         self.orders = None
         self.ask = ask_release
+        self.ask_run = ask_run
         self.interrupts = []                        # what was asked, and answered
+        self.runs = []                              # (month, plan) started
 
     def decide(self, obs):
         if obs.month < 0:
@@ -60,7 +63,14 @@ class PlayerPolicy(Policy):
         out = self.orders.copy()
         # one-shots fire once - the first month they are in force - then clear
         self.orders.buy_accels, self.orders.contract_mw, self.orders.raise_now = 0, 0.0, 0.0
+        self.orders.extend_run_months, self.orders.finish_run = 0.0, False
         return out
+
+    def decide_run(self, obs, proposal):
+        plan = proposal if self.ask_run is None else self.ask_run(obs, proposal)
+        if plan.target_flop > 0:
+            self.runs.append((obs.month, plan))
+        return plan
 
     def decide_release(self, obs, candidate, held):
         if self.ask is None:
@@ -86,13 +96,14 @@ def _m(x):
 
 
 class Game:
-    def __init__(self, seed=7, player=0, randomized=True, ask_release=None):
+    def __init__(self, seed=7, player=0, randomized=True, ask_release=None,
+                 ask_run=None):
         self.seed = seed
         self.randomized = randomized
         labs = randomized_2020(seed) if randomized else historical_2020()
         self.player_index = player
         self.player = labs[player]
-        self.policy = PlayerPolicy(self.player.doctrine, ask_release)
+        self.policy = PlayerPolicy(self.player.doctrine, ask_release, ask_run)
         self.player.policy = self.policy
         self.world = World(labs, seed=seed)
         self.turn = 0
@@ -137,6 +148,30 @@ class Game:
     @property
     def over(self):
         return self.world.month >= 132
+
+    # ------------------------------------------------------- explanations
+    def preview(self, months=None, target_flop=None, tokens_per_param=None,
+                moe_sparsity=None, test_time_oom=None, mixture=None):
+        """
+        What a run of this shape would give, expected (luck = 1). Either
+        `months` of the fleet's output at the current train share, or an
+        explicit `target_flop`. Unset recipe fields take the standing orders.
+        """
+        w, me, o = self.world, self.player, self.orders
+        rate = EXPL.run_rate_flop_per_month(me, o.train)
+        if target_flop is None:
+            target_flop = rate * (months if months is not None else o.run_months)
+        tpp = o.tokens_per_param if tokens_per_param is None else tokens_per_param
+        moe = o.moe_sparsity if moe_sparsity is None else moe_sparsity
+        tt = o.test_time_oom if test_time_oom is None else test_time_oom
+        mix = dict(o.mixture) if mixture is None else dict(mixture)
+        ex = EXPL.explain(me, w, w.month, target_flop, tpp, moe, tt, mix)
+        ex["months"] = target_flop / rate if rate > 0 else None
+        ex["rate_per_month"] = rate
+        ex["risk"] = EXPL.risk(me, target_flop, getattr(me, "perceived_frontier", 0.0))
+        ex["current"] = dict(me.model.caps) if me.model else {}
+        ex["feared"] = getattr(me, "perceived_frontier", 0.0)
+        return ex
 
     # ---------------------------------------------------------- the letter
     def report(self):
@@ -253,8 +288,18 @@ class Game:
             can_raise=me.doctrine.get("can_raise", True),
         )
 
+        why = getattr(me.model, "why", None) if me.model else None
+        run_plan = me.run_plan.to_dict() if me.run_plan else None
+        run_preview = None
+        if me.run_target:
+            run_preview = EXPL.explain(me, w, m, me.run_target, me.run_plan.tokens_per_param,
+                                       me.run_plan.moe_sparsity, me.run_plan.test_time_oom,
+                                       me.run_plan.mixture)
+            run_preview["risk"] = EXPL.risk(me, me.run_target, getattr(me, "perceived_frontier", 0.0))
         return dict(
             month=m, date=date(m), turn=self.turn, name=me.name,
+            why=why, run_plan=run_plan, run_preview=run_preview,
+            data=EXPL.data_holdings(me),
             ledger_q=ledger_q, ledger_all=ledger_all, shopping=shopping,
             arriving=arriving, run_eta=run_eta, turn_months=self.last_months,
             strategy=me.doctrine.get("strategy_name", "?"),
@@ -275,7 +320,7 @@ class Game:
                         caps=dict(me.model.caps), gen=me.model.generation)
                    if me.model else None),
             internal=(me.internal.capability if me.internal else None),
-            aa=aa, table=table, run=run, largest_run=me.largest_run,
+            aa=aa, table=table, run=run, largest_run=me.largest_run, cooldown=me.cooldown,
             shelved=me.shelved, algo=me.algo_mult,
             price=me.price_per_mtok, cost_per_mtok=me.serving_cost_per_mtok(),
             served=getattr(me, "served_mtok", 0.0), unmet=getattr(me, "unmet", 0.0),

@@ -107,6 +107,32 @@ operating costs by kind, capital and financing. Also: `sim.serve` listens
 on IPv6 too (browsers try `::1` first; the missing listener was the
 "stubborn button"), refuses to start twice on one port, and opens a tab.
 
+v1.6 (same session, Nick's request): **the run is planned, not timed.**
+When the cooldown ends the policy is asked `decide_run(obs, proposal)`;
+the strategy AIs return the proposal (bit-identical), the player gets a
+planner with a live preview. The recipe and mixture are now **fixed at
+planning time** in `lab.run_plan` and read from there at landing (was:
+read from the standing orders at landing - same values for the AIs, hence
+unchanged calibration). One-shots `extend_run_months` and `finish_run`
+change a run in progress. `sim/explain.py` itemises the capability chain
+(compute x sector progress x edge x reasoning era x luck = headline; per
+domain: share, data have/want, fed, transfer, quality) and is used both
+to record `model.why` at landing and to preview in the planner, so a
+difference between promise and result is the dice and nothing else.
+`domain_capability` gained an optional `detail` dict; arithmetic untouched.
+
+8. **`maybe_ship` reads the TRUE frontier.** `fc = self.frontier_capability()`
+   is passed in as `frontier_cap` and used for `behind`, which loads the
+   run's dice. The comment says "this lab's BELIEF" but it is the world's
+   max. An observability-seam breach (CLAUDE.md invariant). The fix is
+   `lab.perceived_frontier`; it will change realisations, so re-measure.
+   `explain.risk()` already uses the belief, so the planner's stated risk
+   differs slightly from the risk actually rolled until this is fixed.
+9. **A run starts the month after it is planned** - the plan is taken at
+   the end of the tick, after `train_step`. Harmless, but the planner says
+   "lands in ~3 months" and it lands in 4. Either move the ask before
+   training or say so.
+
 **Playtest findings from the first scripted games** (this is the list the
 next session should start from; each is a model finding, not a UI one):
 

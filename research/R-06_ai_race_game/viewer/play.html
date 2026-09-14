@@ -41,6 +41,25 @@
   .prog .bar { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
   .prog .lbl { position: absolute; inset: 0; font-size: 11.5px; line-height: 18px; text-align: center; color: var(--ink); }
   .arrive td { font-size: 13px; }
+  .modal.wide { max-width: 920px; }
+  .plan { display: grid; grid-template-columns: 300px 1fr; gap: 18px; }
+  @media (max-width: 800px) { .plan { grid-template-columns: 1fr; } }
+  .plan .ctl { display: grid; grid-template-columns: 1fr 70px; gap: 4px 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+  .plan .ctl label { font-weight: 600; font-size: 13px; }
+  .plan .ctl input[type=range] { grid-column: 1 / -1; width: 100%; }
+  .plan .ctl input[type=number] { width: 70px; font: inherit; padding: 3px 5px; border: 1px solid var(--line); border-radius: 3px; background: var(--soft); color: var(--ink); text-align: right; }
+  .plan .ctl .why { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+  .plan .mixg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; grid-column: 1 / -1; }
+  .plan .mixg label { display: grid; font-size: 11.5px; color: var(--muted); }
+  .plan .mixg input { width: 100%; min-width: 0; font: inherit; padding: 3px 5px; border: 1px solid var(--line); border-radius: 3px; background: var(--soft); color: var(--ink); text-align: right; }
+  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 8px 0; }
+  .kv div { background: var(--soft); border-radius: 4px; padding: 6px 9px; font-size: 12.5px; }
+  .kv b { display: block; font-size: 15px; }
+  .chain td { font-size: 13px; }
+  .chain td.op { color: var(--muted); text-align: center; width: 24px; }
+  .capped { color: var(--them); }
+  .ok { color: var(--good); }
+  .rowbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   main { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px 18px 60px; max-width: 1500px; margin: 0 auto; }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
   section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
@@ -157,6 +176,7 @@
       <section class="panel"><h2>Markets</h2><div id="markets"></div></section>
       <section class="panel"><h2>Compute, people, safety</h2><div id="ops"></div></section>
     </div>
+    <section class="panel"><h2>Why your model is what it is</h2><div id="why"></div></section>
     <div class="row2">
       <section class="panel"><h2>Data on the table</h2><div id="data"></div></section>
       <section class="panel"><h2>What happened</h2><div class="events" id="events"></div></section>
@@ -324,9 +344,39 @@ function renderDash() {
   } else {
     m = `<p class="dim">Nothing shipped yet.</p>`;
   }
-  if (r.run) m += `<p>Training run in progress: <b>${r.run.target.toExponential(1)} FLOP</b>${r.run.vs_last ? ` (${f(r.run.vs_last,1)}× your last)` : ''}, ${(r.run.frac*100).toFixed(0)}% done, ~${r.run.months_left != null ? r.run.months_left.toFixed(0) : '?'} months to go.</p>`;
-  else m += `<p class="dim">No run in progress. Largest landed ${r.largest_run.toExponential(1)} FLOP; ${r.shelved} shelved.</p>`;
+  if (r.run) {
+    const pv = r.run_preview;
+    m += `<p><b>Training run in progress:</b> ${r.run.target.toExponential(2)} FLOP${r.run.vs_last ? ` (${f(r.run.vs_last,1)}× your last)` : ''}, ${(r.run.frac*100).toFixed(0)}% done, ~${r.run.months_left != null ? r.run.months_left.toFixed(1) : '?'} months to go (lands ~${r.run_eta || '?'}).</p>`;
+    if (pv) m += `<p class="help">Expected if the dice land average: best domain <b>${f(pv.best)}</b> (${pv.domains.filter(d=>d.weight>0).map(d=>`${d.domain} ${f(d.cap,1)}${d.data_limited?'<span class="capped">*</span>':''}`).join(' · ')}). Luck: ±${f(pv.risk.sigma_oom)} OOM one sigma, ${(pv.risk.p_breakthrough*100).toFixed(0)}% breakthrough, ${(pv.risk.p_dud*100).toFixed(0)}% dud${pv.risk.over > 0 ? ` — <span class="capped">ambitious: ${f(pv.risk.ambition,1)}× your last landed run</span>` : ''}. <span class="capped">*</span> = short of data.</p>`;
+    m += `<div class="rowbtns"><label class="help">extend by <input type="number" id="extend" min="0" step="0.5" value="1" style="width:56px"> months</label><button id="extendbtn">Extend the run</button><button id="finishbtn">Land it now on what it has</button></div>
+      <p class="help">Both fire at the start of the next turn. Extending keeps the same recipe; landing now makes a smaller model than planned.</p>`;
+  } else m += `<p class="dim">No run in progress (cooldown ${r.cooldown || 0} more months). Largest landed ${r.largest_run.toExponential(1)} FLOP; ${r.shelved} shelved.</p>`;
   $('#model').innerHTML = m;
+  const eb = $('#extendbtn'), fb = $('#finishbtn');
+  if (eb) eb.addEventListener('click', () => send({extend_run_months: +$('#extend').value}));
+  if (fb) fb.addEventListener('click', () => send({finish_run: true}));
+
+  // why the model is what it is
+  const why = r.why;
+  if (why) {
+    const dm = why.domains.filter(d => d.weight > 0 || d.cap > 0);
+    let w = `<p class="help">The shipped model, step by step. Capability is a log scale: +1.0 = ten times the effective compute.</p>`;
+    w += `<table class="chain"><tr><th>Step</th><th class="n">Value</th><th>Meaning</th></tr>`;
+    w += `<tr><td>Training compute</td><td class="n mono">10^${f(why.log_flop)}</td><td class="dim">${why.flop.toExponential(2)} FLOP, ${(why.params/1e9).toFixed(0)}B params (${(why.active_params/1e9).toFixed(0)}B active) on ${(why.tokens/1e12).toFixed(1)}T tokens</td></tr>`;
+    w += `<tr><td>× sector algorithmic progress</td><td class="n mono">×${f(why.sector_algo)}</td><td class="dim">what everyone knows how to do this year</td></tr>`;
+    w += `<tr><td>× your algorithmic edge</td><td class="n mono">×${f(why.lab_edge)}</td><td class="dim">${why.lab_edge >= 1 ? 'ahead of the field' : 'behind the field'} — bought with the experiment share</td></tr>`;
+    w += `<tr><td>× reasoning era</td><td class="n mono">×${f(why.reasoning)}</td><td class="dim">post-training and RL techniques available this year${why.test_time_oom>0?`, plus ${f(why.test_time_oom)} OOM of test-time compute`:''}</td></tr>`;
+    w += `<tr><td>× how the run went</td><td class="n mono ${why.mult<1?'capped':'ok'}">×${f(why.mult)}</td><td class="dim">${why.tag ? `a <b>${why.tag}</b>` : 'an ordinary run'} — the dice</td></tr>`;
+    w += `<tr class="total"><td>= headline capability</td><td class="n mono">${f(why.headline)}</td><td class="dim">before splitting across domains</td></tr></table>`;
+    w += `<p class="help" style="margin-top:8px">Recipe: ${f(why.tokens_per_param,0)} tokens/param${why.tokens_per_param_asked > why.era_tokens_per_param + 1e-9 ? ` <span class="capped">(you asked ${f(why.tokens_per_param_asked,0)}; the sector only knew how to use ${f(why.era_tokens_per_param,0)} then)</span>` : ''}, sparsity ${f(why.moe,1)}${why.moe_asked > why.era_moe + 1e-9 ? ` <span class="capped">(asked ${f(why.moe_asked,1)}, era cap ${f(why.era_moe,1)})</span>` : ''}.</p>`;
+    w += `<table><tr><th>Domain</th><th class="n">Share of run</th><th class="n">Data have / want</th><th class="n">Fed</th><th class="n">From transfer</th><th class="n">Capability</th></tr>`;
+    for (const d of dm) {
+      const tot = d.direct + d.transferred;
+      w += `<tr><td>${d.domain}</td><td class="n mono">${(d.weight*100).toFixed(0)}%</td><td class="n mono">${d.weight>0 ? `${(d.have/1e12).toFixed(2)}T / ${(d.wanted/1e12).toFixed(2)}T` : '—'}</td><td class="n mono ${d.data_limited?'capped':''}">${d.weight>0 ? (d.sufficiency*100).toFixed(0)+'%' : '—'}</td><td class="n mono">${tot>0 ? (d.transferred/tot*100).toFixed(0)+'%' : '—'}</td><td class="n mono"><b>${f(d.cap)}</b></td></tr>`;
+    }
+    w += `</table><p class="help">"Fed" under 100% means you pointed compute at a domain you lacked data for; that compute was partly wasted. "From transfer" is capability borrowed from related domains (code ↔ reasoning ↔ agents move freely; text never becomes pixels).</p>`;
+    $('#why').innerHTML = w;
+  } else $('#why').innerHTML = '<p class="dim">Nothing shipped yet.</p>';
 
   // rivals
   let rv = `<p>Your best, built: <b>${f(r.own_best)}</b>. The frontier as you fear it: <b class="behind">${f(r.perceived_frontier)}</b> (threat ${r.threat>=0?'+':''}${f(r.threat)}${r.feared?`, ${r.feared}`:''}).</p>`;
@@ -357,7 +407,15 @@ function renderDash() {
     <p>Trust <b>${f(r.trust,0)}</b>/100 · safety debt <b>${f(r.safety_debt,1)}</b> · unevaluated capability ${f(r.unevaluated)} · incidents ${r.incidents} · sector regulation ${f(r.regulation)}${r.restricted?' · <span class="behind">barred from agentic markets</span>':''}</p>`;
 
   // data
-  let d = `<p>Licensed: ${r.data_owned.length ? r.data_owned.join(', ') : '<span class="dim">nothing</span>'}</p>`;
+  let d = `<p>Licensed: ${r.data_owned.length ? r.data_owned.map(k => (r.data.sources[k]||{}).name || k).join(', ') : '<span class="dim">nothing</span>'}</p>`;
+  const want = r.run_preview ? Object.fromEntries(r.run_preview.domains.map(x => [x.domain, x.wanted])) : {};
+  d += `<table><tr><th>Domain</th><th class="n">Tokens held</th><th class="n">Quality</th><th class="n">${r.run_preview ? 'Current run wants' : 'Next run would want'}</th></tr>`;
+  for (const [k, v] of Object.entries(r.data.domains)) {
+    if (v.tokens <= 0 && !(want[k] > 0)) continue;
+    const short = want[k] > 0 && v.effective < want[k];
+    d += `<tr><td>${k}</td><td class="n mono">${(v.tokens/1e12).toFixed(2)}T</td><td class="n mono">${f(v.quality)}</td><td class="n mono ${short?'capped':''}">${want[k] > 0 ? (want[k]/1e12).toFixed(2)+'T' : '—'}</td></tr>`;
+  }
+  d += `</table><p class="help">Quality weights tokens: 1.0 is plain web text; books and expert data count for more. Legal exposure from provenance: ${f(r.data.legal_exposure)}.</p>`;
   if (r.data_offers.length) d += `<p class="dim">For sale: ${r.data_offers.map(x=>`${x.name} (${fmtM(x.price)})`).join(' · ')}</p>`;
   if (r.data_auctions.length) d += `<p class="dim">At auction: ${r.data_auctions.map(x=>`${x.name} (ask ${fmtM(x.price)})`).join(' · ')}</p>`;
   $('#data').innerHTML = d;
@@ -432,9 +490,11 @@ let pendingKey = null;
 function renderPending() {
   const p = S.pending, ov = $('#overlay');
   if (!p) { ov.classList.remove('on'); pendingKey = null; return; }
-  const key = `${p.month}:${p.held}:${p.best_new}`;
+  const key = `${p.kind}:${p.month}:${p.held}:${p.best_new}`;
   if (key === pendingKey) return;          // already on screen; don't redraw under the cursor
   pendingKey = key;
+  if (p.kind === 'run') { renderRunModal(p); ov.classList.add('on'); return; }
+  $('#modal').classList.remove('wide');
   const rows = p.domains.map(d => `<tr><td>${d.d}</td><td class="n mono">${f(d.new,1)}</td><td class="n mono dim">${d.old==null?'—':f(d.old,1)}</td></tr>`).join('');
   $('#modal').innerHTML = `
     <h2>${p.date}: ${p.held ? 'the model you have been holding' : 'your training run has landed'}</h2>
@@ -454,6 +514,60 @@ function renderPending() {
   ov.classList.add('on');
 }
 
+function renderRunModal(p) {
+  const o = S.orders, md = $('#modal');
+  md.classList.add('wide');
+  const months0 = p.proposal_months ? Math.max(0.5, Math.round(p.proposal_months * 2) / 2) : o.run_months;
+  const mix = p.proposal.mixture;
+  md.innerHTML = `
+    <h2>${p.date}: plan your next training run</h2>
+    <p class="help">Your fleet puts <b>${p.rate_per_month.toExponential(2)} FLOP</b> into a run each month at the current ${(p.train_share*100).toFixed(0)}% train share. Your largest landed run: ${p.largest_run > 0 ? p.largest_run.toExponential(2) + ' FLOP' : 'none yet'}. Recipe and mixture are fixed for the run once it starts; you can extend it or land it early later.</p>
+    <div class="plan">
+      <div>
+        <div class="ctl"><label>Length (months)</label><input type="number" id="pl-months" min="0.5" max="24" step="0.5" value="${months0}"><input type="range" id="pl-months-r" min="0.5" max="24" step="0.5" value="${months0}"><div class="why">Longer = bigger run = more capability, later, and a bigger jump from your last one (riskier dice).</div></div>
+        <div class="ctl"><label>Tokens per parameter</label><input type="number" id="pl-tpp" min="1" max="2000" step="5" value="${f(p.proposal.tokens_per_param,0)}"><div class="why">Higher = a smaller model that is cheaper to serve forever. Capped by what the sector knows how to do this year.</div></div>
+        <div class="ctl"><label>Sparsity (MoE)</label><input type="number" id="pl-moe" min="1" max="64" step="0.5" value="${f(p.proposal.moe_sparsity,1)}"><div class="why">Higher = cheaper to serve at the same size. Also era-capped.</div></div>
+        <div class="ctl"><label>Test-time compute (OOM)</label><input type="number" id="pl-tt" min="0" max="3" step="0.1" value="${f(p.proposal.test_time_oom,1)}"><div class="why">Extra compute per answer at inference. Better answers, worse margins.</div></div>
+        <div class="ctl"><label>Mixture</label><span></span><div class="mixg">${S.domains.map(dm => `<label>${dm}<input type="number" min="0" step="0.05" data-plmix="${dm}" value="${f(mix[dm]||0)}"></label>`).join('')}</div><div class="why">What it trains on. Renormalised. A domain with no share gets nothing (and modalities like image or audio get no transfer either).</div></div>
+      </div>
+      <div id="pl-preview"><p class="dim">computing…</p></div>
+    </div>
+    <div class="btns"><button class="primary" id="pl-start">Start this run</button><button id="pl-wait">Wait a month</button></div>`;
+  const read = () => {
+    const mixv = {}; md.querySelectorAll('[data-plmix]').forEach(e => mixv[e.dataset.plmix] = +e.value || 0);
+    return {months: +$('#pl-months').value, tokens_per_param: +$('#pl-tpp').value, moe_sparsity: +$('#pl-moe').value, test_time_oom: +$('#pl-tt').value, mixture: mixv};
+  };
+  let timer = null;
+  const preview = () => { clearTimeout(timer); timer = setTimeout(async () => {
+    const pv = await api('/api/preview', read());
+    if (pv.error) { $('#pl-preview').innerHTML = `<p class="behind">${pv.error}</p>`; return; }
+    const cur = p.current || {};
+    let h = `<div class="kv"><div>Run size<b>${pv.flop.toExponential(2)} FLOP</b></div><div>Lands in<b>~${f(pv.months,1)} mo</b></div><div>Model<b>${(pv.params/1e9).toFixed(0)}B params</b>${(pv.active_params/1e9).toFixed(0)}B active</div><div>Serving cost<b>$${f(pv.cost_per_mtok)}/Mtok</b></div><div>Expected best<b>${f(pv.best)}</b>you sell ${cur && Object.keys(cur).length ? f(Math.max(...Object.values(cur))) : '—'} · feared ${f(p.feared)}</div></div>`;
+    const rk = pv.risk;
+    h += `<p class="help">Luck: one sigma ±${f(rk.sigma_oom)} OOM · ${(rk.p_breakthrough*100).toFixed(0)}% breakthrough · ${(rk.p_dud*100).toFixed(0)}% dud. ${rk.over > 0 ? `<span class="capped">This is ${f(rk.ambition,1)}× your last landed run — past the comfortable ${f(rk.comfort,1)}×, the distribution widens.</span>` : `${f(rk.ambition,1)}× your last landed run — within the comfortable range.`}</p>`;
+    if (pv.tokens_per_param_asked > pv.era_tokens_per_param + 1e-9) h += `<p class="help capped">Tokens/param capped at ${f(pv.era_tokens_per_param,0)}: the sector does not yet know how to use ${f(pv.tokens_per_param_asked,0)}.</p>`;
+    if (pv.moe_asked > pv.era_moe + 1e-9) h += `<p class="help capped">Sparsity capped at ${f(pv.era_moe,1)} for the same reason.</p>`;
+    h += `<table><tr><th>Domain</th><th class="n">Share</th><th class="n">Data have / want</th><th class="n">Fed</th><th class="n">Expected</th><th class="n">Selling now</th></tr>`;
+    for (const d of pv.domains) {
+      if (d.weight <= 0 && d.cap <= 0) continue;
+      h += `<tr><td>${d.domain}</td><td class="n mono">${(d.weight*100).toFixed(0)}%</td><td class="n mono">${d.weight>0 ? `${(d.have/1e12).toFixed(2)}T / ${(d.wanted/1e12).toFixed(2)}T` : '—'}</td><td class="n mono ${d.data_limited?'capped':''}">${d.weight>0 ? (d.sufficiency*100).toFixed(0)+'%' : '—'}</td><td class="n mono"><b>${f(d.cap)}</b></td><td class="n mono dim">${cur[d.domain] != null ? f(cur[d.domain]) : '—'}</td></tr>`;
+    }
+    h += `</table><p class="help">"Fed" below 100% = not enough data for that share of the run; buy a corpus or shift the mixture. Expected values assume average dice.</p>`;
+    $('#pl-preview').innerHTML = h;
+  }, 150); };
+  md.querySelectorAll('input').forEach(e => { e.addEventListener('input', () => {
+    if (e.id === 'pl-months-r') $('#pl-months').value = e.value;
+    if (e.id === 'pl-months') $('#pl-months-r').value = e.value;
+    preview();
+  }); });
+  $('#pl-start').addEventListener('click', async () => {
+    const j = await api('/api/answer', {run: read()});
+    if (j.ok) { $('#overlay').classList.remove('on'); refresh(); }
+  });
+  $('#pl-wait').addEventListener('click', async () => { await api('/api/answer', {wait: true}); $('#overlay').classList.remove('on'); refresh(); });
+  preview();
+}
+
 // ------------------------------------------------------------- polling
 async function refresh(force) {
   const j = await api('/api/state');
@@ -465,7 +579,7 @@ async function refresh(force) {
   $('#end').textContent = S.over ? '2030 — the decade is over' : (S.busy ? 'Simulating…' : 'End turn ▸');
   const [done, total] = S.progress || [0, 0];
   $('#prog').classList.toggle('on', S.busy);
-  if (S.busy) { $('#bar').style.width = (total ? (done / total) * 100 : 0) + '%'; $('#proglbl').textContent = S.pending ? 'waiting for your answer' : `simulating month ${Math.min(done + 1, total)} of ${total} — seven labs are deciding`; }
+  if (S.busy) { $('#bar').style.width = (total ? (done / total) * 100 : 0) + '%'; $('#proglbl').textContent = S.pending ? (S.pending.kind === 'run' ? 'waiting for your run plan' : 'waiting for your answer') : `simulating month ${Math.min(done + 1, total)} of ${total} — seven labs are deciding`; }
   if (S.error) setStatus(S.error, true);
   else if (S.busy) setStatus('');
   renderPending();

@@ -94,6 +94,7 @@ class Lab:
         self.withheld_months = 0
         self.rng = None                   # seeded by the World
         self.run_target = None
+        self.run_plan = None              # the RunPlan behind run_target
         self.model = None
         self.price_per_mtok = 40.0
         self.sub_price = 20.0
@@ -174,10 +175,12 @@ class Lab:
         edge = max(0.0, math.log10(max(self.algo_mult, 1e-6))) * 6.0
         era_r = E.era_recipe(month + int(edge), K.RECIPE_ERA_TOKENS_PER_PARAM)
         era_moe = E.era_recipe(month + int(edge), K.RECIPE_ERA_MOE)
-        r = min(self.actions.tokens_per_param, era_r)
-        moe = min(self.actions.moe_sparsity, era_moe)
+        plan = self.run_plan
+        r = min(plan.tokens_per_param, era_r)
+        moe = min(plan.moe_sparsity, era_moe)
         shape = E.run_shape(self.train_bank, r, moe)
-        tt = self.actions.test_time_oom
+        tt = plan.test_time_oom
+        mixture = plan.mixture
 
         own = max(self.model.caps.values()) if self.model and self.model.caps else 0.0
         # frontier_cap is this lab's BELIEF about the frontier. A lab that
@@ -192,13 +195,18 @@ class Lab:
         cap = capability_index(self.train_bank * mult, month, self.algo_mult,
                                self.rl_investment, tt,
                                sector_algo=world.algo_frontier)
-        caps = domain_capability(10 ** cap, self.mixture, shape["tokens"],
+        caps = domain_capability(10 ** cap, mixture, shape["tokens"],
                                  self.data, D.DOMAIN_KEYS)
+        # the same arithmetic, itemised, kept with the model for the record
+        from . import explain as EXPL
+        why = EXPL.explain(self, world, month, self.train_bank, plan.tokens_per_param,
+                           plan.moe_sparsity, tt, mixture, mult=mult, tag=tag)
 
         # every completed run teaches you to land a bigger one, shipped or not
         self.largest_run = max(self.largest_run, self.train_bank)
         self.train_bank = 0.0
         self.run_target = None
+        self.run_plan = None
 
         current = self.model.caps if self.model else None
         if not REL.should_ship(caps, current, behind):
@@ -210,6 +218,7 @@ class Lab:
 
         candidate = Model(f"{self.name}-{month}", cap, shape["active_params"],
                           month, caps, tag)
+        candidate.why = why
         candidate.eval_noise = {k: self.rng_eval.gauss(0.0, TASKS.EVAL_NOISE_PTS)
                                 for k in TASKS.SUITES}
         # The interrupt: the run has landed and the lab is asked, with the
@@ -583,6 +592,13 @@ class World:
                                  "held": held, "cap": round(candidate.capability, 3)}))
         return rel
 
+    def ask_run(self, lab, proposal):
+        """The run interrupt: the cooldown is over; what is the next run?"""
+        plan = lab.policy.decide_run(self.observe(lab), proposal)
+        POL.validate_plan(plan)
+        self.action_log.append((self.month, lab.name, {"run": plan.to_dict()}))
+        return plan
+
     def _decide(self, m):
         """observe -> decide -> apply, for every lab, once a month."""
         # the going rate for people is public; every lab prices against it
@@ -631,6 +647,13 @@ class World:
 
         for lab in self.labs:
             a = lab.actions
+            # a run in progress can be grown, or landed on what it has
+            if lab.run_target is not None:
+                if a.extend_run_months > 0:
+                    lab.run_target += (lab.fleet.train_flops() * a.train
+                                       * K.SECONDS_PER_MONTH * a.extend_run_months / 1.18)
+                if a.finish_run and lab.train_bank > 0:
+                    lab.run_target = lab.train_bank
             spare = lab.train_step(m, a.train)
             # capacity the current run cannot absorb is turned to serving,
             # which is what a lab with idle accelerators actually does
@@ -652,7 +675,15 @@ class World:
                     lab.cooldown -= 1
                 else:
                     target = self._next_run_size(lab, m)
-                    lab.run_target = target if target > 1e18 else None
+                    if target > 1e18:
+                        plan = self.ask_run(lab, POL.RunPlan(
+                            target, a.tokens_per_param, a.moe_sparsity,
+                            a.test_time_oom, lab.mixture))
+                        if plan.target_flop > 1e18:
+                            lab.run_target = plan.target_flop
+                            lab.run_plan = plan
+                            if lab.largest_run > 0:
+                                lab.ambition = plan.target_flop / lab.largest_run
 
         # The frontier moves because labs did research this month. Automated
         # research feeds straight into this, which is how the loop closes and

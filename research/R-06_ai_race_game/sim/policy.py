@@ -99,11 +99,13 @@ _BOUNDS = {
     # one-shot orders: executed the month they are in force, then the
     # policy is expected to clear them. 0 = nothing.
     "buy_accels": (0, None), "contract_mw": (0.0, None), "raise_now": (0.0, 0.5),
+    "extend_run_months": (0.0, 36.0),
 }
 
 # switches: True = the standing rule above decides (the strategy AIs), False =
-# only the explicit one-shot orders do anything (a player who wants the wheel)
-_FLAGS = ("auto_capex", "auto_power", "auto_raise")
+# only the explicit one-shot orders do anything (a player who wants the wheel).
+# finish_run is a one-shot too: land the current run on what it has.
+_FLAGS = ("auto_capex", "auto_power", "auto_raise", "finish_run")
 
 _FIELDS = tuple(_BOUNDS) + _FLAGS + ("mixture", "data_buy", "data_bids")
 
@@ -140,6 +142,10 @@ class Actions:
       contract_mw                  one-shot: contract this many MW now
       raise_now                    one-shot: raise a round now, selling this
                                    fraction of the company
+      extend_run_months            one-shot: grow the run in progress by this
+                                   many months of the fleet's training output
+      finish_run                   one-shot: land the run in progress on what
+                                   it has banked so far
     """
 
     __slots__ = _FIELDS
@@ -213,6 +219,50 @@ def validate(actions):
             raise IllegalAction(f"bid for {key} must be positive")
 
 
+class RunPlan:
+    """
+    The answer to the run interrupt: what the next training run is.
+    `target_flop` sizes it (0 = do not start one this month; ask again next
+    month). The recipe and mixture are fixed for the run at planning time.
+    """
+
+    __slots__ = ("target_flop", "tokens_per_param", "moe_sparsity",
+                 "test_time_oom", "mixture")
+
+    def __init__(self, target_flop, tokens_per_param, moe_sparsity,
+                 test_time_oom, mixture):
+        self.target_flop = float(target_flop)
+        self.tokens_per_param = float(tokens_per_param)
+        self.moe_sparsity = float(moe_sparsity)
+        self.test_time_oom = float(test_time_oom)
+        self.mixture = dict(mixture)
+
+    def to_dict(self):
+        return dict(target_flop=self.target_flop, tokens_per_param=self.tokens_per_param,
+                    moe_sparsity=self.moe_sparsity, test_time_oom=self.test_time_oom,
+                    mixture=dict(self.mixture))
+
+    def copy(self):
+        return RunPlan(**self.to_dict())
+
+
+def validate_plan(plan):
+    if not isinstance(plan, RunPlan):
+        raise IllegalAction(f"decide_run must return a RunPlan, got {plan!r}")
+    if plan.target_flop < 0 or math.isnan(plan.target_flop):
+        raise IllegalAction("target_flop must be >= 0")
+    for f in ("tokens_per_param", "moe_sparsity", "test_time_oom"):
+        lo, hi = _BOUNDS[f]
+        v = getattr(plan, f)
+        if not (lo - 1e-9 <= v <= hi + 1e-9):
+            raise IllegalAction(f"{f}={v} outside [{lo}, {hi}]")
+    mix = plan.mixture
+    if not mix or any(d not in D.DOMAIN_KEYS or w < 0 for d, w in mix.items()):
+        raise IllegalAction("mixture must name known domains with non-negative weights")
+    if abs(sum(mix.values()) - 1.0) > 1e-6:
+        raise IllegalAction(f"mixture sums to {sum(mix.values()):.6f}, not 1")
+
+
 class Release:
     """
     The answer to the release interrupt. `ship`: release it, or sit on it.
@@ -244,6 +294,15 @@ class Policy:
         (`held=True`). Return a `Release`.
         """
         return Release(ship=True, evaluate=True)
+
+    def decide_run(self, obs, proposal):
+        """
+        The cooldown is over and a run can start. `proposal` is the RunPlan
+        the standing orders imply (fleet x train share x run_months; the
+        recipe and mixture in force). Return a RunPlan; target_flop 0 means
+        wait a month.
+        """
+        return proposal
 
 
 class DoctrinePolicy(Policy):
@@ -367,6 +426,7 @@ class DoctrinePolicy(Policy):
         a.openness = p.get("openness", 0.1)
         a.auto_capex = a.auto_power = a.auto_raise = True
         a.buy_accels, a.contract_mw, a.raise_now = 0, 0.0, 0.0
+        a.extend_run_months, a.finish_run = 0.0, False
         return a
 
     def _withholds(self, obs, candidate_cap):
@@ -415,16 +475,20 @@ class ReplayPolicy(Policy):
     def __init__(self, log, name):
         self.standing = []                  # [(month, diff)] in order
         self.releases = []                  # [ship: bool] in order
+        self.runs = []                      # [RunPlan] in order
         for month, who, changed in log:
             if who != name:
                 continue
             if "release" in changed:
                 self.releases.append(Release(changed["release"] == "ship",
                                              changed.get("evaluate", True)))
+            elif "run" in changed:
+                self.runs.append(RunPlan(**changed["run"]))
             else:
                 self.standing.append((month, changed))
         self._i = 0
         self._r = 0
+        self._k = 0
         self._cur = None
 
     def decide(self, obs):
@@ -444,3 +508,10 @@ class ReplayPolicy(Policy):
         rel = self.releases[self._r]
         self._r += 1
         return Release(rel.ship, rel.evaluate)
+
+    def decide_run(self, obs, proposal):
+        if self._k >= len(self.runs):
+            raise IllegalAction("replay ran out of run plans")
+        plan = self.runs[self._k]
+        self._k += 1
+        return plan.copy()

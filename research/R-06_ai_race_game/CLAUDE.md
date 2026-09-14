@@ -74,7 +74,8 @@ strategy.py    11 strategies with variation, drawn per game (what they WANT)
 policy.py      the decision seam: Observation, Actions, Policy; DoctrinePolicy
                is the strategies' behaviour; ReplayPolicy replays a log
 replay.py      record -> save -> replay; must be bit-identical
-game.py        the player's seat: PlayerPolicy, Game (quarterly turn, board letter)
+game.py        the player's seat: PlayerPolicy, Game (turns, board letter, preview)
+explain.py     why a model is what it is: the capability chain, itemised
 play.py        terminal front end for game.py; `--auto N` watches autopilot
 serve.py       local web dashboard (viewer/play.html) on top of game.py; stdlib only
 objectives.py  what each strategy is trying to do; how success is scored
@@ -108,6 +109,11 @@ export.py      dump a run to JSON for the viewer
   `ReplayPolicy` has no doctrine and no observation, so a mechanic that
   reaches around the seam shows up as a divergence. Run it after any change
   to `world.py`.
+- **A run's recipe is fixed when it is planned.** `World.ask_run` stores
+  the `RunPlan` in `lab.run_plan`; `maybe_ship` reads tokens/param,
+  sparsity, test-time and mixture from there, never from `lab.actions`.
+  `sim/explain.py` is the one place the capability chain is itemised; the
+  planner preview and `model.why` both call it.
 - **A/B a mechanic by flipping ONE lab, not all of them.** Making every lab
   careless and comparing outcomes is a null experiment: the relative
   standings are unchanged by construction. Pair the same lab against itself

@@ -157,7 +157,8 @@ class BenchmarkModel:
         return lo + (hi - lo) * _sigmoid((capability - c50) / w)
 
 
-def domain_capability(effective_flop, mixture, run_tokens, stock, domains):
+def domain_capability(effective_flop, mixture, run_tokens, stock, domains,
+                      detail=None):
     """
     Capability per domain, with transfer between them.
 
@@ -193,11 +194,16 @@ def domain_capability(effective_flop, mixture, run_tokens, stock, domains):
         present = mixture.get(d, 0.0) > 0
         if not present and d in MODALITY_DOMAINS:
             out[d] = 0.0                      # no encoder for a sense you skipped
+            if detail is not None:
+                detail[d] = dict(suff=0.0, qual=1.0, direct=0.0, trans=0.0, gate=0.0)
             continue
         gate = TRANSFER_DATA_GATE + (1.0 - TRANSFER_DATA_GATE) * suff.get(d, 0.0)
         trans = sum(TRANSFER.get(s, {}).get(d, 0.0) * direct.get(s, 0.0)
                     for s in domains if s != d)
         total = direct.get(d, 0.0) + trans * gate
+        if detail is not None:
+            detail[d] = dict(suff=suff.get(d, 0.0), qual=qual.get(d, 1.0),
+                             direct=direct.get(d, 0.0), trans=trans * gate, gate=gate)
         if total <= 0:
             out[d] = 0.0
             continue
