@@ -93,6 +93,20 @@ and the event log. `python3 -m sim.serve` then `http://localhost:8765`.
 The `EXPLAIN` dict in `serve.py` is the plain-English glossary of every
 order; keep it honest when an order's meaning changes.
 
+Nick's first requests from playing (v1.5.2): **manual control** over the
+things that auto-fired — accelerator purchases, power contracts, raising
+rounds — and a **balance sheet**. `Actions` gained three switches
+(`auto_capex`, `auto_power`, `auto_raise`; the strategy AIs keep them True
+so calibration is unchanged) and three one-shot orders (`buy_accels`,
+`contract_mw`, `raise_now`) that fire once, the first month they are in
+force, then clear. In manual mode the world *says why* an order was clipped
+or refused (`lab.notices`, surfaced as `ORDER:` events). Every dollar that
+moves is now booked by category in `lab.ledger` (`Lab.book`), and the
+dashboard shows this quarter and the whole game: revenue by market,
+operating costs by kind, capital and financing. Also: `sim.serve` listens
+on IPv6 too (browsers try `::1` first; the missing listener was the
+"stubborn button"), refuses to start twice on one port, and opens a tab.
+
 **Playtest findings from the first scripted games** (this is the list the
 next session should start from; each is a model finding, not a UI one):
 

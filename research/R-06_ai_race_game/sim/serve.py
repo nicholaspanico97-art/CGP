@@ -58,15 +58,23 @@ EXPLAIN = {
     "data_buy": "The one non-exclusive corpus to license this quarter.",
     "data_bids": "Your ceiling, in $M, at each exclusive-corpus auction.",
     "mixture": "What the next model trains on. Decides which markets it can even enter.",
+    "auto_capex": "Auto: spend `capex aggression` x cash on accelerators every month. Manual: only what you order below.",
+    "buy_accels": "Order this many accelerators now. Arrive in ~5 months. Capped by fab supply and your contracted power.",
+    "auto_power": "Auto: keep contracted power at `power lookahead` x what you use. Manual: only what you order below.",
+    "contract_mw": "Contract this many megawatts now. Leased power arrives in months; built power in years. Capped by the market.",
+    "auto_raise": "Auto: raise a round whenever runway drops below `raise runway`. Manual: only when you say so.",
+    "raise_now": "Raise a round now, selling this fraction of the company at the current valuation. At least 3 months between rounds.",
 }
 
 GROUPS = [
-    ("Compute", ["train", "serve", "experiment", "capex_aggression", "power_lookahead", "lease_share"]),
+    ("Compute", ["train", "serve", "experiment"]),
+    ("Buying compute", ["auto_capex", "capex_aggression", "buy_accels",
+                        "auto_power", "power_lookahead", "contract_mw", "lease_share"]),
     ("The next model", ["run_months", "tokens_per_param", "moe_sparsity", "test_time_oom",
                         "ship_cooldown", "mixture"]),
     ("Market", ["price_stance", "loss_leader", "chase_rate", "openness"]),
     ("People & safety", ["headcount_ambition", "comp_offer", "safety_spend", "intel_spend"]),
-    ("Money", ["raise_runway", "raise_fraction"]),
+    ("Money", ["auto_raise", "raise_runway", "raise_fraction", "raise_now"]),
     ("Data", ["data_share", "data_buy", "data_bids"]),
 ]
 
@@ -152,10 +160,14 @@ class Session:
                 setattr(o, f, v)
             elif f == "data_buy":
                 setattr(o, f, v or None)
+            elif f in ("auto_capex", "auto_power", "auto_raise"):
+                setattr(o, f, bool(v))
             elif f in _BOUNDS:
                 v = float(v)
                 if f == "comp_offer":
                     v *= 1e3
+                if f == "buy_accels":
+                    v = int(v)
                 setattr(o, f, v)
             else:
                 raise IllegalAction(f"unknown order {f!r}")
@@ -272,11 +284,26 @@ def main(argv):
         elif a == "--historical":
             hist = True
     SESSION = Session(seed, lab, not hist)
+    import socket
     try:
+        # two servers on one port would silently split requests between
+        # them (SO_REUSEADDR); refuse instead
+        ThreadingHTTPServer.allow_reuse_address = False
         srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     except OSError as e:
-        print(f"could not listen on port {port} ({e}); try --port 8000")
+        print(f"could not listen on port {port} ({e}); is a game already running? "
+              f"try --port 8000")
         return
+    # Browsers try localhost over IPv6 first; without a listener there every
+    # request waits for that attempt to fail. Listen on ::1 too.
+    try:
+        class V6(ThreadingHTTPServer):
+            address_family = socket.AF_INET6
+            allow_reuse_address = False
+        srv6 = V6(("::1", port), Handler)
+        threading.Thread(target=srv6.serve_forever, daemon=True).start()
+    except OSError:
+        srv6 = None
     url = f"http://localhost:{port}"
     print(f"Frontier: {url}   (seed {seed}, you are {SESSION.game.player.name}; "
           f"Ctrl-C to stop)")
@@ -287,6 +314,11 @@ def main(argv):
         srv.serve_forever()
     except KeyboardInterrupt:
         pass
+    finally:
+        srv.server_close()
+        if srv6:
+            srv6.shutdown()
+            srv6.server_close()
 
 
 if __name__ == "__main__":

@@ -96,9 +96,16 @@ _BOUNDS = {
     "raise_runway": (0.0, 120.0), "raise_fraction": (0.0, 0.5),
     "intel_spend": (0.0, 2.0),
     "openness": (0.0, 1.5),
+    # one-shot orders: executed the month they are in force, then the
+    # policy is expected to clear them. 0 = nothing.
+    "buy_accels": (0, None), "contract_mw": (0.0, None), "raise_now": (0.0, 0.5),
 }
 
-_FIELDS = tuple(_BOUNDS) + ("mixture", "data_buy", "data_bids")
+# switches: True = the standing rule above decides (the strategy AIs), False =
+# only the explicit one-shot orders do anything (a player who wants the wheel)
+_FLAGS = ("auto_capex", "auto_power", "auto_raise")
+
+_FIELDS = tuple(_BOUNDS) + _FLAGS + ("mixture", "data_buy", "data_bids")
 
 
 class Actions:
@@ -126,6 +133,13 @@ class Actions:
       raise_runway, raise_fraction when to raise, and how much to sell
       intel_spend                  effort narrowing the read on rivals
       openness                     how much of the work is published
+      auto_capex / auto_power / auto_raise
+                                   True: the rule fields above act by
+                                   themselves. False: only the one-shots do
+      buy_accels                   one-shot: order this many accelerators now
+      contract_mw                  one-shot: contract this many MW now
+      raise_now                    one-shot: raise a round now, selling this
+                                   fraction of the company
     """
 
     __slots__ = _FIELDS
@@ -172,6 +186,9 @@ def validate(actions):
             raise IllegalAction(f"{f}={v} below {lo}")
         if hi is not None and v > hi + 1e-9:
             raise IllegalAction(f"{f}={v} above {hi}")
+    for f in _FLAGS:
+        if not isinstance(getattr(actions, f), bool):
+            raise IllegalAction(f"{f} must be True or False")
     tot = actions.train + actions.serve + actions.experiment
     if abs(tot - 1.0) > 1e-6:
         raise IllegalAction(f"compute split sums to {tot:.6f}, not 1")
@@ -348,6 +365,8 @@ class DoctrinePolicy(Policy):
         a.raise_fraction = p.get("raise_fraction", 0.16)
         a.intel_spend = p.get("intel_spend", 0.25)
         a.openness = p.get("openness", 0.1)
+        a.auto_capex = a.auto_power = a.auto_raise = True
+        a.buy_accels, a.contract_mw, a.raise_now = 0, 0.0, 0.0
         return a
 
     def _withholds(self, obs, candidate_cap):

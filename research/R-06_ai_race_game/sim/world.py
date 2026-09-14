@@ -110,6 +110,14 @@ class Lab:
         self.trust = 50.0
         self.revenue_m = 0.0
         self.history = []
+        self.ledger = {}                  # month -> {category: dollars}; + in, - out
+        self.notices = []                 # (month, text): why a manual order was clipped
+
+    def book(self, month, key, amount):
+        """Every dollar that moves, by category. Positive in, negative out."""
+        if amount:
+            row = self.ledger.setdefault(month, {})
+            row[key] = row.get(key, 0.0) + amount
 
     # -------------------------------------------------------------- compute
     def deliver(self, month):
@@ -381,6 +389,7 @@ class Lab:
             return
         _dollars, flop = res
         self.cash -= price
+        self.book(month, "data_licences", -price)
         self.data_flop_debt = getattr(self, "data_flop_debt", 0.0) + flop
         src = D.DATA_SOURCES[source_key]
         self.annual_data_cost = (getattr(self, "annual_data_cost", 0.0)
@@ -399,6 +408,7 @@ class Lab:
             return
         dollars, flop = res
         self.cash -= dollars
+        self.book(month, "data_licences", -dollars)
         self.data_flop_debt = getattr(self, "data_flop_debt", 0.0) + flop
         self.annual_data_cost = (getattr(self, "annual_data_cost", 0.0)
                                  + src["annual_cost"])
@@ -826,12 +836,22 @@ class World:
             staff = (lab.researchers * lab.comp_offer
                      + lab.engineers * K.ENGINEER_COST_PER_YEAR) / 12.0
             other = 0.25 * staff
-            fleet_cost += getattr(lab, "leased_mw", 0.0) * K.LEASE_OPEX_PER_MW_MONTH
-            other += getattr(lab, "annual_data_cost", 0.0) / 12.0
-            other += (lab.revenue_m * K.REGULATION_COMPLIANCE_COST
-                      * self.regulation)
+            lease = getattr(lab, "leased_mw", 0.0) * K.LEASE_OPEX_PER_MW_MONTH
+            fleet_cost += lease
+            data_annual = getattr(lab, "annual_data_cost", 0.0) / 12.0
+            compliance = (lab.revenue_m * K.REGULATION_COMPLIANCE_COST
+                          * self.regulation)
+            other += data_annual + compliance
             net = lab.revenue_m - fleet_cost - staff - other
             lab.cash += net
+            for seg, rev in lab.seg_revenue.items():
+                lab.book(m, "revenue:" + seg, rev)
+            lab.book(m, "staff", -staff)
+            lab.book(m, "overhead", -0.25 * staff)
+            lab.book(m, "compute", -(fleet_cost - lease))
+            lab.book(m, "leased_power", -lease)
+            lab.book(m, "data_annual", -data_annual)
+            lab.book(m, "compliance", -compliance)
             lab.last_net = net
             lab.last_costs = fleet_cost + staff + other
             lab.history.append({
@@ -976,6 +996,7 @@ class World:
                 retired = budget / K.SAFETY_SPEND_PER_POINT
                 lab.safety_debt = max(0.0, lab.safety_debt - retired)
                 lab.cash -= budget
+                lab.book(m, "safety", -budget)
                 lab.safety_cost = getattr(lab, "safety_cost", 0.0) + budget
             # debt accrues just from operating a deployed system
             lab.safety_debt += K.SAFETY_DEBT_DRIFT
@@ -1080,17 +1101,30 @@ class World:
                 annual = min(parent * growth,
                              lab.doctrine.get("parent_cap", 1.5e11))
                 lab.cash += annual / 12.0
+                lab.book(m, "parent", annual / 12.0)
 
-            # ---- raise, if the market will have you
+            # ---- raise, if the market will have you. Either the standing
+            # rule (runway trigger) or an explicit one-shot from the policy.
             runway = lab.cash / max(lab.last_costs, 1.0)
-            if (runway < lab.actions.raise_runway
-                    and lab.doctrine.get("can_raise", True)
-                    and m - getattr(lab, "last_raise", -99) >= 11):
-                dilution = lab.actions.raise_fraction
+            can = lab.doctrine.get("can_raise", True)
+            since = m - getattr(lab, "last_raise", -99)
+            dilution = 0.0
+            if lab.actions.auto_raise:
+                if runway < lab.actions.raise_runway and can and since >= 11:
+                    dilution = lab.actions.raise_fraction
+            elif lab.actions.raise_now > 0 and can and since >= 3:
+                dilution = lab.actions.raise_now
+            if (not lab.actions.auto_raise and lab.actions.raise_now > 0
+                    and dilution == 0):
+                why = ("your backer does not sell equity" if not can
+                       else f"only {since} months since the last round (3 needed)")
+                lab.notices.append((m, f"round not raised: {why}"))
+            if dilution > 0:
                 amount = lab.valuation * dilution
                 lab.cash += amount
                 lab.last_raise = m
                 lab.raised = getattr(lab, "raised", 0.0) + amount
+                lab.book(m, "equity_raised", amount)
 
             # ---- infrastructure finance: from 2024 datacenters were funded
             # against contracted revenue through SPVs and vendor credit, not
@@ -1103,6 +1137,7 @@ class World:
                     draw = headroom * 0.30
                     lab.cash += draw
                     lab.debt_drawn = drawn + draw
+                    lab.book(m, "debt_drawn", draw)
 
             # ---- contract power ahead of need
             planned = lab.fleet.megawatts() + sum(
@@ -1111,14 +1146,27 @@ class World:
             target = max(planned, 5.0) * lab.actions.power_lookahead
             lease_market = K.LEASE_MARKET_MW.get(year, 52_000)
             lease_cap = lease_market * lab.doctrine.get("supply_share", 0.2)
-            if lab.contracted_mw + pipeline < target:
-                need = min(target - lab.contracted_mw - pipeline, lease_cap)
+            lab.lease_cap_mw = lease_cap
+            need = 0.0
+            if lab.actions.auto_power:
+                if lab.contracted_mw + pipeline < target:
+                    need = min(target - lab.contracted_mw - pipeline, lease_cap)
+            elif lab.actions.contract_mw > 0:
+                need = min(lab.actions.contract_mw, lease_cap)
+                if need < lab.actions.contract_mw:
+                    lab.notices.append((m, f"power contract clipped to {need:,.0f} MW: "
+                                           f"that is all the market will lease you this year"))
+            if need > 0:
                 share = lab.actions.lease_share
                 cost = need * (1 - share) * K.DC_CAPEX_PER_MW
                 if cost < lab.cash * 0.45:
                     lab.cash -= cost
                     lab.contract_power(need, m, share)
                     lab.capex_by_year[year] = lab.capex_by_year.get(year, 0.0) + cost
+                    lab.book(m, "capex_datacentre", -cost)
+                elif not lab.actions.auto_power:
+                    lab.notices.append((m, f"power contract refused: building {need*(1-share):,.0f} MW "
+                                           f"costs ${cost/1e6:,.0f}M, over 45% of cash. Lease a bigger share, or contract less"))
 
             # ---- buy accelerators
             # capex posture is the policy's call - including the spiral,
@@ -1126,11 +1174,26 @@ class World:
             # is itself the signal that worries everyone else
             aggression = lab.actions.capex_aggression
             lab.effective_aggression = aggression
-            budget = max(0.0, lab.cash * aggression)
-            count = int(budget / accel.capex)
-            count = min(count, int(supply * lab.doctrine.get("supply_share", 0.2)))
+            lab.fab_cap = int(supply * lab.doctrine.get("supply_share", 0.2))
+            if lab.actions.auto_capex:
+                budget = max(0.0, lab.cash * aggression)
+                count = int(budget / accel.capex)
+            else:
+                count = int(lab.actions.buy_accels)
+            asked = count
+            count = min(count, lab.fab_cap)
+            if not lab.actions.auto_capex and count < asked:
+                lab.notices.append((m, f"accelerator order clipped to {count:,} by fab supply "
+                                       f"(your share of this year's output)"))
+            asked = count
             count = min(count, lab.headroom_accels(accel))
+            if not lab.actions.auto_capex and count < asked:
+                lab.notices.append((m, f"accelerator order clipped to {count:,}: no contracted power "
+                                       f"for more (each {accel.name} needs {accel.watts*K.PUE/1e3:.2f} kW)"))
             if count > 0:
                 bought = lab.order(accel, count, m, lead_months=5)
+                if not lab.actions.auto_capex and bought < count:
+                    lab.notices.append((m, f"accelerator order clipped to {bought:,} by cash"))
                 lab.capex_by_year[year] = (lab.capex_by_year.get(year, 0.0)
                                            + bought * accel.capex)
+                lab.book(m, "capex_accelerators", -bought * accel.capex)

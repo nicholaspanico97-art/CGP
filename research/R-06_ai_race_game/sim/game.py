@@ -57,7 +57,10 @@ class PlayerPolicy(Policy):
             # the first orders are the strategy's own, so a new player
             # starts from something coherent rather than from zero
             self.orders = self.defaults.decide(obs)
-        return self.orders.copy()
+        out = self.orders.copy()
+        # one-shots fire once - the first month they are in force - then clear
+        self.orders.buy_accels, self.orders.contract_mw, self.orders.raise_now = 0, 0.0, 0.0
+        return out
 
     def decide_release(self, obs, candidate, held):
         if self.ask is None:
@@ -208,8 +211,35 @@ class Game:
                 row["chosen"] = (me.actions.data_buy == key)
                 offers.append(row)
 
+        # --- the books: this quarter and the whole game, by category
+        def _sum(months):
+            out = {}
+            for mm in months:
+                for k, v in me.ledger.get(mm, {}).items():
+                    out[k] = out.get(k, 0.0) + v
+            return out
+        q0 = max(0, m - MONTHS_PER_TURN)
+        ledger_q = _sum(range(q0, m))
+        ledger_all = _sum(range(0, m))
+
+        # --- what a purchase costs right now, so manual orders can be sized
+        from . import economics as E
+        accel = E.best_available(m)
+        shopping = dict(
+            accel=accel.name, accel_capex=accel.capex,
+            accel_mw=accel.watts * K.PUE / 1e6,
+            fab_cap=int(K.FAB_OUTPUT_PER_MONTH.get(2020 + m // 12, 3_800_000)
+                        * me.doctrine.get("supply_share", 0.2)),
+            power_headroom=me.headroom_accels(accel),
+            lease_cap_mw=getattr(me, "lease_cap_mw", 0.0),
+            dc_capex_per_mw=K.DC_CAPEX_PER_MW,
+            months_since_raise=m - getattr(me, "last_raise", -99),
+            can_raise=me.doctrine.get("can_raise", True),
+        )
+
         return dict(
             month=m, date=date(m), turn=self.turn, name=me.name,
+            ledger_q=ledger_q, ledger_all=ledger_all, shopping=shopping,
             strategy=me.doctrine.get("strategy_name", "?"),
             cash=me.cash, runway=runway, arr=me.arr,
             net=getattr(me, "last_net", 0.0), costs=costs,
@@ -396,6 +426,7 @@ class _Snapshot:
         self.caught = me.caught
         self.shelved = me.shelved
         self.fleet = me.fleet.count()
+        self.notices = len(me.notices)
 
     def events_since(self, w, me):
         ev = []
@@ -438,6 +469,8 @@ class _Snapshot:
             ev.append("          you were caught training on the test set; trust took a hit")
         if me.fleet.count() > self.fleet:
             ev.append(f"          {me.fleet.count() - self.fleet:,} accelerators arrived")
+        for m, text in me.notices[self.notices:]:
+            ev.append(f"{date(m)}  ORDER: {text}")
         if not ev:
             ev.append("          a quiet quarter")
         # dated lines in date order; undated summary lines after them

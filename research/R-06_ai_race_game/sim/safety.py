@@ -147,12 +147,14 @@ def apply_incident(lab, world, severity, month, rng):
         lab.trust = max(5.0, lab.trust - K.MODERATE_TRUST)
         cost = rev_month * K.MODERATE_REVENUE_COST + K.MODERATE_FIXED
         lab.cash -= cost
+        lab.book(month, "incidents", -cost)
         lab.legal_exposure = getattr(lab, "legal_exposure", 0.0) + 1.0
         lab.safety_debt = max(0.0, lab.safety_debt - 1.0)
     else:
         lab.trust = max(5.0, lab.trust - K.SEVERE_TRUST)
         cost = rev_month * K.SEVERE_REVENUE_COST + K.SEVERE_FIXED
         lab.cash -= cost
+        lab.book(month, "incidents", -cost)
         lab.legal_exposure = getattr(lab, "legal_exposure", 0.0) + 3.0
         # the offending lab is restricted from agentic deployment for a while
         lab.deploy_restricted_until = month + K.SEVERE_RESTRICT_MONTHS
