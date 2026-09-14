@@ -133,6 +133,8 @@
   .switch button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .order .sizing { grid-column: 1 / -1; font-size: 12px; color: var(--muted); background: var(--soft); padding: 5px 8px; border-radius: 3px; }
   .order .queued { color: var(--accent); font-weight: 600; }
+  .order .est { color: var(--ink); margin-bottom: 4px; }
+  .order .est:empty { display: none; }
   .bs td.n { font-family: Consolas, "Cascadia Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
   .bs tr.total td { font-weight: 600; border-top: 2px solid var(--line); }
   .bs tr.head td { color: var(--muted); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; padding-top: 10px; border-bottom: none; }
@@ -188,7 +190,7 @@
 
 <script>
 const $ = s => document.querySelector(s);
-let S = null, editing = false, lastBusy = false;
+let S = null, editing = false, lastBusy = false, lastMonth = null;
 
 const fmtB = x => (Math.abs(x) >= 1e11 ? `$${(x/1e9).toFixed(0)}B` : `$${(x/1e9).toFixed(2)}B`);
 const fmtM = x => `$${(x/1e6).toFixed(0)}M`;
@@ -242,8 +244,8 @@ function buildOrders() {
         if (fld === 'raise_now') sizing = `valuation ${fmtB(rep.valuation)} · selling 10% raises ${fmtB(rep.valuation*0.1)} · ${sh.can_raise ? (sh.months_since_raise >= 3 ? 'a round is possible now' : `${3 - sh.months_since_raise} more months before the next round`) : 'your backer does not sell equity'}`;
         const label = fld === 'buy_accels' ? 'Buy accelerators (count)' : fld === 'contract_mw' ? 'Contract power (MW)' : 'Raise a round (fraction sold)';
         const step = fld === 'buy_accels' ? 100 : fld === 'contract_mw' ? 5 : 0.01;
-        h += `<div class="order"><label>${label}${v > 0 ? ' <span class="queued">queued</span>' : ''}</label><input type="number" data-field="${fld}" min="0" step="${step}" value="${v || ''}" placeholder="0" ${o['auto_'+({buy_accels:'capex',contract_mw:'power',raise_now:'raise'})[fld]] ? 'disabled title="switch to manual first"' : ''}>
-          <div class="sizing">${sizing}</div><div class="why">${ex[fld]} Fires at the start of the next turn, once.</div></div>`;
+        h += `<div class="order"><label>${label}${v > 0 ? ' <span class="queued">queued</span>' : ''}</label><input type="number" data-field="${fld}" data-oneshot="${fld}" min="0" step="${step}" value="${v || ''}" placeholder="0" ${o['auto_'+({buy_accels:'capex',contract_mw:'power',raise_now:'raise'})[fld]] ? 'disabled title="switch to manual first"' : ''}>
+          <div class="sizing"><div id="est-${fld}" class="est"></div>${sizing}</div><div class="why">${ex[fld]} Fires at the start of the next turn, once.</div></div>`;
         continue;
       }
       if (fld === 'data_buy') {
@@ -268,6 +270,8 @@ function buildOrders() {
   host.innerHTML = h;
   host.querySelectorAll('input[data-field], select[data-field]').forEach(el => el.addEventListener('change', () => send({[el.dataset.field]: el.value})));
   host.querySelectorAll('button[data-flag]').forEach(el => el.addEventListener('click', () => send({[el.dataset.flag]: el.dataset.val === '1'})));
+  // a live price and "what you will actually get" as you type
+  host.querySelectorAll('input[data-oneshot]').forEach(el => { const upd = () => estimate(el.dataset.oneshot, +el.value || 0); el.addEventListener('input', upd); upd(); });
   host.querySelectorAll('input[data-split]').forEach(el => {
     el.addEventListener('input', () => { $('#v-'+el.dataset.split).textContent = el.value + '%'; });
     el.addEventListener('change', () => {
@@ -284,6 +288,38 @@ function buildOrders() {
     send({data_bids: bids});
   }));
   host.querySelectorAll('input, select').forEach(el => { el.addEventListener('focus', () => editing = true); el.addEventListener('blur', () => editing = false); });
+}
+function estimate(fld, v) {
+  const r = S.report, sh = r.shopping, o = S.orders, el = document.getElementById('est-' + fld);
+  if (!el) return;
+  if (!(v > 0)) { el.innerHTML = ''; return; }
+  let h = '';
+  if (fld === 'buy_accels') {
+    const get = Math.max(0, Math.min(v, sh.fab_cap, sh.power_headroom));
+    const cost = get * sh.accel_capex;
+    const cashcap = Math.floor(r.cash / sh.accel_capex);
+    const got = Math.min(get, cashcap);
+    h = `<b>≈ ${fmtM(got * sh.accel_capex)}</b> for <b>${n0(got)}</b> × ${sh.accel}, arriving ~${sh.accel_lead_months} months after the turn starts.`;
+    if (got < v) {
+      const why = [];
+      if (v > sh.fab_cap) why.push(`fab supply (${n0(sh.fab_cap)}/month)`);
+      if (v > sh.power_headroom) why.push(`contracted power (room for ${n0(sh.power_headroom)}, ${(sh.accel_mw*1e3).toFixed(2)} kW each — contract more MW first)`);
+      if (get > cashcap) why.push(`cash (${fmtB(r.cash)})`);
+      h += ` <span class="capped">Clipped from ${n0(v)} by ${why.join(' and ')}.</span>`;
+    }
+  } else if (fld === 'contract_mw') {
+    const mw = Math.min(v, sh.lease_cap_mw);
+    const built = mw * (1 - o.lease_share), leased = mw - built;
+    const upfront = built * sh.dc_capex_per_mw;
+    h = `<b>≈ ${fmtM(upfront)} up front</b> to build ${f(built,0)} MW (arrives in ~${sh.build_lead_months} months) + <b>${fmtM(leased * sh.lease_opex_per_mw_month)}/month</b> for ${f(leased,0)} MW leased (arrives in ~${sh.lease_lead_months} months). Feeds about ${n0(mw / sh.accel_mw)} more ${sh.accel}s.`;
+    if (v > sh.lease_cap_mw) h += ` <span class="capped">Clipped from ${f(v,0)} MW: the market will only lease you ${f(sh.lease_cap_mw,0)} MW this month.</span>`;
+    if (upfront >= sh.cash_cap_power) h += ` <span class="capped">Refused as is: the build cost must stay under 45% of cash (${fmtM(sh.cash_cap_power)}). Raise the leased share or contract less.</span>`;
+  } else if (fld === 'raise_now') {
+    h = `<b>≈ ${fmtB(r.valuation * v)}</b> raised, selling ${(v*100).toFixed(0)}% at a ${fmtB(r.valuation)} valuation.`;
+    if (!sh.can_raise) h += ' <span class="capped">Your backer does not sell equity.</span>';
+    else if (sh.months_since_raise < 3) h += ` <span class="capped">Too soon: ${3 - sh.months_since_raise} more months since the last round.</span>`;
+  }
+  el.innerHTML = h;
 }
 async function send(patch) {
   const j = await api('/api/orders', patch);
@@ -583,7 +619,9 @@ async function refresh(force) {
   if (S.error) setStatus(S.error, true);
   else if (S.busy) setStatus('');
   renderPending();
-  const quarterEnded = wasBusy && !S.busy;
+  const monthMoved = S.report && S.report.month !== lastMonth;
+  if (S.report) { lastMonth = S.report.month; $('#date').textContent = `${S.report.date} · turn ${S.report.turn}`; }
+  const quarterEnded = (wasBusy && !S.busy) || monthMoved;
   if (force || quarterEnded || !$('#orders-body').innerHTML) {
     if (!editing || force) buildOrders();
     renderDash();

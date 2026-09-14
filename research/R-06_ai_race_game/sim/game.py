@@ -282,8 +282,15 @@ class Game:
             fab_cap=int(K.FAB_OUTPUT_PER_MONTH.get(2020 + m // 12, 3_800_000)
                         * me.doctrine.get("supply_share", 0.2)),
             power_headroom=me.headroom_accels(accel),
-            lease_cap_mw=getattr(me, "lease_cap_mw", 0.0),
+            lease_cap_mw=(K.LEASE_MARKET_MW.get(2020 + m // 12, 52_000)
+                          * me.doctrine.get("supply_share", 0.2)),
             dc_capex_per_mw=K.DC_CAPEX_PER_MW,
+            lease_opex_per_mw_month=K.LEASE_OPEX_PER_MW_MONTH,
+            lease_lead_months=K.LEASE_LEAD_MONTHS,
+            build_lead_months=(K.DC_LEAD_TIME_MONTHS
+                               + (K.GRID_QUEUE_MONTHS if m >= 66 else 0)),
+            accel_lead_months=5,
+            cash_cap_power=me.cash * 0.45,
             months_since_raise=m - getattr(me, "last_raise", -99),
             can_raise=me.doctrine.get("can_raise", True),
         )

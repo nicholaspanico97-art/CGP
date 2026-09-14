@@ -133,6 +133,19 @@ difference between promise and result is the dice and nothing else.
    "lands in ~3 months" and it lands in 4. Either move the ask before
    training or say so.
 
+10. **You run out of data early, and there is nowhere to get more** (Nick,
+    playing v1.6 with the data panel open). The market is ten sources,
+    three free, none of which grow; there is no synthetic data, no
+    expanding crawl, no steady flow of licensing deals, and telemetry only
+    once you have customers. A 2023-scale run wants ~10T tokens; the free
+    corpora are ~15T effective and the mixture shares split them. Real
+    labs solved this from 2023 with synthetic generation (a compute-for-
+    data trade that should be an *action*), crawls that grow with the web,
+    and dozens of deals. This is world-engine work (`ROADMAP.md` v2, B):
+    the data market needs supply that responds to demand and to time, and
+    a `synthesize` order that spends training compute to make tokens for a
+    domain at a quality set by the model you already have.
+
 **Playtest findings from the first scripted games** (this is the list the
 next session should start from; each is a model finding, not a UI one):
 
