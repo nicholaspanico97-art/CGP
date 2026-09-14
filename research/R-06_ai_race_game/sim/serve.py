@@ -3,6 +3,7 @@ A local web dashboard for playing Frontier. Zero dependencies.
 
     python3 -m sim.serve                 # then open http://localhost:8765
     python3 -m sim.serve --seed 11 --lab 3 --port 8000
+    python3 -m sim.serve --no-browser     # don't auto-open a browser tab
 
 The page is `viewer/play.html`; this module runs the game and answers JSON.
 The world runs in a worker thread so that the release interrupt can block
@@ -271,9 +272,17 @@ def main(argv):
         elif a == "--historical":
             hist = True
     SESSION = Session(seed, lab, not hist)
-    srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
-    print(f"Frontier: open http://localhost:{port}   (seed {seed}, you are "
-          f"{SESSION.game.player.name}; Ctrl-C to stop)")
+    try:
+        srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    except OSError as e:
+        print(f"could not listen on port {port} ({e}); try --port 8000")
+        return
+    url = f"http://localhost:{port}"
+    print(f"Frontier: {url}   (seed {seed}, you are {SESSION.game.player.name}; "
+          f"Ctrl-C to stop)")
+    if "--no-browser" not in argv:
+        import webbrowser
+        threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

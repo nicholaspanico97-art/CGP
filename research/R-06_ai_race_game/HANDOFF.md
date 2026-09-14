@@ -184,6 +184,9 @@ regenerated.
 
 ## What I would do next, in order
 
+The long-range plan is now `ROADMAP.md` "v2 direction" — read it. Short
+range:
+
 Per Nick (below): play testing is its own calibration. The playable path
 exists now, so:
 

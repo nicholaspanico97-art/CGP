@@ -133,8 +133,10 @@ incidents. Every decision goes through the seam; replay is bit-identical.
 ## What is deliberately not modelled yet
 
 Events, government as an actor, labs dying, and the player. See
-`ROADMAP.md`. No architectural items remain. **It is playable** (v1.5,
-`sim/play.py`): plain text, one lab, quarterly turns, the release
-interrupt. Nick's direction (Sep 13): *play testing is its own
-calibration* — so the next work is whatever playing it turns up, then
-events (item 4).
+`ROADMAP.md`. **It is playable** (v1.5): `sim/serve.py` in a browser or
+`sim/play.py` in a terminal. **The plan of record is `ROADMAP.md` "v2
+direction"**: fix what playing finds, then give the world state of its own
+(blocs, regulators, energy, fab supply), then close the loop so the world
+reacts to AI (demand as a labour market → public mood → politics), then the
+organisation (charters as factions, named people, products), then the map.
+Every new world subsystem gets an instrument before it gets content.

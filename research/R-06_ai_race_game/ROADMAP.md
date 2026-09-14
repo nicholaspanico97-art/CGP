@@ -140,7 +140,73 @@ costs.
 
 ---
 
-## Recommended order
+## v2 direction — the world as an actor (Nick, Sep 13 2026)
+
+Plan of record from here. Nick's framing: three thrusts — **the world
+engine** (`sim/`), **the player's organisation** (what a lab is and can
+do), and **the interface** — joined in one loop: *the player uses the GUI
+to act in their company, the company acts on the world, the player gets
+feedback on their place in it.* The long-run target is a map-game hybrid
+in the spirit of Terra Invicta: changing ages, acceleration, factions with
+different win conditions, and a lot of sandbox. **Markets, geopolitics and
+the world itself should matter.** AI is mostly acted *on* by the world in
+the early years; by the late years the world is reacting to AI.
+
+What that means for the model: today the "world" is really the AI sector
+— seven labs, a demand curve, a fab table by year, one regulation scalar,
+and geopolitics as a constant per lab (`supply_share`). Terra Invicta
+works because the world has state of its own that exists whether or not
+the player touches it, and the factions are different ways of pushing on
+that state. That is the biggest gap, and it orders everything below.
+
+### Order of work
+
+**A. Play it, fix what playing finds.** (now; 1–2 sessions) The engine
+must be trustworthy before a bigger world sits on it. Start from the five
+findings in `HANDOFF.md`; Nick's own notes from playing outrank them.
+
+**B. The world gets state — "the world acts on AI."** A `geo` module: a
+handful of blocs (US, China, EU, Gulf, rest of world), each with compute
+access, energy, capital, public mood and a regulator. Labs belong to a
+bloc. Export controls, fab capacity (item 8) and the power queue become
+things that *happen* rather than tables by year; `supply_share` is derived,
+not set. The event deck (item 4) plugs in here — an event is a change to
+world state conditional on world state, not a random card. Government as
+an actor (item 5) is this item. **This is the foundation the map sits on;
+a map without world state is wallpaper.**
+
+**C. Close the loop — "the world reacts to AI."** Demand becomes a labour
+market (`PREMISES.md` structural issue 3): the fraction of knowledge work
+that is automatable × the wage bill it displaces, with feedback — cheaper
+capable agents expand the addressable work. That feeds public mood →
+politics → regulation, taxes, procurement, controls → back into the labs.
+**Ages fall out of this**: an era is which feedback loops are switched on
+(pre-assistant → chatbot → agents → automation). Do not script eras.
+
+**D. The organisation.** Charters with real win conditions (item 6) —
+these are the *factions*. Named people who move between labs (item 7).
+Products as first-class things rather than segment shares. Corporate
+parents, deals, and eventually labs dying, merging and being bought
+(`PREMISES.md` issue 5). Some of this belongs to a bloc: a sovereign
+champion and a hyperscaler are different organisations, not different
+parameter sheets.
+
+**E. The interface — the map.** Once blocs exist there is something to
+draw. Until then the dashboard (`viewer/play.html`) is the interface and
+its job is to teach the model, not to be the game.
+
+### The rule that keeps the sandbox honest
+
+Every piece of world added under B–D gets an **instrument** before it
+gets content, the way `sim/checkpoints.py` carried the capability model.
+The geopolitics layer needs its own checkpoints — the October 2022 export
+controls, the EU AI Act, the 2024–25 power crunch, the fab buildout lag —
+or the sandbox drifts into fiction without anyone noticing. Timing, order,
+magnitude within an OOM, shape; same criteria as `PREMISES.md`.
+
+---
+
+## Recommended order (pre-v2, kept for the record)
 
 1. **Observability seam** (1) — architectural, cheap now, expensive later,
    and it retroactively makes the benchmark and hoarding mechanics honest.
