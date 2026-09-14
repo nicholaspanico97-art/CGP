@@ -146,6 +146,16 @@ difference between promise and result is the dice and nothing else.
     a `synthesize` order that spends training compute to make tokens for a
     domain at a quality set by the model you already have.
 
+11. **Pointing compute at a domain you have no data for makes it worse,
+    and the optimum is 0.01** (Nick). Correct in direction - the share
+    trains on nothing (`data_sufficiency` floor 0.02) and is taken from the
+    donors it borrows from - but two things are wrong: (a) the page called
+    it "mixture" as if it were a wish list; now says "you hold no data,
+    this share trains on nothing" (v1.6.2). (b) A domain with a *sliver*
+    of data scores below one with none: `raw * (1 + ln epochs)` falls under
+    the 0.02 floor for raw < ~0.008. One line (`max(0.02, ...)`), changes
+    realisations, measure it. The real cure is #10: a way to get data.
+
 **Playtest findings from the first scripted games** (this is the list the
 next session should start from; each is a model finding, not a UI one):
 

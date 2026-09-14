@@ -410,7 +410,10 @@ function renderDash() {
       const tot = d.direct + d.transferred;
       w += `<tr><td>${d.domain}</td><td class="n mono">${(d.weight*100).toFixed(0)}%</td><td class="n mono">${d.weight>0 ? `${(d.have/1e12).toFixed(2)}T / ${(d.wanted/1e12).toFixed(2)}T` : '—'}</td><td class="n mono ${d.data_limited?'capped':''}">${d.weight>0 ? (d.sufficiency*100).toFixed(0)+'%' : '—'}</td><td class="n mono">${tot>0 ? (d.transferred/tot*100).toFixed(0)+'%' : '—'}</td><td class="n mono"><b>${f(d.cap)}</b></td></tr>`;
     }
-    w += `</table><p class="help">"Fed" under 100% means you pointed compute at a domain you lacked data for; that compute was partly wasted. "From transfer" is capability borrowed from related domains (code ↔ reasoning ↔ agents move freely; text never becomes pixels).</p>`;
+    const none = dm.filter(d => d.weight > 0 && d.have <= 0).map(d => d.domain);
+    w += `</table>`;
+    if (none.length) w += `<p class="help capped"><b>${none.join(', ')}: trained on no data.</b> That share of the run was wasted; what capability there is came from transfer.</p>`;
+    w += `<p class="help">"Fed" under 100% means you pointed compute at a domain you lacked data for; that compute was partly wasted. "From transfer" is capability borrowed from related domains (code ↔ reasoning ↔ agents move freely; text never becomes pixels).</p>`;
     $('#why').innerHTML = w;
   } else $('#why').innerHTML = '<p class="dim">Nothing shipped yet.</p>';
 
@@ -584,11 +587,15 @@ function renderRunModal(p) {
     if (pv.tokens_per_param_asked > pv.era_tokens_per_param + 1e-9) h += `<p class="help capped">Tokens/param capped at ${f(pv.era_tokens_per_param,0)}: the sector does not yet know how to use ${f(pv.tokens_per_param_asked,0)}.</p>`;
     if (pv.moe_asked > pv.era_moe + 1e-9) h += `<p class="help capped">Sparsity capped at ${f(pv.era_moe,1)} for the same reason.</p>`;
     h += `<table><tr><th>Domain</th><th class="n">Share</th><th class="n">Data have / want</th><th class="n">Fed</th><th class="n">Expected</th><th class="n">Selling now</th></tr>`;
+    const empty = [];
     for (const d of pv.domains) {
       if (d.weight <= 0 && d.cap <= 0) continue;
-      h += `<tr><td>${d.domain}</td><td class="n mono">${(d.weight*100).toFixed(0)}%</td><td class="n mono">${d.weight>0 ? `${(d.have/1e12).toFixed(2)}T / ${(d.wanted/1e12).toFixed(2)}T` : '—'}</td><td class="n mono ${d.data_limited?'capped':''}">${d.weight>0 ? (d.sufficiency*100).toFixed(0)+'%' : '—'}</td><td class="n mono"><b>${f(d.cap)}</b></td><td class="n mono dim">${cur[d.domain] != null ? f(cur[d.domain]) : '—'}</td></tr>`;
+      if (d.weight > 0 && d.have <= 0) empty.push(d.domain);
+      h += `<tr><td>${d.domain}</td><td class="n mono">${(d.weight*100).toFixed(0)}%</td><td class="n mono">${d.weight>0 ? `${(d.have/1e12).toFixed(2)}T / ${(d.wanted/1e12).toFixed(2)}T` : '—'}</td><td class="n mono ${d.data_limited?'capped':''}">${d.weight>0 ? (d.have <= 0 ? 'nothing' : (d.sufficiency*100).toFixed(0)+'%') : '—'}</td><td class="n mono"><b>${f(d.cap)}</b>${d.weight > 0 && d.direct + d.transferred > 0 && d.transferred / (d.direct + d.transferred) > 0.5 ? ' <span class="dim" title="more than half of this is borrowed from related domains">↩</span>' : ''}</td><td class="n mono dim">${cur[d.domain] != null ? f(cur[d.domain]) : '—'}</td></tr>`;
     }
-    h += `</table><p class="help">"Fed" below 100% = not enough data for that share of the run; buy a corpus or shift the mixture. Expected values assume average dice.</p>`;
+    h += `</table>`;
+    if (empty.length) h += `<p class="help capped"><b>${empty.join(', ')}: you hold no data.</b> That share of the run trains on nothing (98% wasted) and it is taken from the domains this one borrows from, so more share makes it <i>worse</i>. Until you license or collect such data, leave it near 0 and take what transfer gives you (↩).</p>`;
+    h += `<p class="help">"Fed" below 100% = not enough data for that share of the run; buy a corpus or shift the mixture. ↩ = mostly borrowed from related domains. Expected values assume average dice.</p>`;
     $('#pl-preview').innerHTML = h;
   }, 150); };
   md.querySelectorAll('input').forEach(e => { e.addEventListener('input', () => {
