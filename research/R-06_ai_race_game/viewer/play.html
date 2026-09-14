@@ -675,7 +675,8 @@ function renderPending() {
   const rows = p.domains.map(d => `<tr><td>${d.d}</td><td class="n mono">${f(d.new,1)}</td><td class="n mono dim">${d.old==null?'—':f(d.old,1)}</td></tr>`).join('');
   $('#modal').innerHTML = `
     <h2>${p.date}: ${p.held ? 'the model you have been holding' : 'your training run has landed'}</h2>
-    <p>Best domain <b>${f(p.best_new)}</b> against the <b>${f(p.best_old)}</b> you sell now. The frontier as you fear it: <b class="behind">${f(p.frontier)}</b>.</p>
+    <p>Best domain <b>${f(p.best_new)}</b> against the <b>${f(p.best_old)}</b> you sell now${p.tag ? ` — <b>a ${p.tag}</b>` : ''}. The frontier as you fear it: <b class="behind">${f(p.frontier)}</b>.</p>
+    ${p.improves === false ? `<p class="behind"><b>This lands below what you already sell.</b> Shipping it replaces your current model with a worse one on the headline — an AI lab would shelve it. Look at the domains before deciding: it may still be the better model where your customers are.</p>` : ''}
     <table><tr><th>Domain</th><th class="n">New</th><th class="n">Selling now</th></tr>${rows}</table>
     <h3 style="margin:14px 0 4px;font-size:13px">Where it would put you on the published index</h3>
     ${bars(p.board || [], p.projected_aa)}
@@ -684,8 +685,10 @@ function renderPending() {
       <button class="primary" data-ans="1,1">Ship, evaluated</button>
       <button data-ans="1,0">Ship now, skip the evaluation</button>
       <button data-ans="0,0">Hold it back</button>
+      <button data-ans="shelve">Shelve it — discard</button>
     </div>`;
   $('#modal').querySelectorAll('button').forEach(b => b.addEventListener('click', async () => {
+    if (b.dataset.ans === 'shelve') { await api('/api/answer', {ship: false, shelve: true}); ov.classList.remove('on'); refresh(); return; }
     const [ship, ev] = b.dataset.ans.split(',').map(Number);
     await api('/api/answer', {ship: !!ship, evaluate: !!ev});
     ov.classList.remove('on'); refresh();

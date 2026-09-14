@@ -217,23 +217,29 @@ class Lab:
         self.run_plan = None
 
         current = self.model.caps if self.model else None
-        if not REL.should_ship(caps, current, behind):
+        candidate = Model(f"{self.name}-{month}", cap, shape["active_params"],
+                          month, caps, tag)
+        candidate.why = why
+        candidate.run_flop = why["flop"]
+        candidate.behind = behind
+        # whether it beats what the lab sells, by the rule the strategy AIs
+        # shelve on; the player sees the flag and decides
+        candidate.improves = REL.should_ship(caps, current, behind)
+        candidate.eval_noise = {}
+        # The interrupt: the run has landed and the lab is asked, with the
+        # result in hand, whether to release it, shelve it, and whether to
+        # evaluate it first. Logged like any action.
+        rel = world.ask_release(self, candidate, held=False)
+        if rel.shelve:
             # shelved. The lesson is real even when the model is not.
             self.shelved += 1
             self.algo_mult *= (1.0 + 0.004 * K.SHELVE_LEARNING)
             self.last_outcome = ("shelved", tag, cap)
             return None
-
-        candidate = Model(f"{self.name}-{month}", cap, shape["active_params"],
-                          month, caps, tag)
-        candidate.why = why
-        candidate.run_flop = why["flop"]
+        # benchmarks are run, not computed: the noise is drawn only for a
+        # model that will actually be measured
         candidate.eval_noise = {k: self.rng_eval.gauss(0.0, TASKS.EVAL_NOISE_PTS)
                                 for k in TASKS.SUITES}
-        # The interrupt: the run has landed and the lab is asked, with the
-        # result in hand, whether to release it and whether to evaluate it
-        # first. Logged like any action.
-        rel = world.ask_release(self, candidate, held=False)
         if not rel.ship:
             # better than what it sells, and deliberately not released
             self.internal = candidate
@@ -275,6 +281,12 @@ class Lab:
             return None
         cap = self.internal.capability
         rel = world.ask_release(self, self.internal, held=True)
+        if rel.shelve:
+            self.internal = None
+            self.hoarding = False
+            self.shelved += 1
+            self.last_outcome = ("shelved", "held", cap)
+            return None
         if not rel.ship:
             self.withheld_months += 1
             self.hoarding = True
@@ -651,7 +663,7 @@ class World:
         if not isinstance(rel, POL.Release):
             raise POL.IllegalAction(f"decide_release must return a Release, got {rel!r}")
         self.action_log.append((self.month, lab.name,
-                                {"release": "ship" if rel.ship else "hold",
+                                {"release": "ship" if rel.ship else ("shelve" if rel.shelve else "hold"),
                                  "evaluate": rel.evaluate if rel.ship else None,
                                  "held": held, "cap": round(candidate.capability, 3)}))
         return rel

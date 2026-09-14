@@ -118,6 +118,8 @@ class Session:
             "domains": [{"d": d, "new": new[d], "old": old.get(d)}
                         for d in sorted(new, key=lambda d: -new[d]) if new[d] > 0],
             "safety_debt": lab.safety_debt, "trust": lab.trust,
+            "improves": getattr(candidate, "improves", True),
+            "tag": getattr(candidate, "tag", ""),
         }
         board, projected = self.game.leaderboard(candidate)
         self.pending["board"] = board
@@ -326,7 +328,8 @@ class Handler(BaseHTTPRequestHandler):
                             SESSION.answers.put(plan)
                     else:
                         SESSION.answers.put(Release(bool(body.get("ship", True)),
-                                                    bool(body.get("evaluate", True))))
+                                                    bool(body.get("evaluate", True)),
+                                                    shelve=bool(body.get("shelve", False))))
                 elif self.path == "/api/buy":
                     if SESSION.busy:
                         raise IllegalAction("wait for the turn to finish")

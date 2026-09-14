@@ -277,14 +277,16 @@ class Release:
     """
     The answer to the release interrupt. `ship`: release it, or sit on it.
     `evaluate`: run a real evaluation before launch - which covers most of
-    the capability jump - or skip it and carry the safety debt.
+    the capability jump - or skip it and carry the safety debt. `shelve`:
+    discard it - the compute is spent, the lesson is kept, nothing ships.
     """
 
-    __slots__ = ("ship", "evaluate")
+    __slots__ = ("ship", "evaluate", "shelve")
 
-    def __init__(self, ship, evaluate=True):
+    def __init__(self, ship, evaluate=True, shelve=False):
         self.ship = bool(ship)
         self.evaluate = bool(evaluate)
+        self.shelve = bool(shelve) and not self.ship
 
 
 # ------------------------------------------------------------------- policy
@@ -519,6 +521,10 @@ class DoctrinePolicy(Policy):
         return lead > -p.get("hoard_lead", 0.25)
 
     def decide_release(self, obs, candidate, held):
+        # a run that landed below what the lab sells is shelved - the
+        # world's old rule, now the strategy's; the player is asked instead
+        if not held and not candidate.improves:
+            return Release(ship=False, shelve=True)
         if self._withholds(obs, candidate.capability):
             return Release(ship=False)
         # Whether to evaluate before launch is a per-release roll. The draw
@@ -550,7 +556,8 @@ class ReplayPolicy(Policy):
                 continue
             if "release" in changed:
                 self.releases.append(Release(changed["release"] == "ship",
-                                             changed.get("evaluate", True)))
+                                             changed.get("evaluate", True),
+                                             shelve=(changed["release"] == "shelve")))
             elif "run" in changed:
                 self.runs.append((month, RunPlan(**changed["run"])))
             elif "now" in changed:
@@ -578,7 +585,7 @@ class ReplayPolicy(Policy):
             raise IllegalAction("replay ran out of release decisions")
         rel = self.releases[self._r]
         self._r += 1
-        return Release(rel.ship, rel.evaluate)
+        return Release(rel.ship, rel.evaluate, rel.shelve)
 
     def decide_run(self, obs, proposal):
         if self._k < len(self.runs) and self.runs[self._k][0] == obs.month:
