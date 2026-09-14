@@ -33,6 +33,7 @@ from .scenarios import randomized_2020, historical_2020
 from .policy import Policy, Actions, Release, RunPlan, DoctrinePolicy, validate
 from . import explain as EXPL
 from . import anchors as A
+from . import economics as E
 
 MONTHS_PER_TURN = 3
 
@@ -236,11 +237,38 @@ class Game:
             table.append(dict(suite=suite, label=w.suites.label.get(suite, suite),
                               domain=dom, mine=mine, best=best, who=who))
 
+        # --- the fleet, generation by generation
+        h100 = next(a for a in E.ACCELS if a.name == "H100")
+        h100e = lambda flops: flops / h100.train_flops()
+        fleet_rows = []
+        for accel, count, bought in me.fleet.holdings:
+            fleet_rows.append(dict(
+                name=accel.name, count=count, bought=date(bought),
+                retires=date(bought + K.DEPRECIATION_MONTHS + 12),
+                peak_tflops=accel.peak_tflops, mfu=accel.train_mfu,
+                train_flops=accel.train_flops() * count,
+                serve_flops=accel.serve_flops() * count,
+                mw=accel.megawatts(count), watts=accel.watts,
+                cost_month=accel.monthly_cost() * count,
+                depreciated=(m - bought) >= K.DEPRECIATION_MONTHS))
+        fleet_rows.sort(key=lambda r: -r["train_flops"])
+        tot_train = me.fleet.train_flops()
+        for r in fleet_rows:
+            r["share"] = r["train_flops"] / tot_train if tot_train > 0 else 0.0
+            r["h100e"] = h100e(r["train_flops"])
+        best_now = E.best_available(m)
+        fleet = dict(rows=fleet_rows, train_flops=tot_train,
+                     serve_flops=me.fleet.serve_flops(), h100e=h100e(tot_train),
+                     flop_per_month=tot_train * K.SECONDS_PER_MONTH / 1.18,
+                     best_now=best_now.name, best_now_tflops=best_now.peak_tflops,
+                     best_now_h100e=h100e(best_now.train_flops()))
+
         # --- rivals, as you believe them to be
         rivals = []
         for b in sorted(obs.beliefs, key=lambda b: -b.latent_est):
             rivals.append(dict(name=b.target, aa=b.aa, est=b.latent_est,
                                sigma=b.sigma, scale=b.scale,
+                               compute=b.compute, h100e=h100e(b.compute),
                                silent=b.months_silent, price=b.price,
                                feared=(b.target == obs.feared)))
 
@@ -300,7 +328,6 @@ class Game:
             run_eta = date(m + int(math.ceil(run["months_left"])))
 
         # --- what a purchase costs right now, so manual orders can be sized
-        from . import economics as E
         accel = E.best_available(m)
         shopping = dict(
             accel=accel.name, accel_capex=accel.capex,
@@ -341,7 +368,7 @@ class Game:
             net=getattr(me, "last_net", 0.0), costs=costs,
             valuation=me.valuation, raised=getattr(me, "raised", 0.0),
             debt=getattr(me, "debt_drawn", 0.0),
-            accels=me.fleet.count(), mw=me.fleet.megawatts(),
+            accels=me.fleet.count(), mw=me.fleet.megawatts(), fleet=fleet,
             contracted_mw=me.contracted_mw,
             on_order=sum(c for _a, c, _m, _p in me.orders),
             mw_pipeline=sum(mw for mw, _a in me.mw_pipeline),

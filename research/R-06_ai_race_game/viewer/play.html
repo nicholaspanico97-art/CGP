@@ -448,13 +448,16 @@ function renderDash() {
 
   // rivals
   let rv = `<p>Your best, built: <b>${f(r.own_best)}</b>. The frontier as you fear it: <b class="behind">${f(r.perceived_frontier)}</b> (threat ${r.threat>=0?'+':''}${f(r.threat)}${r.feared?`, ${r.feared}`:''}).</p>`;
-  rv += `<table><tr><th>Lab</th><th class="n">AA</th><th class="n">True best, est.</th><th class="n">Accels, est.</th><th class="n">Quiet</th><th class="n">$/Mtok</th></tr>`;
+  const myH = r.fleet.h100e;
+  rv += `<table><tr><th>Lab</th><th class="n">AA</th><th class="n">True best, est.</th><th class="n">Compute, est.</th><th class="n">vs you</th><th class="n">Quiet</th><th class="n">$/Mtok</th></tr>`;
+  rv += `<tr class="total"><td><span class="lab">${logo(r.name)}${r.name}</span> <span class="dim">(you)</span></td><td class="n mono">${r.aa==null?'—':f(r.aa,1)}</td><td class="n mono">${f(r.own_best)}</td><td class="n mono">${h100e(myH)}</td><td class="n mono">—</td><td class="n mono">—</td><td class="n mono">${r.model ? f(r.price) : '—'}</td></tr>`;
   for (const x of r.rivals) {
     x.name_html = `<span class="lab">${logo(x.name)}${x.name}</span>`;
     if (!x.est) { rv += `<tr><td>${x.name}</td><td class="dim" colspan="5">nothing shipped yet — nothing to read</td></tr>`; continue; }
-    rv += `<tr><td>${x.name_html}${x.feared?' <span class="behind">▲</span>':''}</td><td class="n mono">${x.aa==null?'—':f(x.aa,1)}</td><td class="n mono">${f(x.est)} ±${f(x.sigma)}</td><td class="n mono">${n0(x.scale)}</td><td class="n mono">${x.silent} mo</td><td class="n mono">${f(x.price)}</td></tr>`;
+    rv += `<tr><td>${x.name_html}${x.feared?' <span class="behind">▲</span>':''}</td><td class="n mono">${x.aa==null?'—':f(x.aa,1)}</td><td class="n mono">${f(x.est)} ±${f(x.sigma)}</td><td class="n mono" title="${n0(x.scale)} accelerators, est.">${h100e(x.h100e)}</td><td class="n mono ${x.h100e > myH * 1.15 ? 'capped' : x.h100e < myH / 1.15 ? 'ok' : ''}">${myH > 0 ? '×' + f(x.h100e / myH, 1) : '—'}</td><td class="n mono">${x.silent} mo</td><td class="n mono">${f(x.price)}</td></tr>`;
   }
   rv += '</table><p class="help" style="margin-top:6px">▲ = the rival you plan against. Estimates come from published scores, power footprint and silence — a quiet, growing rival might be hoarding, or stuck.</p>';
+  rv += `<p class="help">Compute is training throughput in <b>H100-equivalents</b> (one H100 at its usual utilisation = 1). Rivals' figures are read off power siting and shipments, so they are noisy and lag; spend on intel to narrow them.</p>`;
   $('#rivals').innerHTML = rv;
   $('#board').innerHTML = bars(r.board) + `<p class="help">Published scores only — what Artificial Analysis would print. A quiet lab's bar is stale; a hoarder's is a lie. Your row is your own published number.</p>`;
 
@@ -471,7 +474,8 @@ function renderDash() {
   // ops
   const below = r.comp_offer < r.market_comp * 0.85;
   $('#ops').innerHTML = `
-    <p><b>${n0(r.accels)}</b> accelerators (${r.newest}), ${f(r.mw,0)} MW in use of ${f(r.contracted_mw,0)} contracted; ${n0(r.on_order)} on order, ${f(r.mw_pipeline,0)} MW in the pipeline. Algorithmic edge vs field ×${f(r.algo)}.</p>
+    ${fleetTable(r.fleet)}
+    <p><b>${n0(r.accels)}</b> accelerators in all, ${f(r.mw,0)} MW in use of ${f(r.contracted_mw,0)} contracted; ${n0(r.on_order)} on order, ${f(r.mw_pipeline,0)} MW in the pipeline. Algorithmic edge vs field ×${f(r.algo)}.</p>
     <p><b>${n0(r.researchers)}</b> researchers, ${f(r.stars,1)} stars. You offer $${n0(r.comp_offer/1e3)}k against a market rate of $${n0(r.market_comp/1e3)}k${below?' <span class="behind">— below market, people are leaving</span>':''}.</p>
     ${r.arriving.length || r.run_eta ? `<table class="arrive"><tr><th>Arriving</th><th>What</th></tr>${r.run_eta ? `<tr><td class="mono">${r.run_eta}</td><td>training run lands (estimate; the popup asks you then)</td></tr>` : ''}${r.arriving.map(a => `<tr><td class="mono">${a.when}</td><td>${a.what}</td></tr>`).join('')}</table>` : '<p class="dim">Nothing on order and no run in progress.</p>'}
     <p>Trust <b>${f(r.trust,0)}</b>/100 · safety debt <b>${f(r.safety_debt,1)}</b> · unevaluated capability ${f(r.unevaluated)} · incidents ${r.incidents} · sector regulation ${f(r.regulation)}${r.restricted?' · <span class="behind">barred from agentic markets</span>':''}</p>`;
@@ -523,6 +527,15 @@ function logo(name, size) {
   const ty = shape === 4 ? 19 : 16.5;
   return `<svg class="logo" width="${size}" height="${size}" viewBox="0 0 24 24" aria-label="${name}"><g fill="${fill}">${shapes[shape]}</g><text x="12" y="${ty}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="system-ui, sans-serif">${letter}</text></svg>`;
 }
+const h100e = v => v >= 1e6 ? (v/1e6).toFixed(2) + 'M' : v >= 1e3 ? (v/1e3).toFixed(1) + 'k' : v.toFixed(0);
+function fleetTable(fl) {
+  if (!fl.rows.length) return '<p class="dim">No accelerators.</p>';
+  let h = `<table><tr><th>Generation</th><th class="n">Count</th><th class="n">Each</th><th class="n">Training</th><th class="n">Share</th><th class="n">H100-eq</th><th class="n">MW</th><th class="n">Bought</th><th class="n">Retires</th></tr>`;
+  for (const x of fl.rows) h += `<tr class="${x.depreciated ? 'dim' : ''}"><td>${x.name}</td><td class="n mono">${n0(x.count)}</td><td class="n mono">${x.peak_tflops >= 1000 ? (x.peak_tflops/1000).toFixed(1)+' PF' : x.peak_tflops.toFixed(0)+' TF'}</td><td class="n mono">${(x.train_flops/1e15).toFixed(1)} PF/s</td><td class="n mono">${(x.share*100).toFixed(0)}%</td><td class="n mono">${h100e(x.h100e)}</td><td class="n mono">${f(x.mw,1)}</td><td class="n mono">${x.bought}</td><td class="n mono">${x.retires}</td></tr>`;
+  h += `<tr class="total"><td>Fleet</td><td class="n mono">${n0(fl.rows.reduce((a,x)=>a+x.count,0))}</td><td></td><td class="n mono">${(fl.train_flops/1e15).toFixed(1)} PF/s</td><td class="n mono">100%</td><td class="n mono"><b>${h100e(fl.h100e)}</b></td><td class="n mono">${f(fl.rows.reduce((a,x)=>a+x.mw,0),1)}</td><td colspan="2" class="n dim">${fl.flop_per_month.toExponential(2)} FLOP/month into a run</td></tr></table>`;
+  h += `<p class="help">"Each" is peak; "Training" is what the fleet actually delivers at its utilisation. The newest generation on sale is <b>${fl.best_now}</b> at ${fl.best_now_tflops >= 1000 ? (fl.best_now_tflops/1000).toFixed(1)+' PF' : fl.best_now_tflops+' TF'} — ${f(fl.best_now_h100e,2)} H100-eq each. Greyed rows are fully depreciated and about to retire.</p>`;
+  return h;
+}
 function bars(rows, projected) {
   // AA leaderboard as trailing vertical bars, tallest first, you highlighted
   const vals = rows.map(r => r.aa).filter(v => v != null);
@@ -561,8 +574,9 @@ function chart(id, title, series, fmt, opts) {
     const step = niceStep((y1 - y0) / 3);
     for (let v = Math.ceil(y0 / step) * step; v <= y1; v += step) g += `<line x1="${padL}" x2="${W-padR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="var(--line)" stroke-dasharray="2 3"/><text x="${padL+2}" y="${(Y(v)-2).toFixed(1)}" font-size="9" fill="var(--muted)">${fmt==='B' ? money(v*1e9) : v.toFixed(1)}</text>`;
   }
-  g += `<text x="${padL}" y="${H-4}" font-size="10" fill="var(--muted)">${series[0].values[0].label}</text>`;
-  g += `<text x="${W-padR}" y="${H-4}" font-size="10" fill="var(--muted)" text-anchor="end">${series[0].values.at(-1).label}</text>`;
+  const lab0 = pts.reduce((a, p) => (p.x < a.x ? p : a)), lab1 = pts.reduce((a, p) => (p.x > a.x ? p : a));
+  g += `<text x="${padL}" y="${H-4}" font-size="10" fill="var(--muted)">${lab0.label}</text>`;
+  g += `<text x="${W-padR}" y="${H-4}" font-size="10" fill="var(--muted)" text-anchor="end">${lab1.label}</text>`;
   for (const s of series) {
     const d = s.values.map((p,i) => `${i?'L':'M'}${X(p.x).toFixed(1)},${Y(p.y).toFixed(1)}`).join(' ');
     if (!s.values.length) continue;
@@ -600,7 +614,7 @@ function renderCharts() {
       const fx = (ev.clientX - r.left) / r.width;
       const q = Math.round(x0 + fx * (x1 - x0));
       const rows = series.map(s => { const v = s.values.find(p => p.x === q); return v ? `${s.name}: <b>${fmt==='B' ? money(v.y*1e9) : v.y.toFixed(2)}</b>` : ''; }).filter(Boolean);
-      const lab = (series[0].values.find(p => p.x === q) || {}).label || '';
+      const lab = (series.flatMap(s => s.values).find(p => p.x === q) || {}).label || '';
       if (!rows.length) { tip.style.display = 'none'; return; }
       tip.innerHTML = `${lab} · ${rows.join(' · ')}`; tip.style.display = 'block';
       tip.style.left = Math.min(ev.clientX - r.left + 8, r.width - tip.offsetWidth - 4) + 'px'; tip.style.top = '18px';

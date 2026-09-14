@@ -48,13 +48,14 @@ from . import tasks as TASKS
 class Belief:
     """One lab's read on one rival, this month."""
 
-    __slots__ = ("target", "pub_cap", "scale", "months_silent",
+    __slots__ = ("target", "pub_cap", "scale", "compute", "months_silent",
                  "latent_est", "sigma", "aa", "price")
 
     def __init__(self, target):
         self.target = target
         self.pub_cap = {}        # per-domain frontier implied by published scores
         self.scale = 0.0         # estimated accelerators
+        self.compute = 0.0       # estimated training FLOP/s of that fleet
         self.months_silent = 0
         self.latent_est = 0.0    # best guess at their true best, released or not
         self.sigma = K.INTEL_BASE_SIGMA
@@ -90,7 +91,11 @@ def observe(observer, target, world, month):
     intel = observer.actions.intel_spend
     obs_noise = K.SCALE_OBS_NOISE / (1.0 + K.INTEL_SPEND_EFFECT * intel * 3.0)
     true_scale = max(target.fleet.count(), 1)
-    b.scale = true_scale * (10 ** observer.rng_intel.gauss(0.0, obs_noise))
+    seen = 10 ** observer.rng_intel.gauss(0.0, obs_noise)
+    b.scale = true_scale * seen
+    # power siting and shipments tell you the generation as well as the
+    # count; the same read, in FLOP/s
+    b.compute = target.fleet.train_flops() * seen
 
     b.months_silent = month - (target.model.shipped if target.model else 0)
 
