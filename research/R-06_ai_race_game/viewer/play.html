@@ -108,6 +108,13 @@
   .charts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
   @media (max-width: 1200px) { .charts { grid-template-columns: 1fr; } }
   .chart { position: relative; }
+  .tabs { display: flex; gap: 4px; padding: 10px 18px 0; max-width: 1500px; margin: 0 auto; }
+  .tabs .tab { border: 1px solid var(--line); border-bottom: none; border-radius: 6px 6px 0 0; background: var(--soft); padding: 7px 16px; font-weight: 600; color: var(--muted); }
+  .tabs .tab.on { background: var(--panel); color: var(--ink); }
+  main.world { grid-template-columns: 1fr; }
+  main[hidden] { display: none; }
+  .note { background: var(--accent-soft); border-radius: 6px; padding: 10px 14px; font-size: 13px; }
+  .blocs td.mine { font-weight: 700; }
   .chart.wide { grid-column: 1 / -1; }
   .chart.wide svg { height: 170px; width: 100%; }
   .chart .t { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
@@ -172,7 +179,8 @@
   <div class="prog" id="prog"><div class="bar" id="bar"></div><span class="lbl" id="proglbl"></span></div>
 </header>
 
-<main>
+<nav class="tabs"><button class="tab on" data-tab="company">Your company</button><button class="tab" data-tab="world">The world</button></nav>
+<main id="tab-company">
   <section class="panel" id="orders">
     <h2>Your standing orders</h2>
     <p class="help">Changes take effect at the next turn and stay in force until you change them. Anything the world refuses is shown in the status line and left unchanged.</p>
@@ -203,6 +211,17 @@
     </div>
   </div>
 </main>
+<main id="tab-world" class="world" hidden>
+  <div class="right">
+    <div class="note">The world outside the labs. <b>Observed, not yet acting</b>: this state exists and moves on the record (to 2025) and a projection after, and it reads the sector — but nothing here pushes back on a lab yet. That is the next layer (<code>WORLD_STATE.md</code>).</div>
+    <section class="panel"><h2>AI's footprint on the world</h2><div class="tiles" id="w-tiles"></div><div class="charts" id="w-charts"></div></section>
+    <section class="panel"><h2>Blocs</h2><div id="w-blocs"></div></section>
+    <div class="row2">
+      <section class="panel"><h2>Supply of compute</h2><div id="w-supply"></div></section>
+      <section class="panel"><h2>Capital</h2><div id="w-capital"></div></section>
+    </div>
+  </div>
+</main>
 
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 
@@ -213,6 +232,7 @@ let S = null, editing = false, lastBusy = false, lastMonth = null;
 // money: whole billions above $100B, two-decimal billions to $1B, then
 // millions, then thousands - never "$0.01B"
 window.money = x => { const a = Math.abs(x), sg = x < 0 ? '−' : '';
+  if (a >= 1e12) return `${sg}$${(a/1e12).toFixed(a >= 1e13 ? 1 : 2)}T`;
   if (a >= 1e11) return `${sg}$${(a/1e9).toFixed(0)}B`;
   if (a >= 1e9) return `${sg}$${(a/1e9).toFixed(2)}B`;
   if (a >= 1e6) return `${sg}$${(a/1e6).toFixed(a >= 1e8 ? 0 : 1)}M`;
@@ -384,7 +404,36 @@ async function send(patch) {
 // ---------------------------------------------------------- dashboard
 function tile(k, v, cls='') { return `<div class="tile"><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`; }
 
+function renderWorld() {
+  const r = S.report, g = r.geo, H = S.history;
+  if (!g) return;
+  const pct = (v, d=2) => (v*100).toFixed(d) + '%';
+  const tot_load = Object.values(g.load_gw).reduce((a,b)=>a+b,0);
+  $('#w-tiles').innerHTML = [
+    ['World GDP', money(g.world_gdp), 'five blocs, $/yr'],
+    ['AI spend', money(g.spend_yr) + '/yr', pct(g.spend_share_gdp, 3) + ' of world GDP'],
+    ['AI power load', f(tot_load, 2) + ' GW', `US ${pct(g.load_share_grid.US)} of its grid`],
+    ['Policy rate', pct(g.rate, 1), 'US; prices infrastructure debt'],
+    ['Venture appetite', '\u00d7' + f(g.appetite, 1), '2020 = 1'],
+    ['Incidents to date', n0(g.sector_incidents), 'sector-wide; regulation ' + f(g.regulation_scalar, 2)],
+  ].map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+  const series = (fn) => H.filter(h => h.geo).map(h => ({x: h.q, y: fn(h.geo), label: h.date}));
+  $('#w-charts').innerHTML =
+    chart('w1', 'AI spend, % of world GDP', [{name: 'spend', color: 'var(--you)', values: series(x => x.spend_share_gdp * 100)}], 'c', {fromZero: true}) +
+    chart('w2', 'AI load, % of US grid', [{name: 'US load', color: 'var(--them)', values: series(x => x.load_share_grid.US * 100)}], 'c', {fromZero: true}) +
+    chart('w3', 'Public mood toward AI, by bloc', ['US','China','EU','Gulf','RoW'].map((b, i) => ({name: b, color: `hsl(${i*70+200} 55% 48%)`, values: series(x => x.mood[b])})), 'c');
+  let t = `<table class="blocs"><tr><th>Bloc</th><th class="n">GDP</th><th class="n">Growth</th><th class="n">Knowledge wage bill</th><th class="n">Grid</th><th class="n">AI load</th><th class="n">Power $/MWh</th><th class="n">Queue</th><th class="n">Chip access</th><th class="n">Mood</th><th class="n">Regulation</th><th>Labs</th><th class="n">Frontier there</th></tr>`;
+  for (const [b, s] of Object.entries(g.blocs)) {
+    const labs = (g.labs[b] || []).map(n => `<span class="lab">${logo(n, 14)}${n}</span>`).join(' ');
+    t += `<tr><td class="${b === r.my_bloc ? 'mine' : ''}">${b}${b === r.my_bloc ? ' <span class="dim">(you)</span>' : ''}</td><td class="n mono">${money(s.gdp)}</td><td class="n mono">${pct(s.growth, 1)}</td><td class="n mono">${money(s.wage_bill)}</td><td class="n mono">${n0(s.grid_gw)} GW</td><td class="n mono">${f(g.load_gw[b], 2)} GW <span class="dim">(${pct(g.load_share_grid[b])})</span></td><td class="n mono">${f(s.power_price, 0)}</td><td class="n mono">${f(s.queue_months, 0)} mo</td><td class="n mono">${f(s.access, 2)}</td><td class="n mono ${s.mood < 0 ? 'capped' : ''}">${s.mood >= 0 ? '+' : ''}${f(s.mood, 2)}</td><td class="n mono">${f(s.regulation, 2)}</td><td>${labs || '<span class="dim">\u2014</span>'}</td><td class="n mono">${g.frontier_by_bloc[b] > 0 ? f(g.frontier_by_bloc[b]) : '\u2014'}</td></tr>`;
+  }
+  t += `</table><p class="help">Knowledge wage bill: what the bloc pays people doing cognitive work \u2014 the number demand will eventually be a function of. Chip access: the share of leading-edge accelerators the bloc can buy (export controls). Queue: months to an interconnect. None of these bite yet.</p>`;
+  $('#w-blocs').innerHTML = t;
+  $('#w-supply').innerHTML = `<table><tr><th>Leading-edge wafers</th><td class="n mono">${n0(g.wafers_k)}k / month</td></tr><tr><th>Advanced packaging (CoWoS)</th><td class="n mono">${n0(g.cowos_k)}k / month</td></tr><tr><th>Share of leading edge going to AI</th><td class="n mono">${pct(g.ai_share_fab, 0)}</td></tr><tr><th>Accelerators the sector can buy</th><td class="n mono">${n0(g.fab_month)} / month</td></tr><tr><th>Bought by the seven labs last month</th><td class="n mono">${n0(g.ai_accels_month)}</td></tr></table><p class="help">Packaging, not wafers, was the 2023-24 bottleneck. Fab capacity should eventually respond to what the sector orders, with a 2-3 year lag.</p>`;
+  $('#w-capital').innerHTML = `<table><tr><th>US policy rate</th><td class="n mono">${pct(g.rate, 1)}</td></tr><tr><th>AI venture appetite</th><td class="n mono">\u00d7${f(g.appetite, 1)}</td></tr><tr><th>Public-market AI sentiment</th><td class="n mono">${g.sentiment >= 0 ? '+' : ''}${f(g.sentiment, 2)}</td></tr></table><p class="help">Rates will price a lab's narrative valuation and its infrastructure debt; appetite will scale what a round can raise. Neither is wired yet.</p>`;
+}
 function renderDash() {
+  renderWorld();
   const r = S.report;
   $('#who').textContent = `${r.name} — ${r.strategy}`;
   $('#date').textContent = `${r.date} · turn ${r.turn}`;
@@ -753,6 +802,12 @@ function renderRunModal(p) {
   $('#pl-wait').addEventListener('click', async () => { await api('/api/answer', {wait: true}); $('#overlay').classList.remove('on'); refresh(); });
   preview();
 }
+
+document.querySelectorAll('.tabs .tab').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tabs .tab').forEach(x => x.classList.toggle('on', x === b));
+  $('#tab-company').hidden = b.dataset.tab !== 'company';
+  $('#tab-world').hidden = b.dataset.tab !== 'world';
+}));
 
 // ------------------------------------------------------------- polling
 async function refresh(force) {

@@ -165,7 +165,10 @@ that state. That is the biggest gap, and it orders everything below.
 must be trustworthy before a bigger world sits on it. Start from the five
 findings in `HANDOFF.md`; Nick's own notes from playing outrank them.
 
-**B. The world gets state — "the world acts on AI."** A `geo` module: a
+**B. The world gets state — "the world acts on AI."** *(v1.9: the state
+exists — `sim/geo.py`, `WORLD_STATE.md`, the dashboard's World tab — and
+is observed, not yet acting. Next: wire §5 of WORLD_STATE.md in order,
+each against its anchor.)* A `geo` module: a
 handful of blocs (US, China, EU, Gulf, rest of world), each with compute
 access, energy, capital, public mood and a regulator. Labs belong to a
 bloc. Export controls, fab capacity (item 8) and the power queue become

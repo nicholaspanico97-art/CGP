@@ -160,6 +160,11 @@ class Session:
             "trust": r["trust"], "debt": r["safety_debt"], "accels": r["accels"],
             "researchers": r["researchers"], "valuation": r["valuation"],
             "board": {row["name"]: row["aa"] for row in r["board"]},
+            "geo": {"spend_share_gdp": r["geo"]["spend_share_gdp"],
+                    "load_share_grid": r["geo"]["load_share_grid"],
+                    "rate": r["geo"]["rate"], "appetite": r["geo"]["appetite"],
+                    "mood": {b: s["mood"] for b, s in r["geo"]["blocs"].items()},
+                    "access": {b: s["access"] for b, s in r["geo"]["blocs"].items()}},
         })
         self.snapshot = r
 

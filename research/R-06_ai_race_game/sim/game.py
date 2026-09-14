@@ -35,6 +35,7 @@ from . import explain as EXPL
 from . import anchors as A
 from . import economics as E
 from . import release as REL
+from . import geo as GEO
 
 MONTHS_PER_TURN = 3
 
@@ -402,6 +403,7 @@ class Game:
         return dict(
             month=m, date=date(m), turn=self.turn, name=me.name,
             why=why, run_plan=run_plan, run_preview=run_preview, board=board, idle=idle,
+            geo=w.geo.snapshot(), my_bloc=GEO.bloc_of(me),
             data=EXPL.data_holdings(me),
             ledger_q=ledger_q, ledger_all=ledger_all, shopping=shopping,
             arriving=arriving, run_eta=run_eta, turn_months=self.last_months,
