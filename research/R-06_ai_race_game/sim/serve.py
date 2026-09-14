@@ -13,7 +13,7 @@ mid-quarter while the browser shows the question; the page polls `/api/state`.
                      history, the pending question if any
   POST /api/orders   {field: value, ...}  -> validated on a copy; refused
                      with a reason if illegal
-  POST /api/end      run the next quarter (ignored while one is running)
+  POST /api/end      {"months": 1|3}  run the next turn (ignored while one runs)
   POST /api/answer   {"ship": bool, "evaluate": bool}  -> answers the interrupt
   POST /api/new      {"seed": int, "lab": int}  -> a fresh game
   POST /api/auto     hand the seat to the strategy AI
@@ -124,16 +124,17 @@ class Session:
         })
         self.snapshot = r
 
-    def end_quarter(self):
+    def end_quarter(self, months=3):
         if self.busy or self.game.over:
             return
         self.busy = True
         self.error = None
+        self.months = max(1, min(12, int(months)))
         threading.Thread(target=self._run, daemon=True).start()
 
     def _run(self):
         try:
-            ev = self.game.commit()
+            ev = self.game.commit(months=self.months)
             self.events.extend((self.game.turn, e) for e in ev)
             self._record()
         except Exception as e:             # surface it rather than hang the page
@@ -185,6 +186,7 @@ class Session:
         o["data_bids"] = {k: v / 1e6 for k, v in (o["data_bids"] or {}).items()}
         return {
             "seed": self.seed, "lab": self.lab_index, "busy": self.busy,
+            "progress": list(self.game.progress), "month": g.world.month,
             "over": g.over, "error": self.error, "pending": self.pending,
             "report": self.snapshot, "orders": o, "history": self.history,
             "events": [{"q": q, "text": t} for q, t in self.events[-60:]],
@@ -247,7 +249,7 @@ class Handler(BaseHTTPRequestHandler):
                 if self.path == "/api/orders":
                     SESSION.set_orders(body)
                 elif self.path == "/api/end":
-                    SESSION.end_quarter()
+                    SESSION.end_quarter(body.get("months", 3))
                 elif self.path == "/api/answer":
                     if SESSION.pending is None:
                         raise IllegalAction("nothing to answer")

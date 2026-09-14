@@ -97,6 +97,8 @@ class Game:
         self.world = World(labs, seed=seed)
         self.turn = 0
         self.events = []                    # everything that happened, all turns
+        self.progress = (0, 0)              # (months done, months in this turn)
+        self.last_months = MONTHS_PER_TURN  # length of the last turn, for the books
 
     # ------------------------------------------------------------ the turn
     @property
@@ -120,10 +122,13 @@ class Game:
             self.policy.orders = orders.copy()
         w, me = self.world, self.player
         before = _Snapshot(w, me)
-        for _ in range(months):
+        self.progress = (0, months)
+        for i in range(months):
             if w.month >= 132:
                 break
             w.step()
+            self.progress = (i + 1, months)
+        self.last_months = months
         self.turn += 1
         events = before.events_since(w, me)
         self.events.extend(events)
@@ -218,9 +223,20 @@ class Game:
                 for k, v in me.ledger.get(mm, {}).items():
                     out[k] = out.get(k, 0.0) + v
             return out
-        q0 = max(0, m - MONTHS_PER_TURN)
+        q0 = max(0, m - self.last_months)
         ledger_q = _sum(range(q0, m))
         ledger_all = _sum(range(0, m))
+
+        # --- what is on its way, and when
+        arriving = sorted(
+            [dict(kind="accelerators", what=f"{c:,} x {a.name}", when=date(arr), month=arr)
+             for a, c, arr, _p in me.orders]
+            + [dict(kind="power", what=f"{mw:,.0f} MW", when=date(arr), month=arr)
+               for mw, arr in me.mw_pipeline],
+            key=lambda x: x["month"])
+        run_eta = None
+        if run and run["months_left"] is not None and run["months_left"] < 1e6:
+            run_eta = date(m + int(math.ceil(run["months_left"])))
 
         # --- what a purchase costs right now, so manual orders can be sized
         from . import economics as E
@@ -240,6 +256,7 @@ class Game:
         return dict(
             month=m, date=date(m), turn=self.turn, name=me.name,
             ledger_q=ledger_q, ledger_all=ledger_all, shopping=shopping,
+            arriving=arriving, run_eta=run_eta, turn_months=self.last_months,
             strategy=me.doctrine.get("strategy_name", "?"),
             cash=me.cash, runway=runway, arr=me.arr,
             net=getattr(me, "last_net", 0.0), costs=costs,

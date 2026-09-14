@@ -35,6 +35,12 @@
   button:disabled { opacity: .5; cursor: default; }
   .status { color: var(--muted); font-size: 13px; }
   .status.err { color: var(--bad); }
+  header select { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 3px; background: var(--soft); color: var(--ink); }
+  .prog { flex-basis: 100%; height: 0; overflow: hidden; position: relative; background: var(--soft); border-radius: 3px; transition: height .2s; }
+  .prog.on { height: 18px; }
+  .prog .bar { height: 100%; width: 0; background: var(--accent); transition: width .4s; }
+  .prog .lbl { position: absolute; inset: 0; font-size: 11.5px; line-height: 18px; text-align: center; color: var(--ink); }
+  .arrive td { font-size: 13px; }
   main { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px 18px 60px; max-width: 1500px; margin: 0 auto; }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
   section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
@@ -123,13 +129,15 @@
   <label class="status">seed <input id="seed" type="number" value="7" style="width:64px"> lab <input id="lab" type="number" value="0" min="0" max="6" style="width:48px"></label>
   <button id="new">New game</button>
   <button id="auto" title="Hand your seat to the strategy AI for the rest of the game">Autopilot</button>
-  <button class="primary" id="end">End quarter ▸</button>
+  <label class="status">turn <select id="months"><option value="1" selected>1 month</option><option value="3">1 quarter</option></select></label>
+  <button class="primary" id="end">End turn ▸</button>
+  <div class="prog" id="prog"><div class="bar" id="bar"></div><span class="lbl" id="proglbl"></span></div>
 </header>
 
 <main>
   <section class="panel" id="orders">
     <h2>Your standing orders</h2>
-    <p class="help">Changes take effect at the next quarter and stay in force until you change them. Anything the world refuses is shown in the status line and left unchanged.</p>
+    <p class="help">Changes take effect at the next turn and stay in force until you change them. Anything the world refuses is shown in the status line and left unchanged.</p>
     <div id="orders-body"></div>
   </section>
 
@@ -215,7 +223,7 @@ function buildOrders() {
         const label = fld === 'buy_accels' ? 'Buy accelerators (count)' : fld === 'contract_mw' ? 'Contract power (MW)' : 'Raise a round (fraction sold)';
         const step = fld === 'buy_accels' ? 100 : fld === 'contract_mw' ? 5 : 0.01;
         h += `<div class="order"><label>${label}${v > 0 ? ' <span class="queued">queued</span>' : ''}</label><input type="number" data-field="${fld}" min="0" step="${step}" value="${v || ''}" placeholder="0" ${o['auto_'+({buy_accels:'capex',contract_mw:'power',raise_now:'raise'})[fld]] ? 'disabled title="switch to manual first"' : ''}>
-          <div class="sizing">${sizing}</div><div class="why">${ex[fld]} Fires at the start of the next quarter, once.</div></div>`;
+          <div class="sizing">${sizing}</div><div class="why">${ex[fld]} Fires at the start of the next turn, once.</div></div>`;
         continue;
       }
       if (fld === 'data_buy') {
@@ -268,7 +276,7 @@ function tile(k, v, cls='') { return `<div class="tile"><div class="k">${k}</div
 function renderDash() {
   const r = S.report;
   $('#who').textContent = `${r.name} — ${r.strategy}`;
-  $('#date').textContent = `${r.date} · Q${r.turn}`;
+  $('#date').textContent = `${r.date} · turn ${r.turn}`;
   $('#money-warn').innerHTML = r.cash < 0 ? `<div class="badline"><b>Insolvent.</b> Cash is negative. The model lets you keep operating; a real board would not.</div>` : '';
   const runway = (r.runway != null && isFinite(r.runway)) ? `${r.runway.toFixed(0)} mo` : '∞';
   $('#money').innerHTML = tile('Cash', fmtB(r.cash), r.cash < 0 ? 'bad' : '') + tile('Runway', runway, (r.runway != null && r.runway < 12) ? 'bad' : '')
@@ -283,7 +291,7 @@ function renderDash() {
   const keys = [...new Set([...Object.keys(L), ...Object.keys(T)])];
   const money = v => v == null ? '—' : (Math.abs(v) >= 1e9 ? `${v<0?'−':''}$${(Math.abs(v)/1e9).toFixed(2)}B` : `${v<0?'−':''}$${(Math.abs(v)/1e6).toFixed(1)}M`);
   const row = (name, q, t, cls='') => `<tr class="${cls}"><td>${name}</td><td class="n ${q<0?'neg':''}">${money(q)}</td><td class="n ${t<0?'neg':''}">${money(t)}</td></tr>`;
-  let b = `<table class="bs"><tr><th></th><th class="n">This quarter</th><th class="n">Whole game</th></tr>`;
+  let b = `<table class="bs"><tr><th></th><th class="n">This turn (${r.turn_months} mo)</th><th class="n">Whole game</th></tr>`;
   const sum = (g, src) => keys.filter(k => cat(k) === g).reduce((a, k) => a + (src[k] || 0), 0);
   b += `<tr class="head"><td colspan="3">Revenue, by market</td></tr>`;
   for (const k of keys.filter(k => cat(k) === 'rev')) b += row(segName(k), L[k], T[k]);
@@ -298,7 +306,7 @@ function renderDash() {
   const netQ = keys.reduce((a, k) => a + (L[k] || 0), 0), netT = keys.reduce((a, k) => a + (T[k] || 0), 0);
   b += row('Change in cash', netQ, netT, 'total');
   b += '</table><p class="help" style="margin-top:6px">Every dollar in or out, by where it went. Accelerators are paid for when ordered, then depreciated over their life under operating costs.</p>';
-  $('#books').innerHTML = keys.length ? b : '<p class="dim">Nothing booked yet. End a quarter.</p>';
+  $('#books').innerHTML = keys.length ? b : '<p class="dim">Nothing booked yet. End a turn.</p>';
 
   // model
   let m = '';
@@ -345,6 +353,7 @@ function renderDash() {
   $('#ops').innerHTML = `
     <p><b>${n0(r.accels)}</b> accelerators (${r.newest}), ${f(r.mw,0)} MW in use of ${f(r.contracted_mw,0)} contracted; ${n0(r.on_order)} on order, ${f(r.mw_pipeline,0)} MW in the pipeline. Algorithmic edge vs field ×${f(r.algo)}.</p>
     <p><b>${n0(r.researchers)}</b> researchers, ${f(r.stars,1)} stars. You offer $${n0(r.comp_offer/1e3)}k against a market rate of $${n0(r.market_comp/1e3)}k${below?' <span class="behind">— below market, people are leaving</span>':''}.</p>
+    ${r.arriving.length || r.run_eta ? `<table class="arrive"><tr><th>Arriving</th><th>What</th></tr>${r.run_eta ? `<tr><td class="mono">${r.run_eta}</td><td>training run lands (estimate; the popup asks you then)</td></tr>` : ''}${r.arriving.map(a => `<tr><td class="mono">${a.when}</td><td>${a.what}</td></tr>`).join('')}</table>` : '<p class="dim">Nothing on order and no run in progress.</p>'}
     <p>Trust <b>${f(r.trust,0)}</b>/100 · safety debt <b>${f(r.safety_debt,1)}</b> · unevaluated capability ${f(r.unevaluated)} · incidents ${r.incidents} · sector regulation ${f(r.regulation)}${r.restricted?' · <span class="behind">barred from agentic markets</span>':''}</p>`;
 
   // data
@@ -358,13 +367,13 @@ function renderDash() {
   const byQ = new Map();
   for (const e of S.events) { if (!byQ.has(e.q)) byQ.set(e.q, []); byQ.get(e.q).push(e.text); }
   for (const q of [...byQ.keys()].reverse()) {          // newest quarter first, events in date order inside it
-    ev += `<div class="q">Quarter ${q}</div>`;
+    ev += `<div class="q">Turn ${q}</div>`;
     for (const t of byQ.get(q)) {
       const cls = /\byou\b|YOUR|your/.test(t) ? 'me' : (/incident|ORDER:/i.test(t) ? 'inc' : '');
       ev += `<div class="e ${cls}">${t.trim()}</div>`;
     }
   }
-  $('#events').innerHTML = ev || '<p class="dim">Nothing yet. End a quarter.</p>';
+  $('#events').innerHTML = ev || '<p class="dim">Nothing yet. End a turn.</p>';
 }
 
 // ------------------------------------------------------------- charts
@@ -453,9 +462,12 @@ async function refresh(force) {
   S = j;
   $('#end').disabled = S.busy || S.over;
   if (!wasBusy && !S.busy && document.activeElement !== $('#seed') && document.activeElement !== $('#lab')) { $('#seed').value = S.seed; $('#lab').value = S.lab; }
-  $('#end').textContent = S.over ? '2030 — the decade is over' : (S.busy ? 'Running the quarter…' : 'End quarter ▸');
+  $('#end').textContent = S.over ? '2030 — the decade is over' : (S.busy ? 'Simulating…' : 'End turn ▸');
+  const [done, total] = S.progress || [0, 0];
+  $('#prog').classList.toggle('on', S.busy);
+  if (S.busy) { $('#bar').style.width = (total ? (done / total) * 100 : 0) + '%'; $('#proglbl').textContent = S.pending ? 'waiting for your answer' : `simulating month ${Math.min(done + 1, total)} of ${total} — seven labs are deciding`; }
   if (S.error) setStatus(S.error, true);
-  else if (S.busy) setStatus('the world is running…');
+  else if (S.busy) setStatus('');
   renderPending();
   const quarterEnded = wasBusy && !S.busy;
   if (force || quarterEnded || !$('#orders-body').innerHTML) {
@@ -466,8 +478,8 @@ async function refresh(force) {
 }
 $('#end').addEventListener('click', async () => {
   const b = $('#end'); if (b.disabled) return;
-  b.disabled = true; b.textContent = 'Running the quarter…'; setStatus('the world is running…');
-  await api('/api/end'); refresh();
+  b.disabled = true; b.textContent = 'Simulating…'; setStatus('');
+  await api('/api/end', {months: +$('#months').value}); refresh();
 });
 $('#new').addEventListener('click', async () => {
   await api('/api/new', {seed: +$('#seed').value, lab: +$('#lab').value}); S = null; $('#orders-body').innerHTML = ''; refresh(true);
