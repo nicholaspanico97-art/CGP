@@ -128,6 +128,19 @@ next session should start from; each is a model finding, not a UI one):
    a placeholder (fixed — the opening rate is now the real one), but the
    real 2020 rate of ~$370k against a per-strategy opening offer of $810k
    still reads oddly. Check `talent.market_comp` at m=0.
+6. **`ship_cooldown` is a fitted timer doing a mechanism's job** (Nick,
+   playing: "shouldn't you always be training?"). It stands in for
+   post-training, evals, launch, cluster build-out and recipe design, and
+   it is what makes release cadence match history. Replace the timer with
+   reasons: post-training and the next run compete for the same compute
+   and people; a run started before the new cluster lands is small; a
+   recipe with no research behind it lands badly. Then "always training"
+   is a legal strategy with a real price. Must re-pass the cadence
+   checkpoints for the *reasons*, not by the timer. Same shape as the
+   run-size ceiling in `PREMISES.md`.
+7. **Post-training is not a decision.** 1-3 automatic x.5 releases per
+   base model, free of explicit cost. Should be a player call with a
+   compute and people cost (Nick asked; deferred at his request).
 5. **Frozen orders are a bad player.** Left alone from the strategy's
    opening book, the player lab does not panic, does not raise comp, does
    not buy data beyond the first corpus, and lags the AI running the same
