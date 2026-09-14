@@ -187,6 +187,13 @@ next session should start from; each is a model finding, not a UI one):
    a placeholder (fixed — the opening rate is now the real one), but the
    real 2020 rate of ~$370k against a per-strategy opening offer of $810k
    still reads oddly. Check `talent.market_comp` at m=0.
+*v1.8.1: purchases are instant (`World.buy_now`; accelerators, power,
+a round, a corpus) - cash moves when the button is pressed, logged and
+replayed before the tick. Power headroom for chip orders now counts
+pipeline power landing by the time the chips would (you order chips to
+arrive with the power). Measured: checkpoints -9 / 8.9 / -19 / 15 of 16
+/ 113; balance 50-89%, 6.1 of 7 viable, 4% runaways, 73 lead changes.*
+
 *6 and 7 done in v1.8 - see WORLD_MODEL.md 2c "Between runs". Measured:
 checkpoints median -6 / mean 9.0 / worst -23 / 15 of 16 / order 110
 (was -9 / 8.5 / -18 / 16 / 113); balance 53-91% of goals, 69 lead

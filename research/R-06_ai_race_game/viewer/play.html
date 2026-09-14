@@ -147,6 +147,10 @@
   .order .sizing { grid-column: 1 / -1; font-size: 12px; color: var(--muted); background: var(--soft); padding: 5px 8px; border-radius: 3px; }
   .order .queued { color: var(--accent); font-weight: 600; }
   .order .est { color: var(--ink); margin-bottom: 4px; }
+  .buyrow { display: flex; gap: 6px; align-items: center; justify-content: flex-end; }
+  .buyrow input, .buyrow select { width: 90px; font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 3px; background: var(--soft); color: var(--ink); text-align: right; }
+  .buyrow select { width: auto; max-width: 180px; text-align: left; }
+  button.buy { padding: 5px 10px; font-size: 12.5px; white-space: nowrap; }
   .order .est:empty { display: none; }
   .bs td.n { font-family: Consolas, "Cascadia Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
   .bs tr.total td { font-weight: 600; border-top: 2px solid var(--line); }
@@ -266,14 +270,16 @@ function buildOrders() {
         if (fld === 'raise_now') sizing = `valuation ${fmtB(rep.valuation)} · selling 10% raises ${fmtB(rep.valuation*0.1)} · ${sh.can_raise ? (sh.months_since_raise >= 3 ? 'a round is possible now' : `${3 - sh.months_since_raise} more months before the next round`) : 'your backer does not sell equity'}`;
         const label = fld === 'buy_accels' ? 'Buy accelerators (count)' : fld === 'contract_mw' ? 'Contract power (MW)' : 'Raise a round (fraction sold)';
         const step = fld === 'buy_accels' ? 100 : fld === 'contract_mw' ? 5 : 0.01;
-        h += `<div class="order"><label>${label}${v > 0 ? ' <span class="queued">queued</span>' : ''}</label><input type="number" data-field="${fld}" data-oneshot="${fld}" min="0" step="${step}" value="${v || ''}" placeholder="0" ${o['auto_'+({buy_accels:'capex',contract_mw:'power',raise_now:'raise'})[fld]] ? 'disabled title="switch to manual first"' : ''}>
-          <div class="sizing"><div id="est-${fld}" class="est"></div>${sizing}</div><div class="why">${ex[fld]} Fires at the start of the next turn, once.</div></div>`;
+        const kind = {buy_accels: 'accels', contract_mw: 'power', raise_now: 'raise'}[fld];
+        const verb = fld === 'buy_accels' ? 'Buy now' : fld === 'contract_mw' ? 'Contract now' : 'Raise now';
+        h += `<div class="order"><label>${label}</label><span class="buyrow"><input type="number" data-oneshot="${fld}" min="0" step="${step}" placeholder="0"><button class="primary buy" data-buy="${kind}" data-from="${fld}">${verb}</button></span>
+          <div class="sizing"><div id="est-${fld}" class="est"></div>${sizing}</div><div class="why">${ex[fld].replace(/Order this many accelerators now\. |Contract this many megawatts now\. |Raise a round now, /, m => m)} The cash leaves the moment you press it; the order is at this month's prices and caps.</div></div>`;
         continue;
       }
       if (fld === 'data_buy') {
         const opts = ['<option value="">— nothing —</option>'].concat(rep.data_offers.map(d =>
           `<option value="${d.key}" ${o.data_buy===d.key?'selected':''}>${d.name} (${fmtM(d.price)})</option>`));
-        h += `<div class="order"><label>License a corpus</label><select data-field="data_buy">${opts.join('')}</select><div class="why">${ex.data_buy}</div></div>`;
+        h += `<div class="order"><label>License a corpus</label><span class="buyrow"><select id="data-now">${opts.join('')}</select><button class="primary buy" data-buy="data" data-from="data-now">License now</button></span><div class="why">Licence it now, at this month's price. Non-exclusive corpora only; exclusives go to auction below.</div></div>`;
         continue;
       }
       if (fld === 'synth_domain') {
@@ -299,6 +305,26 @@ function buildOrders() {
   host.innerHTML = h;
   host.querySelectorAll('input[data-field], select[data-field]').forEach(el => el.addEventListener('change', () => send({[el.dataset.field]: el.value})));
   host.querySelectorAll('button[data-flag]').forEach(el => el.addEventListener('click', () => send({[el.dataset.flag]: el.dataset.val === '1'})));
+  host.querySelectorAll('button[data-buy]').forEach(el => el.addEventListener('click', async () => {
+    const src = el.dataset.from;
+    const input = src === 'data-now' ? $('#data-now') : host.querySelector(`input[data-oneshot=${src}]`);
+    const amount = src === 'data-now' ? input.value : +input.value;
+    if (!amount) return;
+    el.disabled = true;
+    const j = await api('/api/buy', {kind: el.dataset.buy, amount});
+    el.disabled = false;
+    if (j.error) { setStatus(j.error, true); return; }
+    const r = j.result;
+    let msg = '';
+    if (r.kind === 'accels') msg = r.got > 0 ? `Bought ${n0(r.got)} × ${r.what} for ${money(r.cost)}, arriving in ~5 months.` : 'Nothing bought.';
+    if (r.kind === 'power') msg = r.got > 0 ? `Contracted ${f(r.got,0)} MW (${f(r.leased,0)} leased, ${f(r.built,0)} built) — ${money(r.cost)} up front.` : 'No power contracted.';
+    if (r.kind === 'raise') msg = r.got > 0 ? `Raised ${money(-r.cost)} selling ${(r.got*100).toFixed(0)}%.` : 'No round raised.';
+    if (r.kind === 'data') msg = r.got > 0 ? `Licensed ${r.what} for ${money(r.cost)}.` : 'Nothing licensed.';
+    if (r.notes && r.notes.length) msg += ' ' + r.notes.join('; ') + '.';
+    setStatus(msg, !(r.got > 0));
+    if (src !== 'data-now') input.value = '';
+    refresh(true);
+  }));
   // a live price and "what you will actually get" as you type
   host.querySelectorAll('input[data-oneshot]').forEach(el => { const upd = () => estimate(el.dataset.oneshot, +el.value || 0); el.addEventListener('input', upd); upd(); });
   host.querySelectorAll('input[data-split]').forEach(el => {

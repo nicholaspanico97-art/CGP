@@ -21,9 +21,14 @@ from .scenarios import randomized_2020, historical_2020
 from .policy import ReplayPolicy, IllegalAction, Actions
 
 
-def _run(labs, seed, months):
+def _run(labs, seed, months, now=None):
+    """`now`: immediate purchases from a log, {month: [(lab, kind, amount)]},
+    applied before that month's tick, as they were made."""
     w = World(labs, seed=seed)
+    by_name = {l.name: l for l in labs}
     for _ in range(months):
+        for who, kind, amount in (now or {}).get(w.month, []):
+            w.buy_now(by_name[who], kind, amount)
         w.step()
     return w
 
@@ -41,7 +46,11 @@ def replay(save):
     log = [(m, who, changed) for m, who, changed in save["log"]]
     for l in labs:
         l.policy = ReplayPolicy(log, l.name)
-    return _run(labs, seed, save["months"])
+    now = {}
+    for m, who, changed in log:
+        if "now" in changed:
+            now.setdefault(m, []).append((who, changed["now"]["kind"], changed["now"]["amount"]))
+    return _run(labs, seed, save["months"], now)
 
 
 def same_run(w1, w2):
@@ -100,10 +109,14 @@ def check_game(seed=7, player=2, quarters=8):
     o.comp_offer = 950e3
     for q in range(quarters):
         g.commit()
+        if q == 1:
+            g.buy_now("power", 8)
+            g.buy_now("accels", 600)
         if q == 3:
             o = g.orders
             o.price_stance = 0.8
-            o.data_buy = "code_repos"
+            g.buy_now("data", "code_repos")
+            g.buy_now("raise", 0.1)
     save = {"seed": seed, "randomized": True, "months": g.world.month,
             "log": [[m, who, c] for m, who, c in g.world.action_log]}
     save = json.loads(json.dumps(save))

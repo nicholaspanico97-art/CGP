@@ -30,7 +30,7 @@ from . import tasks as TASKS
 from . import talent as T
 from .world import World
 from .scenarios import randomized_2020, historical_2020
-from .policy import Policy, Actions, Release, RunPlan, DoctrinePolicy, validate
+from .policy import Policy, Actions, Release, RunPlan, DoctrinePolicy, validate, IllegalAction
 from . import explain as EXPL
 from . import anchors as A
 from . import economics as E
@@ -164,6 +164,14 @@ class Game:
     @property
     def over(self):
         return self.world.month >= 132
+
+    # ----------------------------------------------------- buy it now
+    def buy_now(self, kind, amount):
+        """An immediate purchase: the cash leaves now, the order is placed
+        at this month's prices and caps. Logged and replayable."""
+        if self.over:
+            raise IllegalAction("the game is over")
+        return self.world.buy_now(self.player, kind, amount)
 
     # -------------------------------------------------------- the field
     def leaderboard(self, candidate=None):
@@ -348,7 +356,7 @@ class Game:
             accel_mw=accel.watts * K.PUE / 1e6,
             fab_cap=int(K.FAB_OUTPUT_PER_MONTH.get(2020 + m // 12, 3_800_000)
                         * me.doctrine.get("supply_share", 0.2)),
-            power_headroom=me.headroom_accels(accel),
+            power_headroom=me.headroom_accels(accel, m),
             lease_cap_mw=(K.LEASE_MARKET_MW.get(2020 + m // 12, 52_000)
                           * me.doctrine.get("supply_share", 0.2)),
             dc_capex_per_mw=K.DC_CAPEX_PER_MW,

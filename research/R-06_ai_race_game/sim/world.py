@@ -527,10 +527,17 @@ class Lab:
             self.mw_pipeline.append([built, month + lead])
         return built * K.DC_CAPEX_PER_MW
 
-    def headroom_accels(self, accel):
+    def headroom_accels(self, accel, month=None, lead_months=5):
+        """
+        How many more of `accel` the power will feed: contracted power, plus
+        power in the pipeline that lands by the time the chips would - you
+        order the chips to arrive with the power, not after it.
+        """
         used = self.fleet.megawatts() + sum(
             a.megawatts(c) for a, c, _m, _p in self.orders)
-        free_mw = max(0.0, self.contracted_mw - used)
+        m = self._month if month is None else month
+        landing = sum(mw for mw, arr in self.mw_pipeline if arr <= m + lead_months + 1)
+        free_mw = max(0.0, self.contracted_mw + landing - used)
         per = accel.watts * K.PUE / 1e6
         return int(free_mw / per) if per > 0 else 0
 
@@ -648,6 +655,112 @@ class World:
                                  "evaluate": rel.evaluate if rel.ship else None,
                                  "held": held, "cap": round(candidate.capability, 3)}))
         return rel
+
+    # ------------------------------------------------------ immediate orders
+    def buy_now(self, lab, kind, amount):
+        """
+        A purchase made between ticks, at this month's prices and caps, with
+        the cash leaving now: accelerators (count), power (MW), a round
+        (fraction sold), or a non-exclusive corpus (source key). The same
+        rules as the monthly tick; logged so a replay applies it at the
+        same point. Returns what happened.
+        """
+        m = self.month
+        year = 2020 + m // 12
+        month_now = getattr(lab, "bought_now_month", None)
+        if month_now != m:
+            lab.bought_now_month, lab.bought_now = m, 0
+        out = dict(kind=kind, asked=amount, got=0, cost=0.0, notes=[])
+        if kind == "accels":
+            accel = E.best_available(m)
+            supply = K.FAB_OUTPUT_PER_MONTH.get(year, 3_800_000)
+            fab = int(supply * lab.doctrine.get("supply_share", 0.2)) - lab.bought_now
+            count = int(amount)
+            if count > fab:
+                out["notes"].append(f"clipped to {max(fab,0):,} by fab supply this month")
+                count = max(fab, 0)
+            room = lab.headroom_accels(accel, m)
+            if count > room:
+                out["notes"].append(f"clipped to {room:,}: no contracted power for more")
+                count = room
+            bought = lab.order(accel, count, m, lead_months=5) if count > 0 else 0
+            if bought < count:
+                out["notes"].append(f"clipped to {bought:,} by cash")
+            if bought > 0:
+                lab.bought_now += bought
+                lab.capex_by_year[year] = lab.capex_by_year.get(year, 0.0) + bought * accel.capex
+                lab.book(m, "capex_accelerators", -bought * accel.capex)
+            out.update(got=bought, cost=bought * accel.capex, what=accel.name,
+                       arrives=m + 5)
+        elif kind == "power":
+            lease_market = K.LEASE_MARKET_MW.get(year, 52_000)
+            cap = lease_market * lab.doctrine.get("supply_share", 0.2)
+            need = float(amount)
+            if need > cap:
+                out["notes"].append(f"clipped to {cap:,.0f} MW: all the market will lease you this year")
+                need = cap
+            share = lab.actions.lease_share
+            cost = need * (1 - share) * K.DC_CAPEX_PER_MW
+            if need <= 0:
+                pass
+            elif cost >= lab.cash * 0.45:
+                out["notes"].append(f"refused: building {need*(1-share):,.0f} MW costs "
+                                    f"${cost/1e6:,.0f}M, over 45% of cash. Lease a bigger share, or contract less")
+                need = 0.0
+            else:
+                lab.cash -= cost
+                lab.contract_power(need, m, share)
+                lab.capex_by_year[year] = lab.capex_by_year.get(year, 0.0) + cost
+                lab.book(m, "capex_datacentre", -cost)
+            out.update(got=need, cost=cost if need > 0 else 0.0,
+                       leased=need * share, built=need * (1 - share))
+        elif kind == "raise":
+            frac = float(amount)
+            can = lab.doctrine.get("can_raise", True)
+            since = m - getattr(lab, "last_raise", -99)
+            if not can:
+                out["notes"].append("your backer does not sell equity")
+            elif since < 3:
+                out["notes"].append(f"only {since} months since the last round (3 needed)")
+            elif frac > 0:
+                got = lab.valuation * frac
+                lab.cash += got
+                lab.last_raise = m
+                lab.raised = getattr(lab, "raised", 0.0) + got
+                lab.book(m, "equity_raised", got)
+                out.update(got=frac, cost=-got)
+        elif kind == "data":
+            key = str(amount)
+            src = D.DATA_SOURCES.get(key)
+            if src is None or src["exclusive"]:
+                out["notes"].append("not a corpus you can license outright")
+            elif key in lab.data.sources:
+                out["notes"].append("already licensed")
+            elif A.month_index(src["available"]) > m:
+                out["notes"].append("not on the market yet")
+            else:
+                res = D.acquire(lab.data, key, m, lab.actions.data_share)
+                dollars, flop = res
+                if dollars > lab.cash:
+                    out["notes"].append("cannot afford it")
+                    # undo the acquisition
+                    for dom, w in src["mix"].items():
+                        t = src["volume"] * lab.actions.data_share * w
+                        lab.data.tokens[dom] -= t
+                        lab.data.quality_num[dom] -= t * src["quality"]
+                    lab.data.sources.discard(key)
+                else:
+                    lab.cash -= dollars
+                    lab.book(m, "data_licences", -dollars)
+                    lab.data_flop_debt = getattr(lab, "data_flop_debt", 0.0) + flop
+                    lab.annual_data_cost = getattr(lab, "annual_data_cost", 0.0) + src["annual_cost"]
+                    out.update(got=1, cost=dollars, what=src["name"])
+        else:
+            raise POL.IllegalAction(f"unknown purchase {kind!r}")
+        self.action_log.append((m, lab.name, {"now": {"kind": kind, "amount": amount}}))
+        if out["notes"]:
+            lab.notices.append((m, f"{kind} order: " + "; ".join(out["notes"])))
+        return out
 
     def ask_run(self, lab, proposal):
         """The run question: no run is in progress; start one, or not?
@@ -1288,7 +1401,7 @@ class World:
                 lab.notices.append((m, f"accelerator order clipped to {count:,} by fab supply "
                                        f"(your share of this year's output)"))
             asked = count
-            count = min(count, lab.headroom_accels(accel))
+            count = min(count, lab.headroom_accels(accel, m))
             if not lab.actions.auto_capex and count < asked:
                 lab.notices.append((m, f"accelerator order clipped to {count:,}: no contracted power "
                                        f"for more (each {accel.name} needs {accel.watts*K.PUE/1e3:.2f} kW)"))

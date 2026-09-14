@@ -17,6 +17,8 @@ mid-quarter while the browser shows the question; the page polls `/api/state`.
   POST /api/answer   {"ship": bool, "evaluate": bool}  -> answers a release question
                      {"run": {...}} or {"wait": true}   -> answers a run question
   POST /api/preview  a run shape -> expected capability per domain, risk
+  POST /api/buy      {"kind": "accels"|"power"|"raise"|"data", "amount": ...}
+                     -> buys now; cash moves immediately
   POST /api/new      {"seed": int, "lab": int}  -> a fresh game
   POST /api/auto     hand the seat to the strategy AI
 """
@@ -325,6 +327,12 @@ class Handler(BaseHTTPRequestHandler):
                     else:
                         SESSION.answers.put(Release(bool(body.get("ship", True)),
                                                     bool(body.get("evaluate", True))))
+                elif self.path == "/api/buy":
+                    if SESSION.busy:
+                        raise IllegalAction("wait for the turn to finish")
+                    res = SESSION.game.buy_now(str(body.get("kind")), body.get("amount"))
+                    SESSION.snapshot = SESSION.game.report()
+                    return self._json({"ok": True, "result": _finite(res)})
                 elif self.path == "/api/preview":
                     if SESSION.busy and SESSION.pending is None:
                         raise IllegalAction("a turn is running")

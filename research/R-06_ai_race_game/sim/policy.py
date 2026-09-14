@@ -553,6 +553,8 @@ class ReplayPolicy(Policy):
                                              changed.get("evaluate", True)))
             elif "run" in changed:
                 self.runs.append((month, RunPlan(**changed["run"])))
+            elif "now" in changed:
+                pass                        # applied by the replay driver, not the policy
             else:
                 self.standing.append((month, changed))
         self._i = 0
