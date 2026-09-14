@@ -109,6 +109,10 @@ export.py      dump a run to JSON for the viewer
   `ReplayPolicy` has no doctrine and no observation, so a mechanic that
   reaches around the seam shows up as a divergence. Run it after any change
   to `world.py`.
+- **`behind` is a belief.** `maybe_ship` measures a finished run against
+  `lab.believed_frontier` (the central estimate; the paranoid band drives
+  spending, not dice). `BEHIND_RISK_APPETITE` was refit for that input;
+  do not "fix" it back to the world's max.
 - **A run's recipe is fixed when it is planned.** `World.ask_run` stores
   the `RunPlan` in `lab.run_plan`; `maybe_ship` reads tokens/param,
   sparsity, test-time and mixture from there, never from `lab.actions`.

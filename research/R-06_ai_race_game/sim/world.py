@@ -422,6 +422,21 @@ class Lab:
         self.annual_data_cost = (getattr(self, "annual_data_cost", 0.0)
                                  + src["annual_cost"])
 
+    def synthesize(self, month, a):
+        """
+        Spend part of the training lane making data. Returns the train
+        share left for the run. Not known before the technique existed.
+        """
+        self.synth_tokens = 0.0
+        d, share = a.synth_domain, a.synth_share
+        if (not d or share <= 0 or A.month_index(D.SYNTH_AVAILABLE) > month
+                or not self.model or self.model.caps.get(d, 0.0) <= 0):
+            return a.train
+        flop = self.fleet.train_flops() * a.train * share * K.SECONDS_PER_MONTH / 1.18
+        self.synth_tokens = D.synthesize(self.data, d, flop)
+        self.synth_domain = d
+        return a.train * (1.0 - share)
+
     def accrue_telemetry(self, month):
         """
         Usage becomes training data, in the domains your customers actually
@@ -643,6 +658,7 @@ class World:
             lab.deliver_power(m)
             lab.fleet.retire(m)
             lab.buy_data(m)
+            lab.recrawled = D.recrawl(lab.data, lab.actions.data_share)
         self._data_auction(m)
 
         for lab in self.labs:
@@ -654,14 +670,19 @@ class World:
                                        * K.SECONDS_PER_MONTH * a.extend_run_months / 1.18)
                 if a.finish_run and lab.train_bank > 0:
                     lab.run_target = lab.train_bank
-            spare = lab.train_step(m, a.train)
+            # generating data comes out of the training lane
+            train = lab.synthesize(m, a)
+            spare = lab.train_step(m, train)
             # capacity the current run cannot absorb is turned to serving,
             # which is what a lab with idle accelerators actually does
             lab.serve_frac = a.serve + spare
             lab.research_step(a.experiment)
             lab.diffuse(frontier_algo, openness=self.openness,
                         distill=self.distill.get(lab.name, 0.0))
-            fc = self.frontier_capability()
+            # what this lab BELIEVES the frontier is (its central estimate,
+            # not the paranoid band that drives its spending) - never the
+            # world's max
+            fc = getattr(lab, "believed_frontier", 0.0)
             lab.maybe_release_held(m, self)
             if lab.maybe_ship(m, fc, self) is not None:
                 # the cooldown is where post-training, evals, safety review
@@ -920,6 +941,7 @@ class World:
             lab.threat, lab.feared = INTEL.threat(lab, lab.beliefs, own)
             lab.perceived_frontier = INTEL.perceived_frontier(
                 lab.beliefs, lab.doctrine.get("paranoia", K.PARANOIA_DEFAULT))
+            lab.believed_frontier = INTEL.believed_frontier(lab.beliefs)
 
     def _talent_market(self, m):
         """

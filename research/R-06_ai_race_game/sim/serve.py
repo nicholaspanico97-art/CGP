@@ -27,7 +27,7 @@ import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from .game import Game, date
-from .policy import Release, RunPlan, IllegalAction, validate, validate_plan, _BOUNDS
+from .policy import Release, RunPlan, IllegalAction, validate, validate_plan, _BOUNDS, _FLAGS
 from . import domains as D
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -62,6 +62,8 @@ EXPLAIN = {
     "mixture": "What the next model trains on. Decides which markets it can even enter.",
     "extend_run_months": "Grow the run in progress by this many months of your fleet's training output. A bigger run, later.",
     "finish_run": "Land the run in progress on what it has banked so far. Smaller than planned, but now.",
+    "synth_domain": "Generate training data in this domain with the model you have. Amplifies a stock you hold; a domain with no data yields nothing. Known from mid-2023.",
+    "synth_share": "Share of the training lane's compute spent generating data each month. Comes straight out of the run in progress.",
     "auto_capex": "Auto: spend `capex aggression` x cash on accelerators every month. Manual: only what you order below.",
     "buy_accels": "Order this many accelerators now. Arrive in ~5 months. Capped by fab supply and your contracted power.",
     "auto_power": "Auto: keep contracted power at `power lookahead` x what you use. Manual: only what you order below.",
@@ -79,7 +81,7 @@ GROUPS = [
     ("Market", ["price_stance", "loss_leader", "chase_rate", "openness"]),
     ("People & safety", ["headcount_ambition", "comp_offer", "safety_spend", "intel_spend"]),
     ("Money", ["auto_raise", "raise_runway", "raise_fraction", "raise_now"]),
-    ("Data", ["data_share", "data_buy", "data_bids"]),
+    ("Data", ["data_share", "data_buy", "data_bids", "synth_domain", "synth_share"]),
 ]
 
 
@@ -188,9 +190,9 @@ class Session:
                 else:
                     v = {k: float(x) * 1e6 for k, x in v.items() if float(x) > 0}
                 setattr(o, f, v)
-            elif f == "data_buy":
+            elif f in ("data_buy", "synth_domain"):
                 setattr(o, f, v or None)
-            elif f in ("auto_capex", "auto_power", "auto_raise"):
+            elif f in _FLAGS:
                 setattr(o, f, bool(v))
             elif f in _BOUNDS:
                 v = float(v)

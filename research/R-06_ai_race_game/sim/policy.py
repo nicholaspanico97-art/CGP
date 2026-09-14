@@ -100,6 +100,7 @@ _BOUNDS = {
     # policy is expected to clear them. 0 = nothing.
     "buy_accels": (0, None), "contract_mw": (0.0, None), "raise_now": (0.0, 0.5),
     "extend_run_months": (0.0, 36.0),
+    "synth_share": (0.0, D.SYNTH_MAX_SHARE),
 }
 
 # switches: True = the standing rule above decides (the strategy AIs), False =
@@ -107,7 +108,7 @@ _BOUNDS = {
 # finish_run is a one-shot too: land the current run on what it has.
 _FLAGS = ("auto_capex", "auto_power", "auto_raise", "finish_run")
 
-_FIELDS = tuple(_BOUNDS) + _FLAGS + ("mixture", "data_buy", "data_bids")
+_FIELDS = tuple(_BOUNDS) + _FLAGS + ("mixture", "data_buy", "data_bids", "synth_domain")
 
 
 class Actions:
@@ -125,6 +126,9 @@ class Actions:
       data_share                   fraction of a corpus taken when licensed
       data_buy                     one non-exclusive source to license, or None
       data_bids                    {source: ceiling} for this month's auctions
+      synth_domain, synth_share    generate training data in one domain with
+                                   the model you have, spending this share of
+                                   the training lane's compute on it
       price_stance, loss_leader    margin compression; deliberate sub-cost
       headcount_ambition           hiring appetite
       comp_offer                   $/researcher/yr actually offered
@@ -210,6 +214,8 @@ def validate(actions):
         raise IllegalAction(f"mixture sums to {sum(mix.values()):.6f}, not 1")
     if actions.data_buy is not None and actions.data_buy not in D.DATA_SOURCES:
         raise IllegalAction(f"data_buy names unknown source {actions.data_buy!r}")
+    if actions.synth_domain is not None and actions.synth_domain not in D.DOMAIN_KEYS:
+        raise IllegalAction(f"synth_domain names unknown domain {actions.synth_domain!r}")
     for key, price in (actions.data_bids or {}).items():
         if key not in D.DATA_SOURCES:
             raise IllegalAction(f"data_bids names unknown source {key!r}")
@@ -328,10 +334,41 @@ class DoctrinePolicy(Policy):
                       for dom, w in src["mix"].items())
         return 1.0 + 7.0 * overlap
 
+    def _wanted_sources(self, lab):
+        """
+        The doctrine's list first, then anything else on the market that
+        fits the mixture - a rights holder who turns up in 2024 finds
+        buyers without being written into a 2020 strategy.
+        """
+        listed = list(self.p.get("data_priority", []))
+        extra = [k for k, s in D.DATA_SOURCES.items()
+                 if k not in listed
+                 and sum(lab.mixture.get(d, 0.0) * w for d, w in s["mix"].items()) >= 0.30]
+        return listed + extra
+
+    def _synth(self, lab, month):
+        """
+        Make data where the next run will be short of it. Deterministic:
+        the domain with the worst have/want for a run 1.5x the last one
+        landed, if that is under one; a tenth of the training lane.
+        """
+        if A.month_index(D.SYNTH_AVAILABLE) > month or lab.largest_run <= 0:
+            return None, 0.0
+        tpp = min(self.p.get("tokens_per_param", 20.0), 40.0)
+        tokens = math.sqrt(lab.largest_run * 1.5 / 6.0 * tpp)
+        worst, ratio = None, 1.0
+        for d, w in lab.mixture.items():
+            if w <= 0 or lab.data.tokens.get(d, 0.0) <= 0:
+                continue
+            r = lab.data.effective(d) / max(tokens * w, 1.0)
+            if r < ratio:
+                worst, ratio = d, r
+        return (worst, 0.10) if worst else (None, 0.0)
+
     def _data_buy(self, lab, month, share):
         """The one non-exclusive source to license this month, if any.
         Returns (key, price) or (None, 0.0)."""
-        for key in self.p.get("data_priority", []):
+        for key in self._wanted_sources(lab):
             if key in lab.data.sources:
                 continue
             src = D.DATA_SOURCES[key]
@@ -355,7 +392,7 @@ class DoctrinePolicy(Policy):
         """
         if source_key in lab.data.sources:
             return None
-        if source_key not in self.p.get("data_priority", []):
+        if source_key not in self._wanted_sources(lab):
             return None
         src = D.DATA_SOURCES[source_key]
         if A.month_index(src["available"]) > month:
@@ -406,6 +443,7 @@ class DoctrinePolicy(Policy):
             if b:
                 bids[key] = b
         a.data_bids = bids
+        a.synth_domain, a.synth_share = self._synth(lab, obs.month)
         a.price_stance = p.get("price_stance", 1.0)
         a.loss_leader = p.get("loss_leader", 1.0)
         a.headcount_ambition = p.get("headcount_ambition", 1.0)

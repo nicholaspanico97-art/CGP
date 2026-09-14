@@ -149,6 +149,28 @@ DATA_SOURCES = {
         exclusive=False, risk=0.0, available=(2022, 1),
         # costs FLOP rather than dollars: see SIM_FLOP_PER_TOKEN
         mix={"AGENT": 0.52, "ROBOT": 0.38, "CODE": 0.10}),
+    # The deals that followed the first lawsuits: rights holders selling
+    # what they had once the price was established.             (LOW)
+    "publisher_consortium": dict(
+        name="Publisher consortium licence", volume=4.0e11, quality=1.50,
+        annual_cost=2.2e8, one_off_cost_per_btok=0.0, lead=5,
+        exclusive=True, risk=0.05, available=(2024, 3),
+        mix={"LANG": 0.60, "REASON": 0.30, "CODE": 0.10}),
+    "scientific_data": dict(
+        name="Scientific datasets & preprints", volume=1.5e11, quality=2.20,
+        annual_cost=0.0, one_off_cost_per_btok=3.0e6, lead=3,
+        exclusive=False, risk=0.06, available=(2024, 6),
+        mix={"REASON": 0.80, "CODE": 0.10, "LANG": 0.10}),
+    "enterprise_logs": dict(
+        name="Enterprise workflow traces", volume=8.0e11, quality=1.40,
+        annual_cost=1.5e8, one_off_cost_per_btok=0.0, lead=6,
+        exclusive=True, risk=0.15, available=(2025, 1),
+        mix={"AGENT": 0.55, "CODE": 0.25, "LANG": 0.20}),
+    "teleop_robotics": dict(
+        name="Teleoperation & robot logs", volume=5.0e10, quality=1.80,
+        annual_cost=6.0e7, one_off_cost_per_btok=0.0, lead=6,
+        exclusive=True, risk=0.03, available=(2025, 6),
+        mix={"ROBOT": 0.75, "AGENT": 0.25}),
 }
 
 # Product telemetry is not purchasable. It accrues to whoever has users, in
@@ -158,10 +180,19 @@ TELEMETRY_TOKENS_PER_MTOK_SERVED = 9_000     # usable tokens per Mtok served
 TELEMETRY_QUALITY = 1.25
 
 # Synthetic data: unlimited volume, costs compute, and its quality is capped
-# by the capability of the model generating it. You cannot bootstrap past
-# yourself, but you can cheaply amplify what you already have.
+# by the data the generating model was itself trained on. You cannot
+# bootstrap past yourself, but you can cheaply amplify what you already
+# have - which is what every lab did from 2023 once fleets were large
+# enough for the generation compute to be affordable.       (MED)
 SYNTH_FLOP_PER_TOKEN = 9.0e11
-SYNTH_QUALITY_CAP = 0.92                     # of the generating model's level
+SYNTH_QUALITY_CAP = 0.92                     # of the stock's quality in that domain
+SYNTH_AVAILABLE = (2023, 6)                  # the technique is not known before this
+SYNTH_MAX_SHARE = 0.5                        # of the training lane
+
+# The web is not a fixed corpus: what can be crawled grows every year and a
+# lab that holds the crawl re-crawls. Usable text grows slower than the raw
+# web.                                                         (LOW)
+WEB_GROWTH_PER_YEAR = 0.12
 
 # Extraction cost: video and audio are not free to turn into training tokens.
 PROCESSING_FLOP_PER_TOKEN = {"video_platform": 4.0e11, "speech_corpus": 6.0e10}
@@ -253,6 +284,35 @@ class DataStock:
         return self.quality_num[domain]
 
 
+def recrawl(stock, fraction, months=1.0):
+    """
+    The web a lab already crawls keeps growing. Adds this month's growth
+    of the open crawl to a stock that holds it, in the crawl's mix and
+    quality, at the share the lab takes of it.
+    """
+    if "web_crawl" not in stock.sources:
+        return 0.0
+    s = DATA_SOURCES["web_crawl"]
+    tokens = s["volume"] * fraction * WEB_GROWTH_PER_YEAR * months / 12.0
+    for dom, w in s["mix"].items():
+        stock.add(dom, tokens * w, s["quality"])
+    return tokens
+
+
+def synthesize(stock, domain, flop):
+    """
+    Spend `flop` generating training tokens in `domain` with the model you
+    have. Quality is capped below what the model itself learned from, so
+    this amplifies a stock, it does not create one: a domain with no data
+    yields nothing. Returns tokens made.
+    """
+    if flop <= 0 or stock.tokens.get(domain, 0.0) <= 0:
+        return 0.0
+    tokens = flop / SYNTH_FLOP_PER_TOKEN
+    stock.add(domain, tokens, SYNTH_QUALITY_CAP * stock.quality(domain))
+    return tokens
+
+
 def acquire(stock, source_key, month, fraction=1.0):
     """
     Take a source into a lab's stock. Returns (dollar_cost, flop_cost).
@@ -286,6 +346,7 @@ def data_sufficiency(effective_tokens, tokens_wanted):
     raw = effective_tokens / tokens_wanted
     if raw >= 1.0:
         return 1.0
-    # epochs of repetition, with the benefit tailing off
+    # epochs of repetition, with the benefit tailing off. A sliver of data
+    # is never worse than none (the no-data floor above applies here too).
     epochs = min(MAX_USEFUL_EPOCHS, 1.0 / raw)
-    return min(1.0, raw * (1.0 + math.log(epochs)))
+    return max(0.02, min(1.0, raw * (1.0 + math.log(epochs))))

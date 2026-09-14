@@ -254,6 +254,13 @@ function buildOrders() {
         h += `<div class="order"><label>License a corpus</label><select data-field="data_buy">${opts.join('')}</select><div class="why">${ex.data_buy}</div></div>`;
         continue;
       }
+      if (fld === 'synth_domain') {
+        const opts = ['<option value="">— none —</option>'].concat(S.domains.map(d =>
+          `<option value="${d}" ${o.synth_domain===d?'selected':''}>${d}${(rep.data.domains[d]||{}).tokens > 0 ? '' : ' (no data — yields nothing)'}</option>`));
+        const made = rep.synth_tokens > 0 ? `<div class="sizing">made ${(rep.synth_tokens/1e12).toFixed(2)}T tokens of ${rep.synth_domain} last month</div>` : (rep.month < rep.synth_from ? `<div class="sizing">not known until ${rep.synth_from_date}</div>` : '');
+        h += `<div class="order"><label>Synthesize data in</label><select data-field="synth_domain">${opts.join('')}</select>${made}<div class="why">${ex.synth_domain}</div></div>`;
+        continue;
+      }
       if (fld === 'data_bids') {
         const rows = rep.data_auctions.map(d => `<div><span class="name">${d.name}<br><span class="ask">ask ${fmtM(d.price)} + ${fmtM(d.annual)}/yr</span></span>
           <input type="number" min="0" step="10" placeholder="$M" data-bid="${d.key}" value="${o.data_bids[d.key] ? f(o.data_bids[d.key],0) : ''}"></div>`);
@@ -581,7 +588,7 @@ function renderRunModal(p) {
     const pv = await api('/api/preview', read());
     if (pv.error) { $('#pl-preview').innerHTML = `<p class="behind">${pv.error}</p>`; return; }
     const cur = p.current || {};
-    let h = `<div class="kv"><div>Run size<b>${pv.flop.toExponential(2)} FLOP</b></div><div>Lands in<b>~${f(pv.months,1)} mo</b></div><div>Model<b>${(pv.params/1e9).toFixed(0)}B params</b>${(pv.active_params/1e9).toFixed(0)}B active</div><div>Serving cost<b>$${f(pv.cost_per_mtok)}/Mtok</b></div><div>Expected best<b>${f(pv.best)}</b>you sell ${cur && Object.keys(cur).length ? f(Math.max(...Object.values(cur))) : '—'} · feared ${f(p.feared)}</div></div>`;
+    let h = `<div class="kv"><div>Run size<b>${pv.flop.toExponential(2)} FLOP</b></div><div>Lands in<b>~${f(pv.months + 1,1)} mo</b>training starts next month</div><div>Model<b>${(pv.params/1e9).toFixed(0)}B params</b>${(pv.active_params/1e9).toFixed(0)}B active</div><div>Serving cost<b>$${f(pv.cost_per_mtok)}/Mtok</b></div><div>Expected best<b>${f(pv.best)}</b>you sell ${cur && Object.keys(cur).length ? f(Math.max(...Object.values(cur))) : '—'} · feared ${f(p.feared)}</div></div>`;
     const rk = pv.risk;
     h += `<p class="help">Luck: one sigma ±${f(rk.sigma_oom)} OOM · ${(rk.p_breakthrough*100).toFixed(0)}% breakthrough · ${(rk.p_dud*100).toFixed(0)}% dud. ${rk.over > 0 ? `<span class="capped">This is ${f(rk.ambition,1)}× your last landed run — past the comfortable ${f(rk.comfort,1)}×, the distribution widens.</span>` : `${f(rk.ambition,1)}× your last landed run — within the comfortable range.`}</p>`;
     if (pv.tokens_per_param_asked > pv.era_tokens_per_param + 1e-9) h += `<p class="help capped">Tokens/param capped at ${f(pv.era_tokens_per_param,0)}: the sector does not yet know how to use ${f(pv.tokens_per_param_asked,0)}.</p>`;

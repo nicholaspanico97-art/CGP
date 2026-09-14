@@ -367,8 +367,14 @@ RUN_DUD_P = 0.13               # a bet that did not transfer
 RUN_DUD_OOM = -0.30
 TALENT_VARIANCE_DAMP = 0.40    # good teams get fewer surprises in both
                                # directions - they know what works
-BEHIND_RISK_APPETITE = 0.55    # a trailing lab takes bigger architectural
-                               # swings, because parity is not good enough
+BEHIND_RISK_APPETITE = 0.25    # a trailing lab takes bigger architectural
+                               # swings, because parity is not good enough.
+                               # Was 0.55 while `behind` read the TRUE
+                               # frontier (a seam breach, v1.7); against a
+                               # lab's belief - the max of six noisy
+                               # estimates, biased high - the same
+                               # behaviour needs a smaller gain. Refit on
+                               # the checkpoint table, 5 seeds.
 SHIP_THRESHOLD_OOM = 0.035     # won't replace a shipped model for less
 SHELVE_LEARNING = 0.40         # a shelved run still teaches you something
 SHIP_JITTER_MONTHS = 3         # release timing is not a metronome

@@ -121,19 +121,29 @@ to record `model.why` at landing and to preview in the planner, so a
 difference between promise and result is the dice and nothing else.
 `domain_capability` gained an optional `detail` dict; arithmetic untouched.
 
-8. **`maybe_ship` reads the TRUE frontier.** `fc = self.frontier_capability()`
+*Findings 8, 10 and 11 were fixed in v1.7 (the model batch); 9 is
+"said so" in the planner. Measured together: checkpoints median -9
+(was -10), mean |offset| 8.5 (9.4), worst -18 (-22), 16/16 inside the
+band (15/16), order 113/120 (113); balance eleven strategies at 59-88%
+(54-89%), 85.7 lead changes (86.3), 5.7 of 7 viable (5.8). Fixing #8
+alone moved the frontier a year early: `behind` is now the max of six
+noisy beliefs, biased high, and the leader no longer rolls safe dice;
+`BEHIND_RISK_APPETITE` was refit 0.55 -> 0.25 on the checkpoint table
+(0.15 / 0.35 / 0.40 / 0.55 tried). The data changes alone were neutral.*
+
+8. **`maybe_ship` reads the TRUE frontier.** *(fixed v1.7)* `fc = self.frontier_capability()`
    is passed in as `frontier_cap` and used for `behind`, which loads the
    run's dice. The comment says "this lab's BELIEF" but it is the world's
    max. An observability-seam breach (CLAUDE.md invariant). The fix is
    `lab.perceived_frontier`; it will change realisations, so re-measure.
    `explain.risk()` already uses the belief, so the planner's stated risk
    differs slightly from the risk actually rolled until this is fixed.
-9. **A run starts the month after it is planned** - the plan is taken at
+9. **A run starts the month after it is planned** *(planner says so, v1.7)* - the plan is taken at
    the end of the tick, after `train_step`. Harmless, but the planner says
    "lands in ~3 months" and it lands in 4. Either move the ask before
    training or say so.
 
-10. **You run out of data early, and there is nowhere to get more** (Nick,
+10. **You run out of data early, and there is nowhere to get more** *(fixed v1.7)* (Nick,
     playing v1.6 with the data panel open). The market is ten sources,
     three free, none of which grow; there is no synthetic data, no
     expanding crawl, no steady flow of licensing deals, and telemetry only
@@ -146,7 +156,7 @@ difference between promise and result is the dice and nothing else.
     a `synthesize` order that spends training compute to make tokens for a
     domain at a quality set by the model you already have.
 
-11. **Pointing compute at a domain you have no data for makes it worse,
+11. *(b fixed v1.7)* **Pointing compute at a domain you have no data for makes it worse,
     and the optimum is 0.01** (Nick). Correct in direction - the share
     trains on nothing (`data_sufficiency` floor 0.02) and is taken from the
     donors it borrows from - but two things are wrong: (a) the page called

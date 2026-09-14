@@ -170,8 +170,9 @@ fire. A domain with weight zero produces no capability at all, and no
 product.
 
 ### Data is a market, not a stat
-Ten sources, each with real volume, quality, cost, lead time, legal risk,
-and a mix over domains:
+Fourteen sources, each with real volume, quality, cost, lead time, legal
+risk, and a mix over domains (the last four arrive 2024-25, the deals that
+followed the first lawsuits):
 
 | Source | Volume | Quality | Cost | Exclusive |
 |---|---|---|---|---|
@@ -185,6 +186,10 @@ and a mix over domains:
 | Speech & call-centre | 200B | 1.20 | $45M/yr | **yes** |
 | Expert annotation | 30B | **3.40** | $42M/Btok | **yes** |
 | Simulated environments | 10T | 0.95 | FLOP, not dollars | no |
+| Publisher consortium (2024) | 400B | 1.50 | $220M/yr | **yes** |
+| Scientific datasets (2024) | 150B | 2.20 | $3M/Btok | no |
+| Enterprise workflow traces (2025) | 800B | 1.40 | $150M/yr | **yes** |
+| Teleoperation & robot logs (2025) | 50B | 1.80 | $60M/yr | **yes** |
 
 Free sources yield ~15T effective language tokens — which is what real
 frontier runs use — and **exactly zero** video, audio or robotics data.
@@ -204,9 +209,20 @@ Three mechanisms make data behave like the real thing:
   competitor cannot buy into, and it is why an incumbent's lead compounds
   specifically in the segments it already leads.
 
-Synthetic data is unlimited, costs FLOP, and its quality is capped at 0.92
-of the generating model's level — you can amplify what you have, not
-bootstrap past yourself.
+**Supply is not fixed** (v1.7, after Nick ran out of data in year two of
+every game). The web a lab crawls grows 12%/yr and a holder re-crawls.
+From mid-2023 a lab can **synthesize**: spend a share of the training
+lane generating tokens in one domain with the model it has, at 0.92 of
+the quality of the data that model learned from - you amplify what you
+hold, never bootstrap past it, and a domain with no data yields nothing.
+The strategy AIs synthesize the domain their next run will be shortest
+in, a tenth of the lane; the big labs make 10^14-10^15 tokens over the
+decade, the small ones never need to. A rights holder that turns up in
+2024 finds buyers: a strategy considers any source whose mix overlaps its
+mixture by 30%, not only the list it was written with. Calibration-neutral
+(the data checkpoints did not move); the DATA strategy's "lock up the
+corpora that matter" fell from 77% to 45% because there are more corpora
+to lock up.
 
 ### Nine segments, each gated on a domain
 Gates are calibrated so a segment opens in the quarter its real product

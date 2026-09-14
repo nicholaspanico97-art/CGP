@@ -134,3 +134,11 @@ def perceived_frontier(beliefs, paranoia):
     if not beliefs:
         return 0.0
     return max(b.upper(paranoia) for b in beliefs)
+
+
+def believed_frontier(beliefs):
+    """The frontier as this lab's best guess has it - the central estimate,
+    no paranoia. What a lab measures a finished run against."""
+    if not beliefs:
+        return 0.0
+    return max(b.latent_est for b in beliefs)

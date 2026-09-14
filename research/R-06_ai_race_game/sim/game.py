@@ -32,6 +32,7 @@ from .world import World
 from .scenarios import randomized_2020, historical_2020
 from .policy import Policy, Actions, Release, RunPlan, DoctrinePolicy, validate
 from . import explain as EXPL
+from . import anchors as A
 
 MONTHS_PER_TURN = 3
 
@@ -168,7 +169,7 @@ class Game:
         ex = EXPL.explain(me, w, w.month, target_flop, tpp, moe, tt, mix)
         ex["months"] = target_flop / rate if rate > 0 else None
         ex["rate_per_month"] = rate
-        ex["risk"] = EXPL.risk(me, target_flop, getattr(me, "perceived_frontier", 0.0))
+        ex["risk"] = EXPL.risk(me, target_flop, getattr(me, "believed_frontier", 0.0))
         ex["current"] = dict(me.model.caps) if me.model else {}
         ex["feared"] = getattr(me, "perceived_frontier", 0.0)
         return ex
@@ -302,7 +303,7 @@ class Game:
             run_preview = EXPL.explain(me, w, m, me.run_target, me.run_plan.tokens_per_param,
                                        me.run_plan.moe_sparsity, me.run_plan.test_time_oom,
                                        me.run_plan.mixture)
-            run_preview["risk"] = EXPL.risk(me, me.run_target, getattr(me, "perceived_frontier", 0.0))
+            run_preview["risk"] = EXPL.risk(me, me.run_target, getattr(me, "believed_frontier", 0.0))
         return dict(
             month=m, date=date(m), turn=self.turn, name=me.name,
             why=why, run_plan=run_plan, run_preview=run_preview,
@@ -328,6 +329,8 @@ class Game:
                    if me.model else None),
             internal=(me.internal.capability if me.internal else None),
             aa=aa, table=table, run=run, largest_run=me.largest_run, cooldown=me.cooldown,
+            synth_tokens=getattr(me, "synth_tokens", 0.0), synth_domain=getattr(me, "synth_domain", None),
+            synth_from=A.month_index(D.SYNTH_AVAILABLE), synth_from_date=date(A.month_index(D.SYNTH_AVAILABLE)),
             shelved=me.shelved, algo=me.algo_mult,
             price=me.price_per_mtok, cost_per_mtok=me.serving_cost_per_mtok(),
             served=getattr(me, "served_mtok", 0.0), unmet=getattr(me, "unmet", 0.0),
