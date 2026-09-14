@@ -109,6 +109,10 @@ export.py      dump a run to JSON for the viewer
   `ReplayPolicy` has no doctrine and no observation, so a mechanic that
   reaches around the seam shows up as a divergence. Run it after any change
   to `world.py`.
+- **There is no cooldown timer.** The gap between runs is `decide_run`
+  returning "not this month" for reasons (launch prep, post-training in
+  the base, a cluster landing, not enough effective growth). Do not add a
+  timer back; if cadence is off, the reasons' constants are the knobs.
 - **`behind` is a belief.** `maybe_ship` measures a finished run against
   `lab.believed_frontier` (the central estimate; the paranoid band drives
   spending, not dice). `BEHIND_RISK_APPETITE` was refit for that input;

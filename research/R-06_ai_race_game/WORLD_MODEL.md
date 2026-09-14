@@ -285,6 +285,25 @@ jumps when something lands. One lab's language capability in a sample run
 sits at 25.22 for seven months, then a breakthrough takes it to 26.48 in a
 single release. Another sits dead flat for fourteen months in 2029.
 
+### Between runs (v1.8): no timer
+
+There is no cooldown. A lab with no run in progress is asked every month
+whether to start one. What its training lane does meanwhile, in order:
+**post-training** the model on sale (each x.N release costs
+`POST_TRAIN_FLOP_FRAC` = 12% of the base run, x1.6 per generation, plus a
+minimum `POST_TRAIN_MONTHS` = 3 of eval-loop time; the gain halves each
+time; starting a run drops the bank); then `SPARE_TO_RESEARCH` = 20% of
+what is left to experiments and the rest to serving. The strategy AIs
+wait for reasons: `LAUNCH_PREP_MONTHS` = 4 after an evaluated pretrain
+release; post-training still in the base; a delivery of 30% of the fleet
+within three months; a proposal under `NEXT_RUN_MIN_GROWTH` = 1.5x the
+last landed run in *effective* compute (FLOP x algorithmic efficiency,
+so a same-size run is worth starting once the field has learned enough).
+Fear does not shorten any of it. Cadence comes out at ~1.0 base models
+per lab-year with post-trains intact; the 1e25 checkpoint moved from
+2022-05 to 2022-09 (real: 2023-03). The player has a "start a new run"
+button and sees what the lane is doing instead, with expected payoffs.
+
 ### The x.5 release
 Between pretraining runs a lab improves what it already ships one to three
 times (drawn per base model), with each release worth about half the last

@@ -415,9 +415,22 @@ function renderDash() {
     if (pv) m += `<p class="help">Expected if the dice land average: best domain <b>${f(pv.best)}</b> (${pv.domains.filter(d=>d.weight>0).map(d=>`${d.domain} ${f(d.cap,1)}${d.data_limited?'<span class="capped">*</span>':''}`).join(' · ')}). Luck: ±${f(pv.risk.sigma_oom)} OOM one sigma, ${(pv.risk.p_breakthrough*100).toFixed(0)}% breakthrough, ${(pv.risk.p_dud*100).toFixed(0)}% dud${pv.risk.over > 0 ? ` — <span class="capped">ambitious: ${f(pv.risk.ambition,1)}× your last landed run</span>` : ''}. <span class="capped">*</span> = short of data.</p>`;
     m += `<div class="rowbtns"><label class="help">extend by <input type="number" id="extend" min="0" step="0.5" value="1" style="width:56px"> months</label><button id="extendbtn">Extend the run</button><button id="finishbtn">Land it now on what it has</button></div>
       <p class="help">Both fire at the start of the next turn. Extending keeps the same recipe; landing now makes a smaller model than planned.</p>`;
-  } else m += `<p class="dim">No run in progress (cooldown ${r.cooldown || 0} more months). Largest landed ${r.largest_run.toExponential(1)} FLOP; ${r.shelved} shelved.</p>`;
+  } else {
+    const id = r.idle, po = id.post;
+    m += `<div class="rowbtns"><button class="primary" id="startrun" ${id.start_queued ? 'disabled' : ''}>${id.start_queued ? 'Run planner opens next turn' : 'Start a new run'}</button><span class="help">Largest landed ${r.largest_run.toExponential(1)} FLOP · ${r.shelved} shelved</span></div>`;
+    m += `<p class="help" style="margin-top:8px"><b>No run in progress.</b> Your training lane (${(id.lane_flops/1e15).toFixed(1)} PF/s, ${id.lane_per_month.toExponential(2)} FLOP/month) is going to, in order:</p><ol class="help" style="margin:4px 0 0 18px;padding:0">`;
+    if (id.launch_prep > 0) m += `<li><b>Evaluation and launch</b> of the model you just shipped — ${id.launch_prep} more month${id.launch_prep>1?'s':''}. Starting a run now is allowed; the AI labs don't.</li>`;
+    if (po) {
+      const gains = Object.entries(po.gain_by_domain).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([d,g]) => `${d} +${g.toFixed(2)}`).join(', ');
+      const eta = po.months_compute == null ? '?' : Math.max(po.months_min, Math.ceil(po.months_compute));
+      m += `<li><b>Post-training x.${po.gen}</b> of the model you sell: needs ${po.need.toExponential(1)} FLOP (${(po.frac*100).toFixed(0)}% banked), ~${eta} month${eta==1?'':'s'} to go (the eval loop takes at least ${po.months_min}). Expected: ${gains}. This base has ${po.left} post-train${po.left>1?'s':''} left in it, each worth about half the last and costing more. Starting a run drops the bank.</li>`;
+    } else if (r.model) m += `<li><b>Post-training</b>: this base is done — nothing more to squeeze without a new run.</li>`;
+    m += `<li><b>Research</b>: ${id.research_flop > 0 ? `${id.research_flop.toExponential(2)} FLOP of idle lane went to experiments last month` : 'idle lane compute goes half to experiments'} — algorithmic edge ${r.algo >= 1 ? '+' : ''}${((r.algo-1)*100).toFixed(1)}% vs the field, moving ${(id.research_gain*100).toFixed(2)}%/month.</li>`;
+    m += `<li><b>Serving</b>: the rest answers customers.</li></ol>`;
+  }
   $('#model').innerHTML = m;
-  const eb = $('#extendbtn'), fb = $('#finishbtn');
+  const eb = $('#extendbtn'), fb = $('#finishbtn'), sb = $('#startrun');
+  if (sb) sb.addEventListener('click', () => send({start_run: true}));
   if (eb) eb.addEventListener('click', () => send({extend_run_months: +$('#extend').value}));
   if (fb) fb.addEventListener('click', () => send({finish_run: true}));
 

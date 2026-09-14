@@ -187,7 +187,16 @@ next session should start from; each is a model finding, not a UI one):
    a placeholder (fixed — the opening rate is now the real one), but the
    real 2020 rate of ~$370k against a per-strategy opening offer of $810k
    still reads oddly. Check `talent.market_comp` at m=0.
-6. **`ship_cooldown` is a fitted timer doing a mechanism's job** (Nick,
+*6 and 7 done in v1.8 - see WORLD_MODEL.md 2c "Between runs". Measured:
+checkpoints median -6 / mean 9.0 / worst -23 / 15 of 16 / order 110
+(was -9 / 8.5 / -18 / 16 / 113); balance 53-91% of goals, 69 lead
+changes (86: fewer runs a decade, which was the point), 5.4 of 7 viable
+(5.7), 4% runaways (8%). Two lessons paid for on the way: fear must not
+run through cadence (the constants file already said so), and idle
+compute routed to research at 0.5 of the lane made the leaders run away
+(17% runaways, 5.0 viable) - it is 0.2.*
+
+6. **`ship_cooldown` is a fitted timer doing a mechanism's job** *(fixed v1.8)* (Nick,
    playing: "shouldn't you always be training?"). It stands in for
    post-training, evals, launch, cluster build-out and recipe design, and
    it is what makes release cadence match history. Replace the timer with
@@ -197,7 +206,7 @@ next session should start from; each is a model finding, not a UI one):
    is a legal strategy with a real price. Must re-pass the cadence
    checkpoints for the *reasons*, not by the timer. Same shape as the
    run-size ceiling in `PREMISES.md`.
-7. **Post-training is not a decision.** 1-3 automatic x.5 releases per
+7. *(fixed v1.8)* **Post-training is not a decision.** 1-3 automatic x.5 releases per
    base model, free of explicit cost. Should be a player call with a
    compute and people cost (Nick asked; deferred at his request).
 5. **Frozen orders are a bad player.** Left alone from the strategy's

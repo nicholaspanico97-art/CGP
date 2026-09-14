@@ -102,11 +102,13 @@ _BOUNDS = {
     "extend_run_months": (0.0, 36.0),
     "synth_share": (0.0, D.SYNTH_MAX_SHARE),
 }
+# ship_cooldown is kept in the schema for old logs; the world no longer
+# reads it (v1.8 - the gap between runs is what the lane is doing instead)
 
 # switches: True = the standing rule above decides (the strategy AIs), False =
 # only the explicit one-shot orders do anything (a player who wants the wheel).
 # finish_run is a one-shot too: land the current run on what it has.
-_FLAGS = ("auto_capex", "auto_power", "auto_raise", "finish_run")
+_FLAGS = ("auto_capex", "auto_power", "auto_raise", "finish_run", "start_run")
 
 _FIELDS = tuple(_BOUNDS) + _FLAGS + ("mixture", "data_buy", "data_bids", "synth_domain")
 
@@ -150,6 +152,8 @@ class Actions:
                                    many months of the fleet's training output
       finish_run                   one-shot: land the run in progress on what
                                    it has banked so far
+      start_run                    one-shot (player): ask me to plan a run the
+                                   next month none is in progress
     """
 
     __slots__ = _FIELDS
@@ -303,10 +307,10 @@ class Policy:
 
     def decide_run(self, obs, proposal):
         """
-        The cooldown is over and a run can start. `proposal` is the RunPlan
-        the standing orders imply (fleet x train share x run_months; the
-        recipe and mixture in force). Return a RunPlan; target_flop 0 means
-        wait a month.
+        No run is in progress; one can start. Asked every month. `proposal`
+        is the RunPlan the standing orders imply (fleet x train share x
+        run_months; the recipe and mixture in force). Return a RunPlan;
+        target_flop 0 means not this month.
         """
         return proposal
 
@@ -464,8 +468,35 @@ class DoctrinePolicy(Policy):
         a.openness = p.get("openness", 0.1)
         a.auto_capex = a.auto_power = a.auto_raise = True
         a.buy_accels, a.contract_mw, a.raise_now = 0, 0.0, 0.0
-        a.extend_run_months, a.finish_run = 0.0, False
+        a.extend_run_months, a.finish_run, a.start_run = 0.0, False, False
         return a
+
+    def decide_run(self, obs, proposal):
+        """
+        Start the next run unless there is a reason not to: the model just
+        shipped is still being evaluated and launched; the base still has
+        post-training in it that the lane is paying for; a cluster is about
+        to land that would make the run much bigger. A lab that believes it
+        is behind does not hurry: the record says pace did not panic.
+        """
+        lab = obs.lab
+        wait = proposal.copy()
+        wait.target_flop = 0.0
+        if lab.largest_run <= 0:
+            return proposal                       # the first run: no history to wait on
+        if lab.launch_prep > 0:
+            return wait
+        # fear does not run through cadence: the record says labs did not
+        # panic about pace (see THREAT_COOLDOWN_CUT's note in constants)
+        if lab.post_need() > 0:
+            return wait                           # still post-training this base
+        soon = sum(c for _a, c, arr, _p in lab.orders if arr - obs.month <= 3)
+        if soon >= 0.30 * max(lab.fleet.count(), 1):
+            return wait                           # a much bigger run in a few months
+        eff = proposal.target_flop * lab.sector_algo * lab.algo_mult
+        if eff < K.NEXT_RUN_MIN_GROWTH * lab.largest_run_eff:
+            return wait                           # would not land far enough above the last
+        return proposal
 
     def _withholds(self, obs, candidate_cap):
         """
@@ -521,7 +552,7 @@ class ReplayPolicy(Policy):
                 self.releases.append(Release(changed["release"] == "ship",
                                              changed.get("evaluate", True)))
             elif "run" in changed:
-                self.runs.append(RunPlan(**changed["run"]))
+                self.runs.append((month, RunPlan(**changed["run"])))
             else:
                 self.standing.append((month, changed))
         self._i = 0
@@ -548,8 +579,10 @@ class ReplayPolicy(Policy):
         return Release(rel.ship, rel.evaluate)
 
     def decide_run(self, obs, proposal):
-        if self._k >= len(self.runs):
-            raise IllegalAction("replay ran out of run plans")
-        plan = self.runs[self._k]
-        self._k += 1
-        return plan.copy()
+        if self._k < len(self.runs) and self.runs[self._k][0] == obs.month:
+            plan = self.runs[self._k][1]
+            self._k += 1
+            return plan.copy()
+        wait = proposal.copy()
+        wait.target_flop = 0.0
+        return wait

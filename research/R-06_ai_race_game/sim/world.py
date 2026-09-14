@@ -76,6 +76,12 @@ class Lab:
         self.shelved = 0                  # runs completed but not worth shipping
         self.post_gen = 0                 # post-training releases on this base
         self.post_timer = 0
+        self.post_bank = 0.0              # compute banked toward the next x.N
+        self.post_budget = 0
+        self.launch_prep = 0              # months of evals and launch left
+        self.spare_research_flop = 0.0    # idle lane compute that went to research
+        self.largest_run_eff = 0.0        # ... in effective compute, when it landed
+        self.sector_algo = 1.0            # the public efficiency frontier, this month
         self.ships = []                   # (month, kind, tag, capability)
         self.internal = None              # built, better, deliberately unreleased
         self.elicitation = doctrine.get("elicitation", 0.42)
@@ -203,6 +209,8 @@ class Lab:
                            plan.moe_sparsity, tt, mixture, mult=mult, tag=tag)
 
         # every completed run teaches you to land a bigger one, shipped or not
+        if self.train_bank >= self.largest_run:
+            self.largest_run_eff = self.train_bank * world.algo_frontier * self.algo_mult
         self.largest_run = max(self.largest_run, self.train_bank)
         self.train_bank = 0.0
         self.run_target = None
@@ -219,6 +227,7 @@ class Lab:
         candidate = Model(f"{self.name}-{month}", cap, shape["active_params"],
                           month, caps, tag)
         candidate.why = why
+        candidate.run_flop = why["flop"]
         candidate.eval_noise = {k: self.rng_eval.gauss(0.0, TASKS.EVAL_NOISE_PTS)
                                 for k in TASKS.SUITES}
         # The interrupt: the run has landed and the lab is asked, with the
@@ -236,8 +245,10 @@ class Lab:
         self.model = candidate
         self.internal = None
         self.post_gen = 0
+        self.post_bank = 0.0
         self.post_budget = REL.post_train_budget(self.rng, self.researcher_quality)
         self.post_timer = K.POST_TRAIN_MONTHS + self.rng.randint(0, 2)
+        self.launch_prep = K.LAUNCH_PREP_MONTHS if rel.evaluate else 0
         self.ships.append((month, "pretrain", tag, round(max(caps.values()), 3)))
         self.scale_at_release = self.fleet.count()
         self.last_outcome = ("shipped", tag, cap)
@@ -276,8 +287,10 @@ class Lab:
         self.model = self.internal
         self.internal = None
         self.post_gen = 0
+        self.post_bank = 0.0
         self.post_budget = REL.post_train_budget(self.rng, self.researcher_quality)
         self.post_timer = K.POST_TRAIN_MONTHS
+        self.launch_prep = K.LAUNCH_PREP_MONTHS if rel.evaluate else 0
         self.ships.append((month, "pretrain", "held",
                            round(max(self.model.caps.values()), 3)))
         self._launch_eval(rel, cap)
@@ -289,21 +302,50 @@ class Lab:
                          "LANG": 0.60, "ROBOT": 0.50, "AUDIO": 0.30,
                          "IMAGE": 0.25, "VIDEO": 0.20}
 
+    def post_need(self):
+        """Compute the next post-training release on this base costs."""
+        if not self.model or self.post_gen >= getattr(self, "post_budget", 0):
+            return 0.0
+        base = getattr(self.model, "run_flop", 0.0) or self.largest_run
+        return (K.POST_TRAIN_FLOP_FRAC * (K.POST_TRAIN_COST_GROWTH ** self.post_gen)
+                * base)
+
+    def post_step(self, spare_frac, months=1.0):
+        """
+        Idle training-lane compute goes to post-training first. Returns the
+        share of the lane still idle after that.
+        """
+        self.spare_research_flop = 0.0
+        need = self.post_need() - self.post_bank
+        if need <= 0 or spare_frac <= 0:
+            return spare_frac
+        capacity = self.fleet.train_flops() * spare_frac * K.SECONDS_PER_MONTH * months / 1.18
+        used = min(capacity, need)
+        self.post_bank += used
+        if capacity <= 0:
+            return 0.0
+        return spare_frac * (1.0 - used / capacity)
+
     def maybe_post_train(self, month):
         """
         The x.5 release. Between pretraining runs a lab can improve what it
         already ships two or three times, with sharply diminishing returns.
         This is what gives a release history its real shape: a big jump, a
-        couple of small ones, then a big jump.
+        couple of small ones, then a big jump. It is paid for in compute
+        (`post_step`) and takes a minimum of calendar time.
         """
         if not self.model or self.post_gen >= getattr(self, "post_budget", 0):
             return None
         self.post_timer -= 1
         if self.post_timer > 0:
             return None
+        need = self.post_need()
+        if self.post_bank < need:
+            return None
         gain = REL.post_train_gain(self.post_gen)
         if gain <= 0:
             return None
+        self.post_bank -= need
         for dom, c in list(self.model.caps.items()):
             if c > 0:
                 self.model.caps[dom] = c + gain * self.POST_TRAIN_WEIGHT.get(dom, 0.5)
@@ -608,14 +650,18 @@ class World:
         return rel
 
     def ask_run(self, lab, proposal):
-        """The run interrupt: the cooldown is over; what is the next run?"""
+        """The run question: no run is in progress; start one, or not?
+        Only a start is logged - a wait is the default."""
         plan = lab.policy.decide_run(self.observe(lab), proposal)
         POL.validate_plan(plan)
-        self.action_log.append((self.month, lab.name, {"run": plan.to_dict()}))
+        if plan.target_flop > 1e18:
+            self.action_log.append((self.month, lab.name, {"run": plan.to_dict()}))
         return plan
 
     def _decide(self, m):
         """observe -> decide -> apply, for every lab, once a month."""
+        for lab in self.labs:
+            lab.sector_algo = self.algo_frontier        # public
         # the going rate for people is public; every lab prices against it
         supply = T.global_researcher_pool(m)
         demand = sum(l.researchers for l in self.labs)
@@ -673,10 +719,14 @@ class World:
             # generating data comes out of the training lane
             train = lab.synthesize(m, a)
             spare = lab.train_step(m, train)
-            # capacity the current run cannot absorb is turned to serving,
-            # which is what a lab with idle accelerators actually does
-            lab.serve_frac = a.serve + spare
-            lab.research_step(a.experiment)
+            # capacity the current run cannot absorb goes to post-training
+            # the model on sale, then half to experiments and half to
+            # serving - what a lab with idle accelerators actually does
+            spare = lab.post_step(spare)
+            to_research = spare * K.SPARE_TO_RESEARCH
+            lab.spare_research_flop = lab.fleet.train_flops() * to_research * K.SECONDS_PER_MONTH
+            lab.serve_frac = a.serve + spare - to_research
+            lab.research_step(a.experiment + to_research)
             lab.diffuse(frontier_algo, openness=self.openness,
                         distill=self.distill.get(lab.name, 0.0))
             # what this lab BELIEVES the frontier is (its central estimate,
@@ -684,27 +734,26 @@ class World:
             # world's max
             fc = getattr(lab, "believed_frontier", 0.0)
             lab.maybe_release_held(m, self)
-            if lab.maybe_ship(m, fc, self) is not None:
-                # the cooldown is where post-training, evals, safety review
-                # and launch prep happen - it is not idle time. The policy
-                # chose the length; the world adds its own jitter.
-                jitter = lab.rng.randint(-1, K.SHIP_JITTER_MONTHS)
-                lab.cooldown = max(1, int(round(lab.actions.ship_cooldown + jitter)))
+            lab.maybe_ship(m, fc, self)
             lab.maybe_post_train(m)
+            if lab.launch_prep > 0:
+                lab.launch_prep -= 1
+            # No timer between runs (v1.8). A lab with no run in progress is
+            # asked every month; the policy waits for its own reasons -
+            # post-training still in the base, launch prep, a cluster about
+            # to land - or does not.
             if lab.run_target is None:
-                if lab.cooldown > 0:
-                    lab.cooldown -= 1
-                else:
-                    target = self._next_run_size(lab, m)
-                    if target > 1e18:
-                        plan = self.ask_run(lab, POL.RunPlan(
-                            target, a.tokens_per_param, a.moe_sparsity,
-                            a.test_time_oom, lab.mixture))
-                        if plan.target_flop > 1e18:
-                            lab.run_target = plan.target_flop
-                            lab.run_plan = plan
-                            if lab.largest_run > 0:
-                                lab.ambition = plan.target_flop / lab.largest_run
+                target = self._next_run_size(lab, m)
+                if target > 1e18:
+                    plan = self.ask_run(lab, POL.RunPlan(
+                        target, a.tokens_per_param, a.moe_sparsity,
+                        a.test_time_oom, lab.mixture))
+                    if plan.target_flop > 1e18:
+                        lab.run_target = plan.target_flop
+                        lab.run_plan = plan
+                        lab.post_bank = 0.0          # the lane is the run's now
+                        if lab.largest_run > 0:
+                            lab.ambition = plan.target_flop / lab.largest_run
 
         # The frontier moves because labs did research this month. Automated
         # research feeds straight into this, which is how the loop closes and

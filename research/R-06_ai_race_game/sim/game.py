@@ -34,6 +34,7 @@ from .policy import Policy, Actions, Release, RunPlan, DoctrinePolicy, validate
 from . import explain as EXPL
 from . import anchors as A
 from . import economics as E
+from . import release as REL
 
 MONTHS_PER_TURN = 3
 
@@ -66,10 +67,23 @@ class PlayerPolicy(Policy):
         # one-shots fire once - the first month they are in force - then clear
         self.orders.buy_accels, self.orders.contract_mw, self.orders.raise_now = 0, 0.0, 0.0
         self.orders.extend_run_months, self.orders.finish_run = 0.0, False
+        # start_run is cleared when the question is actually asked
         return out
 
     def decide_run(self, obs, proposal):
-        plan = proposal if self.ask_run is None else self.ask_run(obs, proposal)
+        """Asked every month there is no run. The player is only interrupted
+        when they pressed 'start a new run' (a one-shot); otherwise the lane
+        keeps post-training, researching and serving."""
+        first = obs.lab.largest_run <= 0 and not obs.lab.ships
+        if self.ask_run is None:
+            plan = proposal
+        elif first or (self.orders is not None and self.orders.start_run):
+            if self.orders is not None:
+                self.orders.start_run = False
+            plan = self.ask_run(obs, proposal)
+        else:
+            plan = proposal.copy()
+            plan.target_flop = 0.0
         if plan.target_flop > 0:
             self.runs.append((obs.month, plan))
         return plan
@@ -349,6 +363,26 @@ class Game:
         )
 
         board, _ = self.leaderboard()
+        # --- between runs: what the training lane is doing instead
+        o = self.orders
+        lane = me.fleet.train_flops() * o.train * K.SECONDS_PER_MONTH / 1.18
+        need = me.post_need()
+        post = None
+        if me.model and me.post_gen < getattr(me, "post_budget", 0):
+            gain = REL.post_train_gain(me.post_gen)
+            post = dict(
+                gen=me.post_gen + 1, left=getattr(me, "post_budget", 0) - me.post_gen,
+                need=need, bank=me.post_bank, frac=(me.post_bank / need if need > 0 else 1.0),
+                months_compute=((need - me.post_bank) / lane if lane > 0 else None),
+                months_min=max(0, me.post_timer),
+                gain_by_domain={d: gain * w for d, w in me.POST_TRAIN_WEIGHT.items()
+                                if me.model.caps.get(d, 0) > 0},
+                gain=gain)
+        idle = dict(lane_flops=me.fleet.train_flops() * o.train, lane_per_month=lane,
+                    research_flop=getattr(me, "spare_research_flop", 0.0),
+                    research_gain=getattr(me, "last_research", 0.0),
+                    launch_prep=me.launch_prep, post=post,
+                    start_queued=bool(o.start_run))
         why = getattr(me.model, "why", None) if me.model else None
         run_plan = me.run_plan.to_dict() if me.run_plan else None
         run_preview = None
@@ -359,7 +393,7 @@ class Game:
             run_preview["risk"] = EXPL.risk(me, me.run_target, getattr(me, "believed_frontier", 0.0))
         return dict(
             month=m, date=date(m), turn=self.turn, name=me.name,
-            why=why, run_plan=run_plan, run_preview=run_preview, board=board,
+            why=why, run_plan=run_plan, run_preview=run_preview, board=board, idle=idle,
             data=EXPL.data_holdings(me),
             ledger_q=ledger_q, ledger_all=ledger_all, shopping=shopping,
             arriving=arriving, run_eta=run_eta, turn_months=self.last_months,
@@ -381,7 +415,7 @@ class Game:
                         caps=dict(me.model.caps), gen=me.model.generation)
                    if me.model else None),
             internal=(me.internal.capability if me.internal else None),
-            aa=aa, table=table, run=run, largest_run=me.largest_run, cooldown=me.cooldown,
+            aa=aa, table=table, run=run, largest_run=me.largest_run,
             synth_tokens=getattr(me, "synth_tokens", 0.0), synth_domain=getattr(me, "synth_domain", None),
             synth_from=A.month_index(D.SYNTH_AVAILABLE), synth_from_date=date(A.month_index(D.SYNTH_AVAILABLE)),
             shelved=me.shelved, algo=me.algo_mult,
@@ -506,7 +540,6 @@ class Game:
             ("moe_sparsity", f"{o.moe_sparsity:.1f}"),
             ("test_time_oom", f"{o.test_time_oom:.2f}  (inference-time compute, in OOM)"),
             ("mixture", " ".join(f"{d} {w:.2f}" for d, w in sorted(o.mixture.items(), key=lambda x: -x[1]))),
-            ("ship_cooldown", f"{o.ship_cooldown:.1f} months between runs"),
             ("chase_rate", f"{o.chase_rate:.2f}  (0-1: effort on the published numbers)"),
             ("price_stance", f"{o.price_stance:.2f}  (1 = cost-plus at market markup; lower = thinner margin)"),
             ("loss_leader", f"{o.loss_leader:.2f}  (below 1 = deliberately below cost)"),

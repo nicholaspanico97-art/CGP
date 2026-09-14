@@ -387,7 +387,28 @@ POST_TRAIN_GAIN_OOM = 0.155
 POST_TRAIN_DECAY = 0.55
 POST_TRAIN_MAX = 3             # ceiling; how many a given base model
                                # actually gets is drawn per model
-POST_TRAIN_MONTHS = 2
+POST_TRAIN_MONTHS = 3          # the eval loop takes calendar time whatever
+                               # the compute; minimum per release
+# Post-training is paid for in compute, out of the training lane, so it
+# competes with the next run (v1.8; this replaced the ship_cooldown timer).
+# Each release costs this fraction of the base run, growing per generation
+# as the gain shrinks - RL and data-generation budgets were ~10-30% of
+# pretraining by 2024-25.                                        (MED)
+POST_TRAIN_FLOP_FRAC = 0.12
+POST_TRAIN_COST_GROWTH = 1.6
+# Evaluation, red-teaming and launch after a pretrain release, during which
+# a lab does not start its next run (it is using its people; the player may
+# skip it).                                                       (MED)
+LAUNCH_PREP_MONTHS = 4
+# Idle training compute: what is not needed for post-training goes half to
+# experiments, half to serving.                                   (LOW)
+SPARE_TO_RESEARCH = 0.2
+# A lab does not start a frontier run that would not land meaningfully
+# above the last one; it waits for the fleet (or the recipes) to grow.
+# Measured in EFFECTIVE compute - FLOP x algorithmic efficiency - so a
+# same-size run is worth starting once the field has learned enough.
+# Real successive frontier runs were 3-10x apart in raw FLOP.    (MED)
+NEXT_RUN_MIN_GROWTH = 1.5
 
 # Scenario dial. 1.0 is the historical-realism setting. Higher values widen
 # run variance and speed diffusion, producing a more contested race at some
