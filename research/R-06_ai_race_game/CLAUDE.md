@@ -16,6 +16,7 @@ Python. Read this first, then `WORLD_MODEL.md`.
 | `BENCHMARKS_PROPOSAL.md` | Why benchmarks work the way they do, with outcome notes |
 | `WORLD_STATE.md` | The world outside the labs: blocs, supply, capital, mood — initial parameters and the anchors they must reproduce before acting |
 | `HARDWARE.md` | The supply chain: foundries, memory, chip designers with their own books; rules, anchors, first measurement |
+| `ECONOMY.md` | Four blocs and demand as a labour market; parameters, anchors, first reading (observed; the switch waits on finding 12) |
 
 `PAPER_PROTOTYPE.md` is superseded; kept for its kill-gate discipline only.
 
@@ -82,6 +83,7 @@ explain.py     why a model is what it is: the capability chain, itemised
 geo.py         the world outside the labs (v1.9: observed, not yet acting)
 hardware.py    foundries, memory, chip designers (v1.10: observed, not yet acting)
 hardware_checkpoints.py  the supply chain's instrument
+econ.py        four blocs, demand as a labour market (v1.11: observed, not yet acting)
 play.py        terminal front end for game.py; `--auto N` watches autopilot
 serve.py       local web dashboard (viewer/play.html) on top of game.py; stdlib only
 objectives.py  what each strategy is trying to do; how success is scored

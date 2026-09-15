@@ -187,6 +187,16 @@ next session should start from; each is a model finding, not a UI one):
    a placeholder (fixed — the opening rate is now the real one), but the
    real 2020 rate of ~$370k against a per-strategy opening offer of $810k
    still reads oddly. Check `talent.market_comp` at m=0.
+12. **The sim's capability runs ~15 points (a year and a half) early,
+    and the demand curve was fitted on top of it.** Exposed by the
+    labour-market demand model (v1.11, `ECONOMY.md` 6): pinned to the
+    real GPT-4 = 100, it gives ~10x the calibrated spend curve in
+    2023-25 because the sim is at 113 in 2023. The capability checkpoints
+    have said -10 to -18 months since v1.0; the spend curve absorbed it.
+    Fix at the source - the reasoning multiplier or the algo-efficiency
+    track are the candidates - then re-fit `SPEND_*` and flip
+    `DEMAND_MODEL`. Until then the labour model is observed only.
+
 *v1.8.1: purchases are instant (`World.buy_now`; accelerators, power,
 a round, a corpus) - cash moves when the button is pressed, logged and
 replayed before the tick. Power headroom for chip orders now counts

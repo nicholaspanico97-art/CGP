@@ -410,6 +410,7 @@ class Game:
             month=m, date=date(m), turn=self.turn, name=me.name,
             why=why, run_plan=run_plan, run_preview=run_preview, board=board, idle=idle,
             geo=w.geo.snapshot(), my_bloc=GEO.bloc_of(me), hardware=w.hardware.snapshot(),
+            economy=(w.economy.snapshot() if w.economy.last else None),
             data=EXPL.data_holdings(me),
             ledger_q=ledger_q, ledger_all=ledger_all, shopping=shopping,
             arriving=arriving, run_eta=run_eta, turn_months=self.last_months,

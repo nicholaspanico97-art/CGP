@@ -160,6 +160,11 @@ class Session:
             "trust": r["trust"], "debt": r["safety_debt"], "accels": r["accels"],
             "researchers": r["researchers"], "valuation": r["valuation"],
             "board": {row["name"]: row["aa"] for row in r["board"]},
+            "econ": ({"labour": r["economy"]["labour_spend"], "capability": r["economy"]["capability_spend"],
+                      "revenue": r["economy"]["sector_revenue"], "score": r["economy"]["c_score"],
+                      "growth": {b: v["growth"] for b, v in r["economy"]["blocs"].items()},
+                      "unemp": {b: v["unemployment"] for b, v in r["economy"]["blocs"].items()}}
+                     if r.get("economy") else None),
             "hw": {"lead": {d["name"]: d["lead_months"] for d in r["hardware"]["designers"]},
                    "share": {d["name"]: d["share"] for d in r["hardware"]["designers"]},
                    "price": {d["name"]: d["price"] for d in r["hardware"]["designers"]},
