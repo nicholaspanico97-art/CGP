@@ -3,6 +3,21 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.25 — the world acts on the labs (Sep 15 2026)
+WORLD_STATE.md 5, steps 1, 3 and 5. A lab's chip supply is the
+industry's packaging capacity reaching its bloc at that bloc's access
+share (a China-bloc lab under controls gets 15% of foreign output plus
+the domestic fab; the table fallback is gone). A round raises more in a
+hot venture market and less in a cold one (appetite index); the
+infrastructure debt that funds gigawatt builds shrinks as the policy
+rate rises. And a bloc's regulatory stance raises the bar on agentic
+products for its own labs (the EU after the Act). Timing: median -6 /
+mean 5.4 (best yet) / worst -16 / 16 of 16 / order 112; magnitude
+2.05x; balance 51-95% of goals, 5.5 of 7 viable, 8% runaways, 87 lead
+changes. *Files: `Hardware.sellable_per_month`, `_resolve_market`
+(lift_for), `_procure` (rounds, debt), `constants` BLOC_REGULATION_WEIGHT,
+APPETITE_ROUND_GAIN, RATE_DEBT_SENSITIVITY.*
+
 ## v1.24 — a market opens when it is worth something (Sep 15 2026)
 Two "market opens" checkpoints fired the month a lab first cleared the
 capability gate; they now ask for a market worth $250M/yr (the API

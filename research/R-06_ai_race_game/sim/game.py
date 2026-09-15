@@ -363,8 +363,7 @@ class Game:
         shopping = dict(
             accel=accel.name, accel_capex=mkt_price, list_price=accel.capex,
             accel_mw=accel.watts * K.PUE / 1e6,
-            fab_cap=int((w.hardware.sellable_per_month(GEO.bloc_of(me))
-                         or K.FAB_OUTPUT_PER_MONTH.get(2020 + m // 12, 3_800_000))
+            fab_cap=int(w.hardware.sellable_per_month(GEO.bloc_of(me))
                         * me.doctrine.get("supply_share", 0.2)),
             power_headroom=me.headroom_accels(accel, m),
             lease_cap_mw=(K.LEASE_MARKET_MW.get(2020 + m // 12, 52_000)

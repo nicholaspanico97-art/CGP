@@ -9,6 +9,8 @@ order-of-magnitude number for **January 2020**, tagged HIGH / MED / LOW
 like `sim/anchors.py`; the exogenous tracks run to 2025 on the record and
 are projected after.
 
+**v1.25 status: acting on all five fronts of §5** - compute access through the hardware tier's per-bloc supply, power (v1.17), capital (rounds by appetite, debt by rate), demand (the labour model, v1.21), regulation per bloc. Each is a first cut with LOW-confidence constants; the anchors in §6 are the next thing to build as an instrument. *Earlier status notes follow.*
+
 **v1.17 status: partly acting.** Step 2 of §5 is wired: a lab's
 datacentre build lead is the greater of the greenfield build and its
 bloc's interconnect queue (the US 24→48-month track), plus commissioning;

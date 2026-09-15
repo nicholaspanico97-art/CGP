@@ -451,6 +451,14 @@ BRIDGE_DISCOUNT = 0.70          # a down round, at this fraction of the
 #                 labs' share of what the world pays for AI
 DEMAND_MODEL = "labour"
 
+# The world acting on the labs (v1.25, WORLD_STATE.md 5 steps 1, 3, 5)
+BLOC_REGULATION_WEIGHT = 0.6    # a bloc's own stance, added to the sector
+                                # scalar for labs that live there     (LOW)
+APPETITE_ROUND_GAIN = 0.20      # a round raises x (0.8 + this x appetite),
+                                # clipped [0.7, 1.5]                  (LOW)
+RATE_DEBT_SENSITIVITY = 6.0     # debt headroom x (1 - this x (rate - 2%)),
+                                # floored at 0.4                      (LOW)
+
 # How much a strategy weighs perf per dollar over the incumbent's software
 # moat when it buys chips (v1.23). The cost-led and open labs shop; the
 # rest pay for the ecosystem.                                       (LOW)

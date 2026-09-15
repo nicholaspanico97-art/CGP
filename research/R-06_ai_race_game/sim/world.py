@@ -728,7 +728,7 @@ class World:
             if isinstance(amount, dict):
                 supplier = amount.get("supplier")
                 amount = amount.get("count", 0)
-            supply = self.hardware.sellable_per_month(GEO.bloc_of(lab)) or K.FAB_OUTPUT_PER_MONTH.get(year, 3_800_000)
+            supply = self.hardware.sellable_per_month(GEO.bloc_of(lab))
             fab = int(supply * lab.doctrine.get("supply_share", 0.2)) - lab.bought_now
             count = int(amount)
             if count > fab:
@@ -1058,9 +1058,16 @@ class World:
             # Regulation raises the bar on products that act in the world,
             # and a lab that caused a severe incident is barred from them.
             agentic = seg_key in ("enterprise_agents", "robotics", "coding")
-            lift = (K.REGULATION_GATE_LIFT * self.regulation) if agentic else 0.0
+            def lift_for(l):
+                if not agentic:
+                    return 0.0
+                # the sector's scalar plus the lab's own bloc's stance
+                # (the EU after the Act gates agents harder for EU labs)
+                bloc = self.geo.blocs.get(GEO.bloc_of(l), {})
+                return K.REGULATION_GATE_LIFT * (self.regulation
+                                                 + K.BLOC_REGULATION_WEIGHT * bloc.get("regulation", 0.0))
             eligible = [l for l in serving
-                        if all(l.perceived_caps().get(dd, 0.0) >= th + lift
+                        if all(l.perceived_caps().get(dd, 0.0) >= th + lift_for(l)
                                for dd, th in D.SEGMENTS[seg_key]["gates"].items())
                         and not (agentic and m < getattr(l, "deploy_restricted_until", -1))]
             if not eligible:
@@ -1517,7 +1524,9 @@ class World:
                        else f"only {since} months since the last round (3 needed)")
                 lab.notices.append((m, f"round not raised: {why}"))
             if dilution > 0:
-                amount = lab.valuation * dilution
+                # venture appetite scales what a round raises (the 2021 and
+                # 2023-25 windows against the 2022 trough)
+                amount = lab.valuation * dilution * max(0.7, min(1.5, 0.8 + K.APPETITE_ROUND_GAIN * self.geo.appetite))
                 lab.cash += amount
                 lab.last_raise = m
                 lab.raised = getattr(lab, "raised", 0.0) + amount
@@ -1550,7 +1559,10 @@ class World:
             # against contracted revenue through SPVs and vendor credit, not
             # out of equity. This is what unlocked the gigawatt era.
             if m >= A.month_index((2024, 6)) and lab.arr > 5e8:
-                capacity = lab.arr * lab.doctrine.get("debt_multiple", 3.0)
+                # rates price the debt: headroom shrinks as the policy rate
+                # rises above 2%
+                capacity = (lab.arr * lab.doctrine.get("debt_multiple", 3.0)
+                            * max(0.4, 1.0 - K.RATE_DEBT_SENSITIVITY * (self.geo.rate - 0.02)))
                 drawn = getattr(lab, "debt_drawn", 0.0)
                 headroom = max(0.0, capacity - drawn)
                 if headroom > 0 and runway < 30:
@@ -1594,7 +1606,7 @@ class World:
             # is itself the signal that worries everyone else
             aggression = lab.actions.capex_aggression
             lab.effective_aggression = aggression
-            supply = self.hardware.sellable_per_month(GEO.bloc_of(lab)) or supply_table
+            supply = self.hardware.sellable_per_month(GEO.bloc_of(lab))
             lab.fab_cap = int(supply * lab.doctrine.get("supply_share", 0.2))
             # what this lab buys: the seller the market's rule picks for its
             # bloc, at that seller's price and lead (v1.23); the year's-best

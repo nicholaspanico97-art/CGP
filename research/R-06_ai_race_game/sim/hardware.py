@@ -360,9 +360,12 @@ class Hardware:
         for f in self.foundries.values():
             if f.packaging_k <= 0:
                 continue
-            if bloc == "China" and f.bloc != "China" and access.get("China", 1.0) < 0.5:
-                continue                    # controls: only the domestic fab
-            total += f.packaging_k * 1e3 * CHIPS_PER_PACKAGING_WAFER
+            cap = f.packaging_k * 1e3 * CHIPS_PER_PACKAGING_WAFER
+            if bloc is not None and f.bloc != bloc:
+                # a foreign fab's output reaches this bloc at its access
+                # share (export controls, licence regimes) - WORLD_STATE.md 1
+                cap *= access.get(bloc, 1.0)
+            total += cap
         return total * 0.8
 
     def offers(self, bloc, m=None):

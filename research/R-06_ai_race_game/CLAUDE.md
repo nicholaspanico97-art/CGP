@@ -151,11 +151,13 @@ export.py      dump a run to JSON for the viewer
 
 ## Current state
 
-Timing 16/16 inside ±18 months, median offset −2, mean |offset| 6.2.
-Order 113/120. Magnitude 1.83x weighted. Eleven strategies score 36–100%
-on their own goals. ~84 lead changes per run, 8% runaways, 5.5 of 7 labs
-viable at 2030; labs can die (0-2 acquisitions a decade). See
-`CHANGELOG.md` for the v1.12-1.18 batch.
+Timing 16/16 inside ±18 months, median offset −6, mean |offset| 5.4.
+Order 112/120. Magnitude 2.05x weighted (power 1.33x). Eleven strategies
+score 51–95% on their own goals. ~87 lead changes per run, 8% runaways,
+5.5 of 7 labs viable at 2030; labs can die. Demand comes from the four
+blocs' labour markets; the AI labs buy in the hardware market; the world
+state acts on compute access, power, capital and regulation. See
+`CHANGELOG.md` for the v1.12-1.25 batches.
 Safety incidents fire with the intended severity gradient: nothing severe is
 possible before agentic capability exists, and by 2028–30 severe is ~6% of
 incidents. Every decision goes through the seam; replay is bit-identical.
