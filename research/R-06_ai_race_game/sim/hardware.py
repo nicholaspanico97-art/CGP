@@ -14,14 +14,14 @@ import math
 from . import constants as K
 from . import anchors as A
 
-WAFER_USABLE_MM2 = 15_000.0     # 300 mm wafer, after yield on a reticle-sized die
-PACKAGING_COST = 1_500.0        # $/chip, advanced packaging and test
+WAFER_USABLE_MM2 = 10_000.0     # 300 mm wafer, after yield on a reticle-sized die
+PACKAGING_COST = 2_500.0        # $/module: packaging, test, board, cooling
 CHIPS_PER_PACKAGING_WAFER = 32  # interposer wafers per month -> chips
 GEN_COST_0 = 1.2e9              # R&D to land the first next generation
 GEN_COST_GROWTH = 1.6
-GEN_MIN_MONTHS = 20
-PERF_STEP_SAME_NODE = 1.5
-PERF_STEP_NEW_NODE = 2.2
+GEN_MIN_MONTHS = 24
+PERF_STEP_SAME_NODE = 2.0
+PERF_STEP_NEW_NODE = 2.8
 WATT_STEP = 1.35
 
 
@@ -202,7 +202,7 @@ class Hardware:
             "Aurex": Designer("Aurex", "US", [
                 Chip("AX-1", _mi(2017, 5), V, 300, 32, 815, 0),
                 Chip("AX-2", _mi(2020, 5), A100, 400, 40, 826, 0)],
-                rd_rate=0.25, margin=0.60, foundry="Tessera", stickiness=1.5),
+                rd_rate=0.25, margin=0.65, foundry="Tessera", stickiness=1.5),
             "Vega Silicon": Designer("Vega Silicon", "US", [
                 Chip("KS-1", _mi(2018, 6), 90.0, 300, 32, 700, 0)],
                 rd_rate=0.35, margin=0.40, foundry="Tessera", rd_floor=1.5e9),
@@ -256,13 +256,17 @@ class Hardware:
         hbm = self.hbm_price()
         sellers = [d for d in self.designers.values() if d.for_sale and d.current(m)]
         orders = {name: 0.0 for name in self.designers}
-        # orders placed with a named supplier (the player) go straight to it
+        # orders placed with a named supplier go straight to it; the rest
+        # of what was wanted (turned away by supply) queues by the rule
+        named = 0.0
         for lab in world.labs:
             for name, n in (getattr(lab, "bought_from_month", None) or {}).items():
                 if name in orders:
                     orders[name] += n
+                    named += n
             lab.bought_from_month = {}
-        for b, n in wanted_by_bloc.items():          # orders wanted queue with a seller
+        for b, n in wanted_by_bloc.items():
+            n = max(0.0, n - named * (wanted_by_bloc[b] / max(self.wanted_chips, 1.0)))
             elig = [d for d in sellers if self._may_sell(d, b, access)]
             if not elig:
                 continue
@@ -380,6 +384,30 @@ class Hardware:
                             share=d.share, backlog=d.backlog))
         out.sort(key=lambda o: -o["perf_per_dollar"])
         return out
+
+    def choose(self, bloc, m=None, price_sensitivity=0.0):
+        """
+        The seller a buyer in `bloc` picks this month: best score on perf
+        per dollar, lead time and the incumbent's software moat - the same
+        scoring the tier allocates demand with, taken deterministically.
+        `price_sensitivity` (0-1) is the buyer's: a cost-led lab weighs
+        perf per dollar more and the moat less. Returns (designer, chip,
+        price, lead) or None if nobody may sell.
+        """
+        best = None
+        ps = max(0.0, min(1.0, price_sensitivity))
+        for o in self.offers(bloc, m):
+            if not o["allowed"]:
+                continue
+            d = self.designers[o["designer"]]
+            score = (2.0 * (1.0 + ps) * math.log(o["perf_per_dollar"]) - 0.15 * o["lead_months"]
+                     + d.stickiness * (1.0 - ps))
+            if best is None or score > best[0]:
+                best = (score, o)
+        if best is None:
+            return None
+        o = best[1]
+        return self.designers[o["designer"]], self.designers[o["designer"]].current(m or self.month), o["price"], o["lead_months"]
 
     def _may_sell(self, d, bloc, access):
         if d.sells_to is not None:

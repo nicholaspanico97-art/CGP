@@ -1,21 +1,21 @@
 HARDWARE CHECKPOINTS  (the supply chain, fed the sim's order flow, vs the record)
 
 historical roster, seed 0
-  PASS  Incumbent share >= 75% each year 2020-24                   2020:93% 2021:88% 2022:82% 2023:82% 2024:83%
-  FAIL  Lead time peaks >= 9 mo in 2023-24, back under 6 within 18 mo peak 11.0 mo at 2024-07, min after 6.6
-  FAIL  Packaging >= 60k/mo by end 2025 and >= 8x the 2022 level   2022 11k -> 2025 44k (4.0x)
-  PASS  HBM price >= 1.8x the 2022 level during 2024               2022 $23 -> 2024 peak $49 (2.1x)
-  FAIL  Challenger within 15% on perf/W with >= 10% share in 2024-25 best perf/W ratio 0.80, share then 18%
+  PASS  Incumbent share >= 75% each year 2020-24                   2020:96% 2021:84% 2022:83% 2023:87% 2024:85%
+  FAIL  Lead time peaks >= 9 mo in 2023-24, back under 6 within 18 mo peak 11.0 mo at 2024-07, min after 11.0
+  PASS  Packaging >= 60k/mo by end 2025 and >= 8x the 2022 level   2022 11k -> 2025 99k (9.0x)
+  PASS  HBM price >= 1.8x the 2022 level during 2024               2022 $22 -> 2024 peak $49 (2.3x)
+  FAIL  Challenger within 15% on perf/W with >= 10% share in 2024-25 best perf/W ratio 0.80, share then 21%
   PASS  After Oct 2023 China-bloc demand is served by Huaxin only  no China-bloc lab on this roster
-  FAIL  Leading-edge wafers +25% by end 2026                       120k -> 120k (1.00x)
+  PASS  Leading-edge wafers +25% by end 2026                       120k -> 150k (1.25x)
 
 randomised roster, seed 7
-  FAIL  Incumbent share >= 75% each year 2020-24                   2020:93% 2021:88% 2022:82% 2023:82% 2024:65%
-  FAIL  Lead time peaks >= 9 mo in 2023-24, back under 6 within 18 mo peak 7.7 mo at 2025-12, min after nan
-  FAIL  Packaging >= 60k/mo by end 2025 and >= 8x the 2022 level   2022 11k -> 2025 44k (4.0x)
+  PASS  Incumbent share >= 75% each year 2020-24                   2020:95% 2021:92% 2022:83% 2023:91% 2024:88%
+  FAIL  Lead time peaks >= 9 mo in 2023-24, back under 6 within 18 mo peak 11.0 mo at 2025-04, min after 11.0
+  FAIL  Packaging >= 60k/mo by end 2025 and >= 8x the 2022 level   2022 11k -> 2025 11k (1.0x)
   PASS  HBM price >= 1.8x the 2022 level during 2024               2022 $16 -> 2024 peak $49 (3.1x)
-  PASS  Challenger within 15% on perf/W with >= 10% share in 2024-25 best perf/W ratio 1.31, share then 46%
+  FAIL  Challenger within 15% on perf/W with >= 10% share in 2024-25 best perf/W ratio 0.80, share then 14%
   PASS  After Oct 2023 China-bloc demand is served by Huaxin only  no China-bloc lab on this roster
-  FAIL  Leading-edge wafers +25% by end 2026                       120k -> 120k (1.00x)
+  PASS  Leading-edge wafers +25% by end 2026                       120k -> 150k (1.25x)
 
   some anchors FAIL - see HARDWARE.md 6

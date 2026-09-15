@@ -451,6 +451,12 @@ BRIDGE_DISCOUNT = 0.70          # a down round, at this fraction of the
 #                 labs' share of what the world pays for AI
 DEMAND_MODEL = "labour"
 
+# How much a strategy weighs perf per dollar over the incumbent's software
+# moat when it buys chips (v1.23). The cost-led and open labs shop; the
+# rest pay for the ecosystem.                                       (LOW)
+PRICE_SENSITIVITY = {"COST": 0.8, "OPEN": 0.5, "FOLLOWER": 0.6, "DATA": 0.3,
+                     "VERTICAL": 0.3, "SOVEREIGN": 0.4}
+
 # Scenario dial. 1.0 is the historical-realism setting. Higher values widen
 # run variance and speed diffusion, producing a more contested race at some
 # cost in fidelity - the realism/fun trade, made explicit and tunable.

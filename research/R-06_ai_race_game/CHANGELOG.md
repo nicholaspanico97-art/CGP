@@ -3,6 +3,22 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.23 — the AI labs buy in the hardware market (Sep 15 2026)
+HARDWARE.md 5 step 2, for the AIs: each lab's standing capex rule now
+buys from the seller the market's own rule picks for its bloc (perf per
+dollar, lead time, the incumbent's moat), at that seller's price and
+lead - the year's-best table is used only when nobody may sell to it.
+Strategies differ in price sensitivity (cost-led and open labs shop; the
+rest pay for the ecosystem), so the challenger gets real customers. The
+tier's unit economics were brought to the record on the way (yield on
+reticle-sized dies, module cost, a 65% base margin: an A100-class at
+$14k in 2020, a B200-class at $34k in 2025) and its generation cadence
+tamed (24 months minimum, 2.0x / 2.8x steps). Incumbent 79-87%,
+challenger ~20%. Sector instrument: timing mean 7.1 / worst -20 / 15 of
+16 / order 114; magnitude 2.08x (power 1.30x). Hardware anchors 9 of
+14 lines - the best yet. *Files: `Hardware.choose`, `World._procure`,
+`constants.PRICE_SENSITIVITY`.*
+
 ## v1.22 — the rest of the world's AI load (Sep 15 2026)
 The power anchors count all AI load; the sim's seven labs were the
 sector, so power ran 1.5-2.4x under all along. The AI spend the labs do

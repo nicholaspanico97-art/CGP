@@ -14,8 +14,9 @@ the backlog runs. Step 2 is wired for the player (v1.16): the compute panel's "b
 lists every seller's current chip at its price and lead time, greyed
 where export controls forbid it; an order placed with a named seller
 lands in that designer's backlog (`Hardware.offers`, `buy_now` with a
-supplier). The strategy AIs still buy the year's best chip, so
-calibration is untouched. Step 3 is wired (v1.19): the chips the industry can deliver each month
+supplier). The strategy AIs buy in the same market from v1.23 (`Hardware.choose`,
+with a per-strategy price sensitivity), so the tier is now load-bearing
+for calibration. Step 3 is wired (v1.19): the chips the industry can deliver each month
 come from the tier's packaging capacity (`Hardware.sellable_per_month`)
 instead of a table by year, and that capacity grows on the demand the
 labs *wanted*, including what was turned away - orders queue with a

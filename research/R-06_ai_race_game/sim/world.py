@@ -1584,6 +1584,18 @@ class World:
             lab.effective_aggression = aggression
             supply = self.hardware.sellable_per_month(GEO.bloc_of(lab)) or supply_table
             lab.fab_cap = int(supply * lab.doctrine.get("supply_share", 0.2))
+            # what this lab buys: the seller the market's rule picks for its
+            # bloc, at that seller's price and lead (v1.23); the year's-best
+            # table only if nobody may sell to it
+            chosen = self.hardware.choose(GEO.bloc_of(lab), m,
+                                          K.PRICE_SENSITIVITY.get(lab.doctrine.get("strategy", ""), 0.2))
+            if chosen is not None:
+                designer, chip, price, lead = chosen
+                accel = chip.as_accelerator(price)
+                lab.supplier = designer.name
+            else:
+                accel, price, lead = E.best_available(m), *self.market_terms(E.best_available(m))
+                lab.supplier = None
             if lab.actions.auto_capex:
                 # spend only what is beyond the runway floor: nobody puts
                 # half their cash into chips at nine months of runway
@@ -1608,6 +1620,10 @@ class World:
                                        f"for more (each {accel.name} needs {accel.watts*K.PUE/1e3:.2f} kW)"))
             if count > 0:
                 bought = lab.order(accel, count, m, lead_months=lead, price=price)
+                if getattr(lab, "supplier", None):
+                    bf = getattr(lab, "bought_from_month", None) or {}
+                    bf[lab.supplier] = bf.get(lab.supplier, 0) + bought
+                    lab.bought_from_month = bf
                 lab.accels_bought_month = getattr(lab, "accels_bought_month", 0) + bought
                 if not lab.actions.auto_capex and bought < count:
                     lab.notices.append((m, f"accelerator order clipped to {bought:,} by cash"))
