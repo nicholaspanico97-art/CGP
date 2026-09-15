@@ -3,6 +3,16 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.29 — a higher bar for the next run (Sep 15 2026)
+`NEXT_RUN_MIN_GROWTH` 1.5 -> 2.0 (effective compute over the last landed
+run): swept 1.5 / 2.0 / 2.5. Timing median -4 / mean 5.2 (best yet) /
+worst -15 / 16 of 16 / order 114; magnitude 1.96x; cadence 0.95 base
+models per lab-year. The 2022 outlier (a hyperscaler running 1.4e25 in
+April 2022, 6x PaLM) remains - it is one lab with 300k chips taking
+allowed 4x steps from a large first run; the anchor compares the
+world's largest run to the reported frontier, which was not always the
+largest trained. Left for review.
+
 ## v1.28 — one generation at a time (Sep 15 2026)
 The 2022 and 2024 frontier-run outliers were single labs jumping 7-10x
 in one run - physically possible with their fleets, never done in the

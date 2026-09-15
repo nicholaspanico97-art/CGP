@@ -427,7 +427,7 @@ SPARE_TO_RESEARCH = 0.2
 # Measured in EFFECTIVE compute - FLOP x algorithmic efficiency - so a
 # same-size run is worth starting once the field has learned enough.
 # Real successive frontier runs were 3-10x apart in raw FLOP.    (MED)
-NEXT_RUN_MIN_GROWTH = 1.5
+NEXT_RUN_MIN_GROWTH = 2.0
 
 # A lab that cannot pay does not keep operating (v1.13, finding 1). After
 # this many consecutive months of negative cash with no round closed it is
