@@ -36,6 +36,7 @@ from . import anchors as A
 from . import economics as E
 from . import release as REL
 from . import geo as GEO
+from . import objectives as OBJ
 
 MONTHS_PER_TURN = 3
 
@@ -413,6 +414,23 @@ class Game:
                     research_gain=getattr(me, "last_research", 0.0),
                     launch_prep=me.launch_prep, post=post,
                     start_queued=bool(o.start_run))
+        # --- your charter: the goals your strategy is scored on, same as the AIs
+        snap = OBJ.snapshot(w)
+        score, detail, mets = OBJ.evaluate(me, w, snap)
+        others = []
+        for l in w.labs:
+            if l is me:
+                continue
+            sc, _d, _m = OBJ.evaluate(l, w, snap)
+            others.append(dict(name=l.name, strategy=l.doctrine.get("strategy_name", l.doctrine.get("strategy", "")), score=sc))
+        charter = dict(strategy=me.doctrine.get("strategy_name", me.doctrine.get("strategy", "")),
+                       key=me.doctrine.get("strategy", ""), score=score,
+                       goals=[dict(label=lbl, frac=fr) for lbl, fr in detail],
+                       field=sorted(others, key=lambda x: -x["score"]),
+                       rank_rev=1 + sum(1 for l in w.labs if l is not me and l.arr > me.arr),
+                       rank_cap=1 + sum(1 for l in w.labs if l is not me and l.model and me.model
+                                        and max(l.model.caps.values()) > max(me.model.caps.values())),
+                       labs=len(w.labs))
         why = getattr(me.model, "why", None) if me.model else None
         run_plan = me.run_plan.to_dict() if me.run_plan else None
         run_preview = None
@@ -423,7 +441,7 @@ class Game:
             run_preview["risk"] = EXPL.risk(me, me.run_target, getattr(me, "believed_frontier", 0.0))
         return dict(
             month=m, date=date(m), turn=self.turn, name=me.name,
-            why=why, run_plan=run_plan, run_preview=run_preview, board=board, idle=idle,
+            why=why, run_plan=run_plan, run_preview=run_preview, board=board, idle=idle, charter=charter,
             dead=(dict(date=date(me.dead[0]), how=me.dead[1]) if me.dead else None),
             graveyard=[dict(name=l.name, date=date(l.dead[0]), how=l.dead[1]) for l in w.graveyard],
             geo=w.geo.snapshot(), my_bloc=GEO.bloc_of(me), hardware=w.hardware.snapshot(),

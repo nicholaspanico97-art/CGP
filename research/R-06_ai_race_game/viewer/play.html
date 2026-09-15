@@ -204,6 +204,7 @@
       <section class="panel"><h2>Markets</h2><div id="markets"></div></section>
       <section class="panel"><h2>Compute, people, safety</h2><div id="ops"></div></section>
     </div>
+    <section class="panel"><h2>Your charter</h2><div id="charter"></div></section>
     <section class="panel"><h2>The field — published index (AA)</h2><div id="board"></div></section>
     <section class="panel"><h2>Why your model is what it is</h2><div id="why"></div></section>
     <div class="row2">
@@ -629,6 +630,14 @@ function renderDash() {
   if (r.graveyard.length) rv += `<p class="help">Gone: ${r.graveyard.map(g => `${g.name} (${g.how}, ${g.date})`).join('; ')}.</p>`;
   rv += `<p class="help">Compute is training throughput in <b>H100-equivalents</b> (one H100 at its usual utilisation = 1). Rivals' figures are read off power siting and shipments, so they are noisy and lag; spend on intel to narrow them.</p>`;
   $('#rivals').innerHTML = rv;
+  const ch = r.charter;
+  if (ch) {
+    let c = `<p>You play the <b>${ch.strategy}</b>. Its goals, scored the way every AI lab's are; the decade ends with a legacy report on them. Now: <b>${(ch.score*100).toFixed(0)}%</b>${S.over ? ' — final' : ''}. #${ch.rank_rev} of ${ch.labs} by revenue, #${ch.rank_cap} by capability.</p><table>`;
+    for (const gl of ch.goals) c += `<tr><td>${gl.label}</td><td class="n mono" style="width:120px"><div style="background:var(--soft);border-radius:3px;height:10px;position:relative"><div style="width:${(gl.frac*100).toFixed(0)}%;height:100%;background:${gl.frac >= 0.8 ? 'var(--good)' : gl.frac >= 0.4 ? 'var(--accent)' : 'var(--them)'};border-radius:3px"></div></div></td><td class="n mono">${(gl.frac*100).toFixed(0)}%</td></tr>`;
+    c += `</table><p class="help">The others on their own charters: ${ch.field.map(x => `${x.name} (${x.strategy}) ${(x.score*100).toFixed(0)}%`).join(' · ')}.</p>`;
+    if (S.over) c = `<div class="note"><b>The decade is over.</b> ${r.dead ? `Your company ended: ${r.dead.how}, ${r.dead.date}.` : `You finished #${ch.rank_rev} by revenue and #${ch.rank_cap} by capability, with ${money(r.cash)} in the bank and a ${money(r.valuation)} valuation.`} Charter score <b>${(ch.score*100).toFixed(0)}%</b>.</div>` + c;
+    $('#charter').innerHTML = c;
+  }
   $('#board').innerHTML = bars(r.board) + `<p class="help">Published scores only — what Artificial Analysis would print. A quiet lab's bar is stale; a hoarder's is a lie. Your row is your own published number.</p>`;
 
   // markets

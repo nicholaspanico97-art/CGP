@@ -3,6 +3,14 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.32 — your charter (Sep 15 2026)
+ROADMAP item 6. The player is scored on their strategy's goals exactly
+as the AI labs are (`objectives.evaluate`): a "Your charter" panel with
+each goal's progress bar, your rank by revenue and capability, and the
+others' scores on their own charters. When the decade ends (or your
+company does) the panel becomes the legacy report. *Files:
+`Game.report` (charter), `viewer/play.html`.*
+
 ## v1.31 — deals with the chip designers (Sep 15 2026)
 HARDWARE.md 4, first cut. On the Hardware tab: **prepay for slots** (a
 deposit reserves chips at today's price with a 3-month lead for a year,
