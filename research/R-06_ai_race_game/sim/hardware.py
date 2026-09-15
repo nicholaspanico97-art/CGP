@@ -14,12 +14,18 @@ import math
 from . import constants as K
 from . import anchors as A
 
+
+def GEO_bloc(lab):
+    from . import geo as GEO
+    return GEO.bloc_of(lab)
+
 WAFER_USABLE_MM2 = 10_000.0     # 300 mm wafer, after yield on a reticle-sized die
 PACKAGING_COST = 2_500.0        # $/module: packaging, test, board, cooling
 CHIPS_PER_PACKAGING_WAFER = 32  # interposer wafers per month -> chips
 GEN_COST_0 = 1.2e9              # R&D to land the first next generation
 GEN_COST_GROWTH = 1.6
 GEN_MIN_MONTHS = 24
+IN_HOUSE_COST_MULT = 1.7        # unit cost x this = what an owner's chip costs it
 PERF_STEP_SAME_NODE = 2.0
 PERF_STEP_NEW_NODE = 2.8
 WATT_STEP = 1.35
@@ -108,7 +114,7 @@ class Foundry:
         # ~x19 from 2020 to 2025, demand-driven)
         # ... and it is built on forecast, not on saturation: three months
         # above 70% is enough
-        if self.packaging_k > 0 and len(self.pkg_util_hist) >= 3 and min(self.pkg_util_hist[-3:]) > 0.70                 and sum(1 for _l, k, _d in self.pending if k == "pkg") < 3:
+        if self.packaging_k > 0 and len(self.pkg_util_hist) >= 3 and min(self.pkg_util_hist[-3:]) > 0.80                 and sum(1 for _l, k, _d in self.pending if k == "pkg") < 2:
             self.pending.append((m + 12, "pkg", self.packaging_k * 1.0))
         self.booked_wafers = 0.0
         self.booked_pkg = 0.0
@@ -207,8 +213,10 @@ class Hardware:
                 Chip("KS-1", _mi(2018, 6), 90.0, 300, 32, 700, 0)],
                 rd_rate=0.35, margin=0.40, foundry="Tessera", rd_floor=1.5e9),
             "Lattice": Designer("Lattice", "US", [
-                Chip("LT-3", _mi(2019, 1), 110.0, 250, 32, 650, 0)],
-                rd_rate=0.30, margin=0.0, foundry="Tessera", for_sale=False),
+                Chip("LT-3", _mi(2019, 1), 140.0, 250, 32, 650, 0),
+                Chip("LT-4", _mi(2020, 6), 275.0, 300, 32, 700, 0)],
+                rd_rate=0.30, margin=0.0, foundry="Tessera", for_sale=False,
+                rd_floor=2.5e9),
             "Huaxin": Designer("Huaxin", "China", [
                 Chip("HX-1", _mi(2019, 6), 45.0, 320, 16, 600, -1)],
                 rd_rate=0.30, margin=0.35, foundry="Jinhua", sells_to=("China",), rd_floor=1.0e9),
@@ -329,7 +337,7 @@ class Hardware:
                     d.margin = min(0.75, d.margin + 0.02)
                 elif d.lead_months < 3:
                     d.margin = max(0.25, d.margin - 0.02)
-            # R&D
+            # R&D (an in-house designer's comes from its owner: the floor)
             best_ppw = max(x.current(m).perf_per_watt() for x in self.designers.values() if x.current(m))
             behind = c.perf_per_watt() < best_ppw * 0.999
             rd = max(rev * d.rd_rate, d.rd_floor / 12.0) * (1.5 if behind else 1.0)
@@ -387,6 +395,48 @@ class Hardware:
                             share=d.share, backlog=d.backlog))
         out.sort(key=lambda o: -o["perf_per_dollar"])
         return out
+
+    def start_program(self, lab, m):
+        """A lab funds its own chip programme; it lands in CHIP_PROGRAM_YEARS."""
+        if getattr(lab, "chip_program", None):
+            return False
+        lab.chip_program = dict(started=m, lands=m + 12 * K.CHIP_PROGRAM_YEARS, paid=0.0)
+        return True
+
+    def program_step(self, lab, m):
+        """Pay for the programme; on landing, the lab owns a designer."""
+        prog = getattr(lab, "chip_program", None)
+        if not prog or prog.get("done"):
+            return 0.0
+        cost = K.CHIP_PROGRAM_COST_YR / 12.0
+        prog["paid"] += cost
+        if m >= prog["lands"]:
+            inc = self.designers["Aurex"].current(m)
+            name = f"{lab.name} Silicon"
+            self.designers[name] = Designer(name, GEO_bloc(lab), [
+                Chip(f"{lab.name[:3].upper()}-1", m, inc.peak_tflops * K.CHIP_PROGRAM_START_LAG,
+                     inc.watts, inc.hbm_gb, inc.die_mm2, inc.node)],
+                rd_rate=0.30, margin=0.0, foundry="Tessera", for_sale=False,
+                rd_floor=K.CHIP_PROGRAM_COST_YR)
+            self.designers[name].owner = lab.name
+            prog["done"] = True
+            lab.own_designer = name
+        return cost
+
+    def own_offer(self, lab, m=None):
+        """The lab's own chip at cost, if it has a designer."""
+        name = getattr(lab, "own_designer", None)
+        if not name or name not in self.designers:
+            return None
+        d = self.designers[name]
+        c = d.current(m or self.month)
+        if c is None:
+            return None
+        # at cost plus the programme's R&D amortised: about two thirds of
+        # what the incumbent charges, not the bare bill of materials
+        price = d.unit_cost(m or self.month, self.foundries, self.hbm_price()) * IN_HOUSE_COST_MULT
+        lead = int(round(max(3.0, min(14.0, d.lead_months))))
+        return d, c, price, lead
 
     def choose(self, bloc, m=None, price_sensitivity=0.0):
         """

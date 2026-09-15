@@ -3,24 +3,24 @@ CHECKPOINT TIMING  (5 seeds, band +/-18 months)
   checkpoint                                 real       sim   offset   spread
   A GPT-3-class model exists            2020-062020-08       +2        0
   A paid model API exists               2020-072020-08       +1        2
-  Broad-knowledge score reaches 70      2022-042021-07       -9        7
-  A consumer assistant market opens     2022-112022-12       +1       17
-  A 1e25 FLOP training run              2023-032022-10       -5       11
-  Broad knowledge reaches 86            2023-032022-07       -8       24
-  Sector revenue passes $1B/yr          2023-062023-06       +0       14
+  Broad-knowledge score reaches 70      2022-042021-07       -9       11
+  A consumer assistant market opens     2022-112023-02       +3       21
+  A 1e25 FLOP training run              2023-032022-01      -14       14
+  Broad knowledge reaches 86            2023-032022-02      -13       23
+  Sector revenue passes $1B/yr          2023-062023-07       +1       20
   1 GW of AI load                       2023-122023-06       -6        5
-  Software-issue solving reaches 25%    2024-062023-10       -8        7
-  Graduate science reaches 78           2024-122024-06       -6        8
-  A 1e26 FLOP training run              2024-122024-03       -9        8
-  Sector revenue passes $10B/yr         2025-032024-09       -6        3
-  A 100k-accelerator coherent cluster   2025-032025-04       +1       12
-  An enterprise agent market opens      2025-062024-02      -16        5
-  10 GW of AI load                      2025-122025-12       +0       14
-  Sector revenue passes $60B/yr         2026-062027-03       +9       15
+  Software-issue solving reaches 25%    2024-062023-09       -9        7
+  Graduate science reaches 78           2024-122024-01      -11       12
+  A 1e26 FLOP training run              2024-122024-01      -11        9
+  Sector revenue passes $10B/yr         2025-032024-10       -5       10
+  A 100k-accelerator coherent cluster   2025-032024-07       -8        4
+  An enterprise agent market opens      2025-062023-12      -18        8
+  10 GW of AI load                      2025-122025-07       -5        9
+  Sector revenue passes $60B/yr         2026-062026-07       +1        6
 
-  median offset   -6 months   (positive = sim runs late)
-  mean |offset|   5.4 months
-  worst           -16 months
+  median offset   -7 months   (positive = sim runs late)
+  mean |offset|   7.3 months
+  worst           -18 months
   inside +/-18     16/16 checkpoints
 
   ORDER: 112/120 pairs in the right sequence  (8 inversions)

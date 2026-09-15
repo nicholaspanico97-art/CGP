@@ -312,7 +312,9 @@ function buildOrders() {
         const step = fld === 'buy_accels' ? 100 : fld === 'contract_mw' ? 5 : 0.01;
         const kind = {buy_accels: 'accels', contract_mw: 'power', raise_now: 'raise'}[fld];
         const verb = fld === 'buy_accels' ? 'Buy now' : fld === 'contract_mw' ? 'Contract now' : 'Raise now';
-        const supplier = fld === 'buy_accels' ? `<div class="sizing" style="grid-column:1/-1"><label class="help">buy from <select id="supplier"><option value="">the year's best (${sh.accel}, $${n0(sh.accel_capex)}, ${sh.accel_lead_months} mo)</option>${(sh.offers||[]).map(o => `<option value="${o.designer}" ${o.allowed ? '' : 'disabled'}>${o.designer} \u2014 ${o.chip}, ${o.tflops >= 1000 ? (o.tflops/1000).toFixed(1)+' PF' : o.tflops.toFixed(0)+' TF'}, ${money(o.price)}, ${o.lead_months} mo${o.allowed ? '' : ' (export controls)'}</option>`).join('')}</select></label></div>` : '';
+        const prog = sh.chip_program;
+        const progLine = fld === 'buy_accels' ? (sh.own_offer ? `<div class="sizing" style="grid-column:1/-1">Your own silicon: <b>${sh.own_offer.chip}</b> (${sh.own_offer.tflops >= 1000 ? (sh.own_offer.tflops/1000).toFixed(1)+' PF' : sh.own_offer.tflops.toFixed(0)+' TF'}) at cost, ${money(sh.own_offer.price)} each, ${sh.own_offer.lead_months} mo.</div>` : (prog ? `<div class="sizing" style="grid-column:1/-1">Chip programme under way: ${money(prog.paid)} paid, lands ${dtm(prog.lands)}.</div>` : `<div class="sizing" style="grid-column:1/-1"><button class="buy" data-buy="chip_program" data-from="none">Start a chip programme</button> <span class="help">${money(sh.chip_program_cost_yr)}/yr for ${sh.chip_program_years} years; then your own chips at cost, a generation behind the incumbent to start.</span></div>`)) : '';
+        const supplier = fld === 'buy_accels' ? `${progLine}<div class="sizing" style="grid-column:1/-1"><label class="help">buy from <select id="supplier"><option value="">the year's best (${sh.accel}, $${n0(sh.accel_capex)}, ${sh.accel_lead_months} mo)</option>${sh.own_offer ? `<option value="own">your own ${sh.own_offer.chip} at cost (${money(sh.own_offer.price)}, ${sh.own_offer.lead_months} mo)</option>` : ''}${(sh.offers||[]).map(o => `<option value="${o.designer}" ${o.allowed ? '' : 'disabled'}>${o.designer} \u2014 ${o.chip}, ${o.tflops >= 1000 ? (o.tflops/1000).toFixed(1)+' PF' : o.tflops.toFixed(0)+' TF'}, ${money(o.price)}, ${o.lead_months} mo${o.allowed ? '' : ' (export controls)'}</option>`).join('')}</select></label></div>` : '';
         h += `<div class="order"><label>${label}</label><span class="buyrow"><input type="number" data-oneshot="${fld}" min="0" step="${step}" placeholder="0"><button class="primary buy" data-buy="${kind}" data-from="${fld}">${verb}</button></span>${supplier}
           <div class="sizing"><div id="est-${fld}" class="est"></div>${sizing}</div><div class="why">${ex[fld].replace(/Order this many accelerators now\. |Contract this many megawatts now\. |Raise a round now, /, m => m)} The cash leaves the moment you press it; the order is at this month's prices and caps.</div></div>`;
         continue;
@@ -348,8 +350,8 @@ function buildOrders() {
   host.querySelectorAll('button[data-flag]').forEach(el => el.addEventListener('click', () => send({[el.dataset.flag]: el.dataset.val === '1'})));
   host.querySelectorAll('button[data-buy]').forEach(el => el.addEventListener('click', async () => {
     const src = el.dataset.from;
-    const input = src === 'data-now' ? $('#data-now') : host.querySelector(`input[data-oneshot=${src}]`);
-    const amount = src === 'data-now' ? input.value : +input.value;
+    const input = src === 'data-now' ? $('#data-now') : (src === 'none' ? null : host.querySelector(`input[data-oneshot=${src}]`));
+    const amount = src === 'data-now' ? input.value : (src === 'none' ? 1 : +input.value);
     if (!amount) return;
     el.disabled = true;
     const sup = el.dataset.buy === 'accels' && $('#supplier') ? $('#supplier').value : '';
@@ -362,9 +364,10 @@ function buildOrders() {
     if (r.kind === 'power') msg = r.got > 0 ? `Contracted ${f(r.got,0)} MW (${f(r.leased,0)} leased, ${f(r.built,0)} built) — ${money(r.cost)} up front.` : 'No power contracted.';
     if (r.kind === 'raise') msg = r.got > 0 ? `Raised ${money(-r.cost)} selling ${(r.got*100).toFixed(0)}%.` : 'No round raised.';
     if (r.kind === 'data') msg = r.got > 0 ? `Licensed ${r.what} for ${money(r.cost)}.` : 'Nothing licensed.';
+    if (r.kind === 'chip_program') msg = r.got > 0 ? `Started a ${r.what}.` : 'No programme started.';
     if (r.notes && r.notes.length) msg += ' ' + r.notes.join('; ') + '.';
     setStatus(msg, !(r.got > 0));
-    if (src !== 'data-now') input.value = '';
+    if (input && src !== 'data-now') input.value = '';
     refresh(true);
   }));
   // a live price and "what you will actually get" as you type
@@ -692,6 +695,7 @@ function rsiLine(x) {
   return `<div class="kv" style="margin:8px 0"><div>Automated research<b class="${on ? 'ok' : ''}">×${f(x.factor, 2)}</b>research throughput multiple; ceiling ×${f(x.max, 0)}</div><div>Research index<b>${cap(x.index)}</b>${to > 0 ? `${(to*10).toFixed(0)} points below where it starts to bite (${cap(x.threshold)})` : `${(-to*10).toFixed(0)} points past the threshold (${cap(x.threshold)})`}</div></div>
     <p class="help">Your best <i>built</i> model doing your research, weighted ${caps}. Comes on as a sigmoid about ${(x.width*10).toFixed(0)} points wide around the threshold${on ? `; the agents eat ${(x.tax*100).toFixed(0)}% of the experiment lane at full strength` : ''}. This is the loop that bends the late decade: it also feeds the sector's frontier, so what you build here leaks to everyone through papers and hires.</p>`;
 }
+const dtm = m => `${2020 + Math.floor(m/12)}-${String(1 + m % 12).padStart(2, '0')}`;
 function fleetTable(fl) {
   if (!fl.rows.length) return '<p class="dim">No accelerators.</p>';
   let h = `<table><tr><th>Generation</th><th class="n">Count</th><th class="n">Each</th><th class="n">Training</th><th class="n">Share</th><th class="n">H100-eq</th><th class="n">MW</th><th class="n">Bought</th><th class="n">Retires</th></tr>`;

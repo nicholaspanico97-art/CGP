@@ -459,6 +459,14 @@ APPETITE_ROUND_GAIN = 0.20      # a round raises x (0.8 + this x appetite),
 RATE_DEBT_SENSITIVITY = 6.0     # debt headroom x (1 - this x (rate - 2%)),
                                 # floored at 0.4                      (LOW)
 
+# In-house silicon (v1.26, HARDWARE.md 5 step 4): a lab can fund its own
+# chip programme - this much a year for this long - and then owns a
+# designer in the tier: chips at cost, no margin, its own foundry slots,
+# a generation behind the incumbent to start.                        (LOW)
+CHIP_PROGRAM_COST_YR = 1.5e9
+CHIP_PROGRAM_YEARS = 3
+CHIP_PROGRAM_START_LAG = 0.8    # first chip's perf vs the incumbent's current
+
 # How much a strategy weighs perf per dollar over the incumbent's software
 # moat when it buys chips (v1.23). The cost-led and open labs shop; the
 # rest pay for the ecosystem.                                       (LOW)

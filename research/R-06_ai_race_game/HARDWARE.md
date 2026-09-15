@@ -23,7 +23,10 @@ labs *wanted*, including what was turned away - orders queue with a
 seller and lapse after a year, so a backlog forms when demand runs past
 capacity and the lead time rises. The 2024 crunch now emerges: an
 11-month peak in mid-2024 with the incumbent at 82-83% through it.
-Step 4 (in-house silicon) is not wired. Late-decade supply runs a
+Step 4 (in-house silicon) is wired (v1.26): `buy_now("chip_program")`
+starts a programme; three years and $4.5B later the lab owns a designer
+(`Hardware.start_program`, `program_step`, `own_offer`) and buys its
+chips at cost x `IN_HOUSE_COST_MULT`. The AI hyperscaler owns Lattice. Late-decade supply runs a
 little tighter than the record (2025-26 frontier runs 0.5-0.8x); the
 packaging forecast rule is the knob. The tier is fed the sim's real
 order flow and checked against §6 (`results_hardware.txt`).

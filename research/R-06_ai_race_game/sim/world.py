@@ -735,7 +735,14 @@ class World:
                 out["notes"].append(f"clipped to {max(fab,0):,} by fab supply this month")
                 count = max(fab, 0)
             price, lead = self.market_terms(accel)
-            if supplier:
+            if supplier == "own":
+                own = self.hardware.own_offer(lab, m)
+                if own is None:
+                    raise POL.IllegalAction("you have no chip of your own yet")
+                designer, chip, price, lead = own
+                accel = chip.as_accelerator(price)
+                supplier = designer.name
+            elif supplier:
                 # a named seller's chip, at its price and lead, if controls allow
                 bloc = GEO.bloc_of(lab)
                 offer = next((o for o in self.hardware.offers(bloc, m) if o["designer"] == supplier), None)
@@ -802,6 +809,13 @@ class World:
                 lab.raised = getattr(lab, "raised", 0.0) + got
                 lab.book(m, "equity_raised", got)
                 out.update(got=frac, cost=-got)
+        elif kind == "chip_program":
+            if lab.cash < K.CHIP_PROGRAM_COST_YR:
+                out["notes"].append(f"a programme needs ${K.CHIP_PROGRAM_COST_YR/1e9:.1f}B a year; you have {lab.cash/1e9:.1f}B")
+            elif not self.hardware.start_program(lab, m):
+                out["notes"].append("you already have one")
+            else:
+                out.update(got=1, cost=0.0, what=f"chip programme, lands {2020 + (m + 12*K.CHIP_PROGRAM_YEARS)//12}-{1 + (m + 12*K.CHIP_PROGRAM_YEARS)%12:02d}")
         elif kind == "data":
             key = str(amount)
             src = D.DATA_SOURCES.get(key)
@@ -1474,8 +1488,8 @@ class World:
             # (the 2025 frontier) a lab is valued on revenue multiples, not
             # on what it might become. Uncapped, a 2026 lab was "worth"
             # $60T and a routine round raised trillions (v1.15.1).
-            narrative = 10 ** (lab.doctrine.get("story_cap_gain", 0.35)
-                               * max(0.0, min(own - 23.0, 6.0)))
+            narrative = min(150.0, 10 ** (lab.doctrine.get("story_cap_gain", 0.35)
+                                          * max(0.0, own - 23.0)))
             story = (lab.doctrine.get("story_value", 2.0e9) * narrative
                      * (10 ** (-0.25 * behind)))
             multiple = 20.0 + 45.0 * min(1.0, m / 72.0)   # multiples expanded
@@ -1608,11 +1622,21 @@ class World:
             lab.effective_aggression = aggression
             supply = self.hardware.sellable_per_month(GEO.bloc_of(lab))
             lab.fab_cap = int(supply * lab.doctrine.get("supply_share", 0.2))
-            # what this lab buys: the seller the market's rule picks for its
-            # bloc, at that seller's price and lead (v1.23); the year's-best
-            # table only if nobody may sell to it
-            chosen = self.hardware.choose(GEO.bloc_of(lab), m,
-                                          K.PRICE_SENSITIVITY.get(lab.doctrine.get("strategy", ""), 0.2))
+            # a chip programme is paid for monthly; when it lands the lab
+            # owns a designer (v1.26). The AI hyperscaler owns one from the
+            # start - the in-house part that already sits in the tier.
+            if lab.doctrine.get("strategy") == "HYPERSCALER" and not getattr(lab, "own_designer", None) \
+                    and getattr(self.hardware.designers.get("Lattice"), "owner", None) is None:
+                self.hardware.designers["Lattice"].owner = lab.name
+                lab.own_designer = "Lattice"
+            pc = self.hardware.program_step(lab, m)
+            if pc > 0:
+                lab.cash -= pc
+                lab.book(m, "chip_program", -pc)
+            # what this lab buys: its own chip at cost if it has one, else
+            # the seller the market's rule picks for its bloc (v1.23)
+            chosen = self.hardware.own_offer(lab, m) or self.hardware.choose(
+                GEO.bloc_of(lab), m, K.PRICE_SENSITIVITY.get(lab.doctrine.get("strategy", ""), 0.2))
             if chosen is not None:
                 designer, chip, price, lead = chosen
                 accel = chip.as_accelerator(price)

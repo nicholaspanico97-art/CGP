@@ -349,6 +349,8 @@ class Handler(BaseHTTPRequestHandler):
                     if SESSION.busy:
                         raise IllegalAction("wait for the turn to finish")
                     amount = body.get("amount")
+                    if body.get("kind") == "chip_program":
+                        amount = 1
                     if body.get("kind") == "accels" and body.get("supplier"):
                         amount = {"count": amount, "supplier": str(body["supplier"])}
                     res = SESSION.game.buy_now(str(body.get("kind")), amount)

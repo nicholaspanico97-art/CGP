@@ -3,6 +3,27 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.26 — in-house silicon (Sep 15 2026)
+HARDWARE.md 5 step 4. A lab can start a chip programme ($1.5B/yr for
+three years; a button on the compute panel) and then owns a designer in
+the tier: its chips at cost plus amortised R&D (about two thirds of the
+incumbent's price), its own foundry bookings, new generations as long as
+the money keeps coming, a generation behind to start. "Buy from: your
+own" appears once it lands. The AI hyperscaler owns the in-house
+designer that was already in the tier (Lattice, TPU-v4-class from
+mid-2020, a parent's R&D budget). On the way, a serious bug: the story
+valuation's cap was set in points, and the scale strategy's steeper
+story gain compounded to 4,000x - Vantor raised $2.3T of equity in 2025,
+built 3M chips, reached a 2028-class model, and the economy's spend and
+the world's power load ran away with it. The multiplier is now capped at
+150x. Sector instrument: timing median -7 / mean 7.3 / worst -18 / 16
+of 16 / order 112; magnitude 2.21x (frontier runs 2.9x - the
+hyperscaler's cheaper silicon buys a bigger fleet; worth a look).
+Balance 58-94%, 5.5 of 7 viable, 4% runaways. Packaging forecast rule
+tightened (80% for three months, two pending). *Files:
+`Hardware.start_program / program_step / own_offer`, `World.buy_now`
+(chip_program), `_capital_market` (the cap).*
+
 ## v1.25 — the world acts on the labs (Sep 15 2026)
 WORLD_STATE.md 5, steps 1, 3 and 5. A lab's chip supply is the
 industry's packaging capacity reaching its bloc at that bloc's access
