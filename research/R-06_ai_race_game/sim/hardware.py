@@ -423,6 +423,49 @@ class Hardware:
             lab.own_designer = name
         return cost
 
+    # ---------------------------------------------------------- deals
+    def prepay(self, lab, designer_name, dollars, m):
+        """A deposit reserves chips at today's price, short lead, for a year."""
+        d = self.designers.get(designer_name)
+        if d is None or not d.for_sale or not d.current(m):
+            raise ValueError(f"{designer_name} has nothing to reserve")
+        price = d.price(m, self.foundries, self.hbm_price())
+        chips = int(dollars / price)
+        if chips <= 0:
+            raise ValueError("that buys nothing")
+        res = getattr(lab, "reservations", None) or {}
+        r = res.get(designer_name, dict(chips=0, price=price, until=m))
+        r["chips"] += chips
+        r["price"] = price
+        r["until"] = m + K.PREPAY_TERM_MONTHS
+        res[designer_name] = r
+        lab.reservations = res
+        d.backlog += chips                  # reserved: ahead of everyone else
+        d.cash += dollars
+        return chips, price
+
+    def fund_generation(self, lab, designer_name, dollars, m):
+        """Cash into a designer's R&D; a discount and priority in return."""
+        d = self.designers.get(designer_name)
+        if d is None or not d.for_sale:
+            raise ValueError(f"{designer_name} does not take outside money")
+        d.rd_bank += dollars
+        disc = getattr(lab, "discounts", None) or {}
+        disc[designer_name] = dict(pct=K.FUND_GEN_DISCOUNT, until=m + K.FUND_GEN_TERM_MONTHS)
+        lab.discounts = disc
+        return d.rd_bank, d.gen_cost
+
+    def deal_terms(self, lab, designer_name, price, lead, m):
+        """Apply this lab's deals with a designer to an offer's price and lead."""
+        disc = (getattr(lab, "discounts", None) or {}).get(designer_name)
+        if disc and m < disc["until"]:
+            price *= (1.0 - disc["pct"])
+            lead = min(lead, 4)
+        res = (getattr(lab, "reservations", None) or {}).get(designer_name)
+        if res and m < res["until"] and res["chips"] > 0:
+            lead = min(lead, K.PREPAY_LEAD_MONTHS)
+        return price, lead
+
     def own_offer(self, lab, m=None):
         """The lab's own chip at cost, if it has a designer."""
         name = getattr(lab, "own_designer", None)

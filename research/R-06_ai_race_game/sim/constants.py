@@ -464,6 +464,15 @@ APPETITE_ROUND_GAIN = 0.20      # a round raises x (0.8 + this x appetite),
 RATE_DEBT_SENSITIVITY = 6.0     # debt headroom x (1 - this x (rate - 2%)),
                                 # floored at 0.4                      (LOW)
 
+# Deals with the chip designers (v1.31, HARDWARE.md 4). A prepayment
+# reserves chips at today's price with a short lead for a year and takes
+# them out of everyone else's queue; funding a designer's next generation
+# buys a discount and priority for three years.                    (LOW)
+PREPAY_LEAD_MONTHS = 3
+PREPAY_TERM_MONTHS = 12
+FUND_GEN_DISCOUNT = 0.15
+FUND_GEN_TERM_MONTHS = 36
+
 # In-house silicon (v1.26, HARDWARE.md 5 step 4): a lab can fund its own
 # chip programme - this much a year for this long - and then owns a
 # designer in the tier: chips at cost, no margin, its own foundry slots,

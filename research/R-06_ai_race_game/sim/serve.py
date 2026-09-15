@@ -351,6 +351,8 @@ class Handler(BaseHTTPRequestHandler):
                     amount = body.get("amount")
                     if body.get("kind") == "chip_program":
                         amount = 1
+                    if body.get("kind") in ("prepay", "fund_gen"):
+                        amount = {"designer": body.get("designer"), "dollars": float(body.get("amount") or 0) * 1e6}
                     if body.get("kind") == "accels" and body.get("supplier"):
                         amount = {"count": amount, "supplier": str(body["supplier"])}
                     res = SESSION.game.buy_now(str(body.get("kind")), amount)

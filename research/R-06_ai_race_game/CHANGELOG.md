@@ -3,6 +3,16 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.31 — deals with the chip designers (Sep 15 2026)
+HARDWARE.md 4, first cut. On the Hardware tab: **prepay for slots** (a
+deposit reserves chips at today's price with a 3-month lead for a year,
+paid now, nothing more at order; the chips go ahead of everyone else in
+that designer's queue) and **fund their next generation** (cash into the
+designer's R&D bank, which brings its next chip forward; you get 15% off
+and priority for three years). Both immediate, logged and replayed. The
+AIs do not deal yet. *Files: `Hardware.prepay / fund_generation /
+deal_terms`, `World.buy_now`.*
+
 ## v1.30 — the world layer's instrument (Sep 15 2026)
 `sim/geo_checkpoints.py` scores WORLD_STATE.md 6: the controls'
 effect on a China-bloc fleet, the assistant-moment mood jump, appetite

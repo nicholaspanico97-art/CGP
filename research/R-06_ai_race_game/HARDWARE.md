@@ -102,7 +102,11 @@ Deterministic; they draw no randomness, so replay is unaffected.
 - **Memory.** Price = base × (demand / capacity)^0.8; capacity +30% when
   utilisation above 90% for 9 months, landing 18 months later.
 
-## 4. Later: diplomacy
+## 4. Diplomacy (first cut wired, v1.31)
+
+Two deals exist for the player: prepay for slots and fund a designer's
+next generation (`Hardware.prepay`, `fund_generation`, `deal_terms`).
+The rest of this section is what should follow.
 
 Exclusive supply, prepayment for slots, a lab funding a designer's next
 generation, a bloc subsidising its fab, a lab starting its own chip

@@ -379,6 +379,8 @@ class Game:
                                        price=o[2], lead_months=o[3]) if o else None))(w.hardware.own_offer(me, m)),
             chip_program=(dict(getattr(me, "chip_program", None)) if getattr(me, "chip_program", None) else None),
             chip_program_cost_yr=K.CHIP_PROGRAM_COST_YR, chip_program_years=K.CHIP_PROGRAM_YEARS,
+            reservations={k: dict(v) for k, v in (getattr(me, "reservations", None) or {}).items()},
+            discounts={k: dict(v) for k, v in (getattr(me, "discounts", None) or {}).items()},
             cash_cap_power=me.cash * 0.45,
             months_since_raise=m - getattr(me, "last_raise", -99),
             can_raise=me.doctrine.get("can_raise", True),

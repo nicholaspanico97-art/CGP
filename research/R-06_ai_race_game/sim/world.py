@@ -751,13 +751,23 @@ class World:
                 if not offer["allowed"]:
                     raise POL.IllegalAction(f"{supplier} may not sell into {bloc} (export controls)")
                 chip = self.hardware.designers[supplier].current(m)
-                accel = chip.as_accelerator(offer["price"])
-                price, lead = offer["price"], offer["lead_months"]
+                price, lead = self.hardware.deal_terms(lab, supplier, offer["price"], offer["lead_months"], m)
+                accel = chip.as_accelerator(price)
             room = lab.headroom_accels(accel, m, lead_months=lead)
             if count > room:
                 out["notes"].append(f"clipped to {room:,}: no contracted power for more")
                 count = room
-            bought = lab.order(accel, count, m, lead_months=lead, price=price) if count > 0 else 0
+            # reserved (prepaid) chips cost nothing more at order
+            res = (getattr(lab, "reservations", None) or {}).get(supplier) if supplier else None
+            free = min(count, res["chips"]) if res and m < res["until"] else 0
+            bought = 0
+            if free > 0:
+                lab.orders.append([accel, free, m + lead, 0.0])
+                res["chips"] -= free
+                bought += free
+            rest = count - free
+            if rest > 0:
+                bought += lab.order(accel, rest, m, lead_months=lead, price=price)
             if bought < count:
                 out["notes"].append(f"clipped to {bought:,} by cash")
             if bought > 0:
@@ -809,6 +819,29 @@ class World:
                 lab.raised = getattr(lab, "raised", 0.0) + got
                 lab.book(m, "equity_raised", got)
                 out.update(got=frac, cost=-got)
+        elif kind in ("prepay", "fund_gen"):
+            designer = str(amount.get("designer")) if isinstance(amount, dict) else None
+            dollars = float(amount.get("dollars", 0.0)) if isinstance(amount, dict) else 0.0
+            if not designer or dollars <= 0:
+                raise POL.IllegalAction("a deal needs a designer and an amount")
+            if dollars > lab.cash:
+                out["notes"].append(f"you have {lab.cash/1e6:,.0f}M")
+            else:
+                try:
+                    if kind == "prepay":
+                        chips, price = self.hardware.prepay(lab, designer, dollars, m)
+                        lab.cash -= dollars
+                        lab.book(m, "prepayments", -dollars)
+                        out.update(got=chips, cost=dollars, what=f"{chips:,} chips reserved with {designer} at ${price:,.0f}, "
+                                   f"{K.PREPAY_LEAD_MONTHS}-month lead, for {K.PREPAY_TERM_MONTHS} months")
+                    else:
+                        bank, cost = self.hardware.fund_generation(lab, designer, dollars, m)
+                        lab.cash -= dollars
+                        lab.book(m, "chip_rd_funding", -dollars)
+                        out.update(got=1, cost=dollars, what=f"{designer}'s next generation funded: R&D bank "
+                                   f"${bank/1e9:.2f}B of ${cost/1e9:.2f}B; {K.FUND_GEN_DISCOUNT*100:.0f}% off and priority for {K.FUND_GEN_TERM_MONTHS//12} years")
+                except ValueError as e:
+                    out["notes"].append(str(e))
         elif kind == "chip_program":
             if lab.cash < K.CHIP_PROGRAM_COST_YR:
                 out["notes"].append(f"a programme needs ${K.CHIP_PROGRAM_COST_YR/1e9:.1f}B a year; you have {lab.cash/1e9:.1f}B")
