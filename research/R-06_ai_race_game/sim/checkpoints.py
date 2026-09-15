@@ -114,7 +114,7 @@ def _revenue(w):
 
 
 def _power(w):
-    return sum(l.fleet.megawatts() for l in w.labs)
+    return w.sector_mw()
 
 
 def month_of(ym):

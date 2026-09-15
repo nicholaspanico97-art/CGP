@@ -3,6 +3,16 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.22 — the rest of the world's AI load (Sep 15 2026)
+The power anchors count all AI load; the sim's seven labs were the
+sector, so power ran 1.5-2.4x under all along. The AI spend the labs do
+not book (~88%) is now served on someone's chips: its load is derived
+from that spend at $45B/yr per GW of inference capacity (LOW), counted
+in the power instruments and split across blocs by GDP on the World
+tab. Power family 1.24x (best ever); 10 GW at -9 months (was +15);
+timing mean 6.4 / worst -16 / 16 of 16 / order 113; magnitude 2.06x.
+*Files: `econ.REVENUE_PER_GW_YR`, `World.sector_mw`, the instruments.*
+
 ## v1.21 — demand comes from the labour markets (Sep 15 2026)
 `DEMAND_MODEL = "labour"`. Sector spend is now the four blocs' realised
 AI spend x the labs' share of what the world pays for AI, instead of the

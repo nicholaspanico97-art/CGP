@@ -119,6 +119,12 @@ class Geo:
             b = bloc_of(l)
             load_by_bloc[b] += l.fleet.megawatts() / 1e3          # GW
             labs_by_bloc[b].append(l.name)
+        # the rest of the world's inference load, split by GDP
+        econ = getattr(world, "economy", None)
+        rest_gw = (econ.last.get("rest_of_world_mw", 0.0) / 1e3) if econ and econ.last else 0.0
+        gdp_tot = sum(s["gdp"] for s in self.blocs.values())
+        for b in BLOCS:
+            load_by_bloc[b] += rest_gw * self.blocs[b]["gdp"] / gdp_tot
         bought = sum(getattr(l, "accels_bought_month", 0) for l in labs)
         fab_month = K.FAB_OUTPUT_PER_MONTH.get(2020 + world.month // 12, 3_800_000)
         self.derived = dict(

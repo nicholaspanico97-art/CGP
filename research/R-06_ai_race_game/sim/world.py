@@ -835,6 +835,14 @@ class World:
             lab.notices.append((m, f"{kind} order: " + "; ".join(out["notes"])))
         return out
 
+    def sector_mw(self):
+        """All AI load: the labs' fleets plus the rest of the world's
+        inference, derived from the AI spend the labs do not book (v1.22).
+        The power anchors count all of it."""
+        labs = sum(l.fleet.megawatts() for l in self.labs)
+        rest = self.economy.last.get("rest_of_world_mw", 0.0) if self.economy.last else 0.0
+        return labs + rest
+
     def ask_run(self, lab, proposal):
         """The run question: no run is in progress; start one, or not?
         Only a start is logged - a wait is the default."""
@@ -982,6 +990,7 @@ class World:
         self.geo.step(self)
         self.hardware.step(self)
         self.economy.step(self)
+        self.sector_mw_hist = getattr(self, "sector_mw_hist", []) + [self.sector_mw()]
         for lab in self.labs:
             lab.accels_bought_month = 0
             lab.accels_wanted_month = 0

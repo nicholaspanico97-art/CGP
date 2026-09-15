@@ -59,6 +59,11 @@ CAP_REF = 26.5                     # GPT-4-class in log-FLOP; score 100
 # 2025 (lab revenue ~$26B against ~$250B of AI spend); the rest is
 # applications, cloud and services. The switch multiplies by this.  (LOW)
 LAB_SHARE_2025 = 0.12
+# The AI spend the labs do not book is still served on someone's chips:
+# hyperscalers' inference for applications, cloud, in-house models. Its
+# power draw, from revenue per gigawatt of inference capacity (~700
+# H100-class chips per MW at ~$30k each earn ~$15-25M/yr per MW). (LOW)
+REVENUE_PER_GW_YR = 45e9
 
 
 def score(c):
@@ -183,6 +188,9 @@ class Economy:
             tiers=tier_shares(c_score) if c_score > 0 else {n: 0.0 for n, *_ in TIERS},
             per_bloc=out,
             labour_spend=sum(o["realised"] for o in out.values()),
+            # AI load outside the seven labs, in MW, from the spend they do not book
+            rest_of_world_mw=(sum(o["realised"] for o in out.values()) * (1.0 - LAB_SHARE_2025)
+                              / REVENUE_PER_GW_YR * 1000.0),
             capability_spend=getattr(world, "spend_stock", 0.0),
             sector_revenue=sum(getattr(l, "arr", 0.0) for l in world.labs),
         )

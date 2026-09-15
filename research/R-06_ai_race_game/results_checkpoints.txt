@@ -8,22 +8,22 @@ CHECKPOINT TIMING  (5 seeds, band +/-18 months)
   A 1e25 FLOP training run              2023-032022-10       -5       11
   Broad knowledge reaches 86            2023-032022-07       -8       18
   Sector revenue passes $1B/yr          2023-062023-09       +3       12
-  1 GW of AI load                       2023-122024-01       +1        9
+  1 GW of AI load                       2023-122023-08       -4        3
   Software-issue solving reaches 25%    2024-062023-12       -6        6
   Graduate science reaches 78           2024-122024-05       -7       10
   A 1e26 FLOP training run              2024-122024-06       -6       10
   Sector revenue passes $10B/yr         2025-032024-08       -7        8
   A 100k-accelerator coherent cluster   2025-032025-04       +1       16
   An enterprise agent market opens      2025-062024-02      -16        6
-  10 GW of AI load                      2025-122027-03      +15        8
+  10 GW of AI load                      2025-122025-03       -9       16
   Sector revenue passes $60B/yr         2026-062027-03       +9       20
 
   median offset   -6 months   (positive = sim runs late)
-  mean |offset|   6.6 months
+  mean |offset|   6.4 months
   worst           -16 months
   inside +/-18     16/16 checkpoints
 
-  ORDER: 114/120 pairs in the right sequence  (6 inversions)
+  ORDER: 113/120 pairs in the right sequence  (7 inversions)
   Order matters more than dates: a world where the milestones happen
   in the wrong sequence is a different world. One where they all happen
   a year late is the same world running slow.

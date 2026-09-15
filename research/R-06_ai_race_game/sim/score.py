@@ -47,7 +47,7 @@ def score(months=84, verbose=False, seeds=(0, 1, 2, 3, 4)):
         m = (y - 2020) * 12 + 11
         if m >= months:
             continue
-        mod = sum(l.history[m]["mw"] for l in w.labs) / 1000.0
+        mod = w.sector_mw_hist[m] / 1000.0
         pw[y] = (mod, actual)
     parts["power"] = sum(log_err(a, b) for a, b in pw.values()) / max(1, len(pw))
 
