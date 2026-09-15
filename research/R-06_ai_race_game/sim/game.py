@@ -359,8 +359,9 @@ class Game:
 
         # --- what a purchase costs right now, so manual orders can be sized
         accel = E.best_available(m)
+        mkt_price, mkt_lead = w.market_terms(accel)
         shopping = dict(
-            accel=accel.name, accel_capex=accel.capex,
+            accel=accel.name, accel_capex=mkt_price, list_price=accel.capex,
             accel_mw=accel.watts * K.PUE / 1e6,
             fab_cap=int(K.FAB_OUTPUT_PER_MONTH.get(2020 + m // 12, 3_800_000)
                         * me.doctrine.get("supply_share", 0.2)),
@@ -372,7 +373,7 @@ class Game:
             lease_lead_months=K.LEASE_LEAD_MONTHS,
             build_lead_months=(K.DC_LEAD_TIME_MONTHS
                                + (K.GRID_QUEUE_MONTHS if m >= 66 else 0)),
-            accel_lead_months=5,
+            accel_lead_months=mkt_lead,
             cash_cap_power=me.cash * 0.45,
             months_since_raise=m - getattr(me, "last_raise", -99),
             can_raise=me.doctrine.get("can_raise", True),

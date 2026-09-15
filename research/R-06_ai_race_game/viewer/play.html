@@ -305,7 +305,7 @@ function buildOrders() {
       if (fld === 'buy_accels' || fld === 'contract_mw' || fld === 'raise_now') {
         const sh = rep.shopping, v = o[fld] || 0;
         let sizing = '';
-        if (fld === 'buy_accels') sizing = `${sh.accel} at $${n0(sh.accel_capex)} each · fab lets you buy up to <b>${n0(sh.fab_cap)}</b>/month · your contracted power has room for <b>${n0(sh.power_headroom)}</b> more`;
+        if (fld === 'buy_accels') sizing = `${sh.accel} at $${n0(sh.accel_capex)} each${sh.accel_capex > sh.list_price * 1.02 ? ` <span class="capped">(${((sh.accel_capex/sh.list_price-1)*100).toFixed(0)}% over list — the incumbent's backlog)</span>` : ''} · delivery in <b>${sh.accel_lead_months} months</b> · fab lets you buy up to <b>${n0(sh.fab_cap)}</b>/month · your contracted power has room for <b>${n0(sh.power_headroom)}</b> more`;
         if (fld === 'contract_mw') sizing = `market will lease you up to <b>${f(sh.lease_cap_mw,0)} MW</b>/month · building costs $${(sh.dc_capex_per_mw/1e6).toFixed(1)}M per MW (leased share costs nothing up front) · you use ${f(rep.mw,0)} of ${f(rep.contracted_mw,0)} MW`;
         if (fld === 'raise_now') sizing = `valuation ${fmtB(rep.valuation)} · selling 10% raises ${fmtB(rep.valuation*0.1)} · ${sh.can_raise ? (sh.months_since_raise >= 3 ? 'a round is possible now' : `${3 - sh.months_since_raise} more months before the next round`) : 'your backer does not sell equity'}`;
         const label = fld === 'buy_accels' ? 'Buy accelerators (count)' : fld === 'contract_mw' ? 'Contract power (MW)' : 'Raise a round (fraction sold)';
@@ -356,7 +356,7 @@ function buildOrders() {
     if (j.error) { setStatus(j.error, true); return; }
     const r = j.result;
     let msg = '';
-    if (r.kind === 'accels') msg = r.got > 0 ? `Bought ${n0(r.got)} × ${r.what} for ${money(r.cost)}, arriving in ~5 months.` : 'Nothing bought.';
+    if (r.kind === 'accels') msg = r.got > 0 ? `Bought ${n0(r.got)} × ${r.what} for ${money(r.cost)}, arriving in ~${r.lead} months.` : 'Nothing bought.';
     if (r.kind === 'power') msg = r.got > 0 ? `Contracted ${f(r.got,0)} MW (${f(r.leased,0)} leased, ${f(r.built,0)} built) — ${money(r.cost)} up front.` : 'No power contracted.';
     if (r.kind === 'raise') msg = r.got > 0 ? `Raised ${money(-r.cost)} selling ${(r.got*100).toFixed(0)}%.` : 'No round raised.';
     if (r.kind === 'data') msg = r.got > 0 ? `Licensed ${r.what} for ${money(r.cost)}.` : 'Nothing licensed.';
@@ -394,7 +394,7 @@ function estimate(fld, v) {
     const cost = get * sh.accel_capex;
     const cashcap = Math.floor(r.cash / sh.accel_capex);
     const got = Math.min(get, cashcap);
-    h = `<b>≈ ${fmtM(got * sh.accel_capex)}</b> for <b>${n0(got)}</b> × ${sh.accel}, arriving ~${sh.accel_lead_months} months after the turn starts.`;
+    h = `<b>≈ ${fmtM(got * sh.accel_capex)}</b> for <b>${n0(got)}</b> × ${sh.accel}, arriving in ~${sh.accel_lead_months} months (the market's lead time right now).`;
     if (got < v) {
       const why = [];
       if (v > sh.fab_cap) why.push(`fab supply (${n0(sh.fab_cap)}/month)`);

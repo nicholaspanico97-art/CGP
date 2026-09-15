@@ -146,11 +146,12 @@ class Lab:
                 still.append([accel, count, arrival, _paid])
         self.orders = still
 
-    def order(self, accel, count, month, lead_months=6):
-        cost = accel.capex * count
+    def order(self, accel, count, month, lead_months=6, price=None):
+        price = accel.capex if price is None else price
+        cost = price * count
         if cost > self.cash:
-            count = int(self.cash / accel.capex)
-            cost = accel.capex * count
+            count = int(self.cash / price)
+            cost = price * count
         if count <= 0:
             return 0
         self.cash -= cost
@@ -683,6 +684,21 @@ class World:
                                  "held": held, "cap": round(candidate.capability, 3)}))
         return rel
 
+    def market_terms(self, accel):
+        """
+        What the chip on sale costs and how long it takes, from the
+        hardware tier (v1.15, HARDWARE.md 5 step 1): the incumbent
+        designer's margin against its normal 60% sets the price over
+        list, and its backlog sets the lead time. Before this, five
+        months at list, always.
+        """
+        inc = self.hardware.designers.get("Aurex")
+        if inc is None or not inc.current(self.month):
+            return accel.capex, 5
+        mult = max(0.8, min(1.6, (1.0 - 0.60) / max(1.0 - inc.margin, 0.25)))
+        lead = int(round(max(3.0, min(14.0, inc.lead_months))))
+        return accel.capex * mult, lead
+
     # ------------------------------------------------------ immediate orders
     def buy_now(self, lab, kind, amount):
         """
@@ -706,20 +722,21 @@ class World:
             if count > fab:
                 out["notes"].append(f"clipped to {max(fab,0):,} by fab supply this month")
                 count = max(fab, 0)
-            room = lab.headroom_accels(accel, m)
+            price, lead = self.market_terms(accel)
+            room = lab.headroom_accels(accel, m, lead_months=lead)
             if count > room:
                 out["notes"].append(f"clipped to {room:,}: no contracted power for more")
                 count = room
-            bought = lab.order(accel, count, m, lead_months=5) if count > 0 else 0
+            bought = lab.order(accel, count, m, lead_months=lead, price=price) if count > 0 else 0
             if bought < count:
                 out["notes"].append(f"clipped to {bought:,} by cash")
             if bought > 0:
                 lab.bought_now += bought
                 lab.accels_bought_month = getattr(lab, "accels_bought_month", 0) + bought
-                lab.capex_by_year[year] = lab.capex_by_year.get(year, 0.0) + bought * accel.capex
-                lab.book(m, "capex_accelerators", -bought * accel.capex)
-            out.update(got=bought, cost=bought * accel.capex, what=accel.name,
-                       arrives=m + 5)
+                lab.capex_by_year[year] = lab.capex_by_year.get(year, 0.0) + bought * price
+                lab.book(m, "capex_accelerators", -bought * price)
+            out.update(got=bought, cost=bought * price, what=accel.name,
+                       arrives=m + lead, lead=lead, price=price)
         elif kind == "power":
             lease_market = K.LEASE_MARKET_MW.get(year, 52_000)
             cap = lease_market * lab.doctrine.get("supply_share", 0.2)
@@ -1399,6 +1416,7 @@ class World:
         year = 2020 + m // 12
         supply = K.FAB_OUTPUT_PER_MONTH.get(year, 3_800_000)
         accel = E.best_available(m)
+        price, lead = self.market_terms(accel)
         self._capital_market(m)
         for lab in self.labs:
             # ---- a corporate parent funds from operating cash flow, not rounds
@@ -1516,7 +1534,7 @@ class World:
                 spare_cash = lab.cash - K.CAPEX_RUNWAY_FLOOR_MONTHS * getattr(lab, "last_costs", 0.0)
                 # ... and spends it over about half a year, not in one go
                 budget = max(0.0, spare_cash * aggression / K.CAPEX_SPREAD_MONTHS)
-                count = int(budget / accel.capex)
+                count = int(budget / price)
             else:
                 count = int(lab.actions.buy_accels)
             asked = count
@@ -1525,15 +1543,15 @@ class World:
                 lab.notices.append((m, f"accelerator order clipped to {count:,} by fab supply "
                                        f"(your share of this year's output)"))
             asked = count
-            count = min(count, lab.headroom_accels(accel, m))
+            count = min(count, lab.headroom_accels(accel, m, lead_months=lead))
             if not lab.actions.auto_capex and count < asked:
                 lab.notices.append((m, f"accelerator order clipped to {count:,}: no contracted power "
                                        f"for more (each {accel.name} needs {accel.watts*K.PUE/1e3:.2f} kW)"))
             if count > 0:
-                bought = lab.order(accel, count, m, lead_months=5)
+                bought = lab.order(accel, count, m, lead_months=lead, price=price)
                 lab.accels_bought_month = getattr(lab, "accels_bought_month", 0) + bought
                 if not lab.actions.auto_capex and bought < count:
                     lab.notices.append((m, f"accelerator order clipped to {bought:,} by cash"))
                 lab.capex_by_year[year] = (lab.capex_by_year.get(year, 0.0)
-                                           + bought * accel.capex)
-                lab.book(m, "capex_accelerators", -bought * accel.capex)
+                                           + bought * price)
+                lab.book(m, "capex_accelerators", -bought * price)

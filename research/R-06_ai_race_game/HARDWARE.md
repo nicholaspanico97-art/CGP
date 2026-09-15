@@ -5,12 +5,14 @@ the labs already need every month. A fleet is not "accelerators"; it is
 chips that need wafers, memory, packaging and power, sold by companies
 with their own books and their own designs. Dominance is not scripted.
 
-**v1.10 status: the tier exists, reads the sector's demand, and is shown
-on the Hardware tab. It does not yet change what a lab can buy.** The
-labs still buy the year's best chip from `constants.ACCELERATORS` at
-list price with a 5-month lead — the calibrated path. The tier's job in
-this version is to reproduce the record on its own (§6) while being fed
-the sim's real order flow. When it does, §5 wires it in.
+**v1.15 status: step 1 of §5 is wired.** The chip a lab buys is still
+the year's best from `constants.ACCELERATORS`, but its **price** is list
+× the incumbent's margin against its normal 60%, and its **lead time**
+is the incumbent's backlog (3-14 months) — `World.market_terms`. So the
+2024 crunch now reaches the labs: chips cost more and arrive later while
+the backlog runs. Steps 2-4 (choose a supplier; capacity from sector
+capex; in-house silicon) are not wired. The tier is fed the sim's real
+order flow and checked against §6 (`results_hardware.txt`).
 
 ## 1. Three tiers, each with entities that have books
 

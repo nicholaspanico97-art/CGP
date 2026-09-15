@@ -1,21 +1,21 @@
 HARDWARE CHECKPOINTS  (the supply chain, fed the sim's order flow, vs the record)
 
 historical roster, seed 0
-  FAIL  Incumbent share >= 75% each year 2020-24                   2020:86% 2021:88% 2022:78% 2023:80% 2024:70%
-  FAIL  Lead time peaks >= 9 mo in 2023-24, back under 6 within 18 mo peak 15.6 mo at 2025-03, min after 7.4
-  FAIL  Packaging >= 60k/mo by end 2025 and >= 8x the 2022 level   2022 4k -> 2025 16k (4.0x)
-  PASS  HBM price >= 1.8x the 2022 level during 2024               2022 $15 -> 2024 peak $34 (2.3x)
-  PASS  Challenger within 15% on perf/W with >= 10% share in 2024-25 best perf/W ratio 1.31, share then 23%
+  FAIL  Incumbent share >= 75% each year 2020-24                   2020:93% 2021:88% 2022:78% 2023:76% 2024:69%
+  PASS  Lead time peaks >= 9 mo in 2023-24, back under 6 within 18 mo peak 11.4 mo at 2024-10, min after 5.4
+  FAIL  Packaging >= 60k/mo by end 2025 and >= 8x the 2022 level   2022 4k -> 2025 52k (13.0x)
+  PASS  HBM price >= 1.8x the 2022 level during 2024               2022 $16 -> 2024 peak $49 (3.1x)
+  PASS  Challenger within 15% on perf/W with >= 10% share in 2024-25 best perf/W ratio 1.31, share then 24%
   PASS  After Oct 2023 China-bloc demand is served by Huaxin only  no China-bloc lab on this roster
-  PASS  Leading-edge wafers +25% by end 2026                       120k -> 150k (1.25x)
+  FAIL  Leading-edge wafers +25% by end 2026                       120k -> 120k (1.00x)
 
 randomised roster, seed 7
-  FAIL  Incumbent share >= 75% each year 2020-24                   2020:86% 2021:88% 2022:78% 2023:77% 2024:70%
-  FAIL  Lead time peaks >= 9 mo in 2023-24, back under 6 within 18 mo peak 9.8 mo at 2025-06, min after 5.0
+  FAIL  Incumbent share >= 75% each year 2020-24                   2020:86% 2021:88% 2022:78% 2023:74% 2024:82%
+  FAIL  Lead time peaks >= 9 mo in 2023-24, back under 6 within 18 mo peak 7.6 mo at 2025-03, min after 5.0
   FAIL  Packaging >= 60k/mo by end 2025 and >= 8x the 2022 level   2022 4k -> 2025 16k (4.0x)
-  PASS  HBM price >= 1.8x the 2022 level during 2024               2022 $15 -> 2024 peak $31 (2.1x)
-  PASS  Challenger within 15% on perf/W with >= 10% share in 2024-25 best perf/W ratio 1.31, share then 24%
-  PASS  After Oct 2023 China-bloc demand is served by Huaxin only  30 months with China-bloc demand (rule enforced in allocation)
+  PASS  HBM price >= 1.8x the 2022 level during 2024               2022 $15 -> 2024 peak $29 (1.9x)
+  PASS  Challenger within 15% on perf/W with >= 10% share in 2024-25 best perf/W ratio 0.89, share then 13%
+  PASS  After Oct 2023 China-bloc demand is served by Huaxin only  no China-bloc lab on this roster
   FAIL  Leading-edge wafers +25% by end 2026                       120k -> 120k (1.00x)
 
   some anchors FAIL - see HARDWARE.md 6

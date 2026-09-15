@@ -3,6 +3,18 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.15 — the hardware tier reaches the labs (Sep 15 2026)
+HARDWARE.md 5, step 1. The chip you buy is priced at list x the
+incumbent designer's margin over its normal 60%, and arrives after the
+incumbent's backlog (3-14 months) instead of a flat five - so the 2024
+crunch is felt: dearer chips, longer waits, shown on the compute panel
+and in every purchase estimate. The tier's own anchors: 7 of 14 lines
+pass across two rosters; the lead-time spike now lands Oct 2024 at
+11-12 months on its own. Cost on the sector instrument: timing mean 6.9
+-> 8.0 months (one checkpoint tips to -19), magnitude 1.86x (same);
+balance unchanged in shape. *Files: `World.market_terms`, `_procure`,
+`buy_now`.*
+
 ## v1.14 — one meaning for capability; a staggered opening (Sep 15 2026)
 Finding 2: `Model.capability` is now always the best domain (the
 headline index is kept as `Model.headline`); the frontier, pricing,
