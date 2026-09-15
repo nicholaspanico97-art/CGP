@@ -179,6 +179,11 @@ FRONTIER_RUN_SHARE_ERA = {
 }
 
 AMBITION_COMFORT = 2.6        # multiple of your last run you can attempt
+MAX_RUN_JUMP = 4.0            # the strategy AIs will not plan a run more
+                              # than this multiple of their last landed
+                              # one, whatever the fleet allows - real
+                              # generations stepped 3-5x (v1.28). The
+                              # player may.
                               # without materially raising the odds of a dud
 AMBITION_RISK = 0.30          # extra dud probability per doubling above it
 AMBITION_SIGMA = 0.22         # extra outcome spread per doubling above it

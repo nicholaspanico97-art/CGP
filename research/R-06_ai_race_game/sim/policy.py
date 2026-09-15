@@ -501,6 +501,12 @@ class DoctrinePolicy(Policy):
         eff = proposal.target_flop * lab.sector_algo * lab.algo_mult
         if eff < K.NEXT_RUN_MIN_GROWTH * lab.largest_run_eff:
             return wait                           # would not land far enough above the last
+        # prudence: one generation at a time, however big the fleet
+        cap = K.MAX_RUN_JUMP * lab.largest_run
+        if proposal.target_flop > cap:
+            p = proposal.copy()
+            p.target_flop = cap
+            return p
         return proposal
 
     def _withholds(self, obs, candidate_cap):

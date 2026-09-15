@@ -3,6 +3,16 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.28 — one generation at a time (Sep 15 2026)
+The 2022 and 2024 frontier-run outliers were single labs jumping 7-10x
+in one run - physically possible with their fleets, never done in the
+record, where generations stepped 3-5x. The strategy AIs now plan no
+more than 4x their last landed run (`MAX_RUN_JUMP`); the player may
+still gamble. GPT-4-class lands at 2.11e25 against the record's 2.1e25.
+Timing median -5 / mean 5.9 / worst -16 / 16 of 16 / order 113;
+magnitude 2.09x (frontier 2.38x from 2.9x). *Files:
+`DoctrinePolicy.decide_run`, `constants.MAX_RUN_JUMP`.*
+
 ## v1.27 — mood and regulation move on their own (Sep 15 2026)
 WORLD_STATE.md 4. Each bloc's public mood drifts with the sector's
 incidents (severe -0.06, minor -0.01), knowledge-work unemployment over
