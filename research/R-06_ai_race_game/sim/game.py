@@ -64,6 +64,12 @@ class PlayerPolicy(Policy):
             # the first orders are the strategy's own, so a new player
             # starts from something coherent rather than from zero
             self.orders = self.defaults.decide(obs)
+        # the opening book keeps going: once the corpus you picked is
+        # licensed, the next on the strategy's list is queued (a deliberate
+        # "nothing" stays nothing)
+        if self.orders.data_buy is not None and self.orders.data_buy in obs.lab.data.sources:
+            nxt, _ = self.defaults._data_buy(obs.lab, obs.month, self.orders.data_share)
+            self.orders.data_buy = nxt
         out = self.orders.copy()
         # one-shots fire once - the first month they are in force - then clear
         self.orders.buy_accels, self.orders.contract_mw, self.orders.raise_now = 0, 0.0, 0.0
