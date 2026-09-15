@@ -81,9 +81,12 @@ def _biggest_cluster(w):
     for l in w.labs:
         if l.largest_run <= 0:
             continue
-        accel = l.fleet.newest()
+        # the chips a run of that size takes, at the fleet's average
+        # throughput per chip (the newest chip alone halved the count once
+        # a new generation landed - an instrument artefact, v1.15.1)
+        n = max(l.fleet.count(), 1)
         months = max(l.doctrine.get("run_months", 4.0), 0.5)
-        per = accel.train_flops() * K.SECONDS_PER_MONTH * months
+        per = (l.fleet.train_flops() / n) * K.SECONDS_PER_MONTH * months
         if per > 0:
             best = max(best, int(l.largest_run / per))
     return best

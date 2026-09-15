@@ -3,6 +3,17 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.15.1 — a valuation ceiling; an instrument fix (Sep 15 2026)
+The narrative valuation had no ceiling: a lab at score 185 was "worth"
+$60T and a routine round raised trillions (Vantor's cash hit $21T in
+2026). The story term now saturates six points past GPT-3 class; beyond
+that, revenue multiples carry. 2030 cash $130B-1T, valuations $3-10T.
+And the 100k-cluster checkpoint counted chips at the newest chip's
+throughput, which halved the count the month a new generation landed;
+it now uses the fleet's average - the checkpoint reads +8 months (was
++13). Timing mean 7.7 / worst -19 / 15 of 16 / order 112. *Files:
+`_capital_market`, `checkpoints._cluster`.*
+
 ## v1.15 — the hardware tier reaches the labs (Sep 15 2026)
 HARDWARE.md 5, step 1. The chip you buy is priced at list x the
 incumbent designer's margin over its normal 60%, and arrives after the
@@ -12,7 +23,8 @@ and in every purchase estimate. The tier's own anchors: 7 of 14 lines
 pass across two rosters; the lead-time spike now lands Oct 2024 at
 11-12 months on its own. Cost on the sector instrument: timing mean 6.9
 -> 8.0 months (one checkpoint tips to -19), magnitude 1.86x (same);
-balance unchanged in shape. *Files: `World.market_terms`, `_procure`,
+balance: runaways 0% -> 12%, 5.0 of 7 viable - the biggest buyer
+rides the crunch best; flagged. *Files: `World.market_terms`, `_procure`,
 `buy_now`.*
 
 ## v1.14 — one meaning for capability; a staggered opening (Sep 15 2026)

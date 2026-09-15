@@ -1402,8 +1402,12 @@ class World:
             # v1.13: a lab a couple of OOMs behind the frontier still raised
             # at $1-4B in 2021-23 (Cohere, Inflection, Adept, Character); the
             # old 12x-per-OOM penalty valued them at $60M and they died
+            # ... and the story saturates: past ~6 points over GPT-3 class
+            # (the 2025 frontier) a lab is valued on revenue multiples, not
+            # on what it might become. Uncapped, a 2026 lab was "worth"
+            # $60T and a routine round raised trillions (v1.15.1).
             narrative = 10 ** (lab.doctrine.get("story_cap_gain", 0.35)
-                               * max(0.0, own - 23.0))
+                               * max(0.0, min(own - 23.0, 6.0)))
             story = (lab.doctrine.get("story_value", 2.0e9) * narrative
                      * (10 ** (-0.25 * behind)))
             multiple = 20.0 + 45.0 * min(1.0, m / 72.0)   # multiples expanded
