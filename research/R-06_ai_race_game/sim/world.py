@@ -20,6 +20,7 @@ from . import policy as POL
 from . import geo as GEO
 from . import hardware as HW
 from . import econ as ECON
+from . import people as PEOPLE
 from .capability import (BenchmarkModel, FrontierHistory, algo_efficiency, reasoning_multiplier,
                          capability_index, domain_capability)
 
@@ -631,6 +632,7 @@ class World:
         self.geo = GEO.Geo()              # the world outside the labs (observed, v1.9)
         self.hardware = HW.Hardware()     # the supply chain (observed, v1.10)
         self.economy = ECON.Economy()     # four blocs, demand as a labour market (observed, v1.11)
+        self.roster = PEOPLE.Roster()     # named people over the star counts (v1.33)
         self.incident_log = []
         self.sector_research = 0.0
         self.bm = benchmarks or BenchmarkModel().fit()
@@ -1049,6 +1051,7 @@ class World:
         self.geo.step(self)
         self.hardware.step(self)
         self.economy.step(self)
+        self.roster.sync(self)
         self.sector_mw_hist = getattr(self, "sector_mw_hist", []) + [self.sector_mw()]
         for lab in self.labs:
             lab.accels_bought_month = 0

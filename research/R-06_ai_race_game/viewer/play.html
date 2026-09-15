@@ -655,6 +655,7 @@ function renderDash() {
   $('#ops').innerHTML = `
     ${fleetTable(r.fleet)}
     <p><b>${n0(r.accels)}</b> accelerators in all, ${f(r.mw,0)} MW in use of ${f(r.contracted_mw,0)} contracted; ${n0(r.on_order)} on order, ${f(r.mw_pipeline,0)} MW in the pipeline. Algorithmic edge vs field ×${f(r.algo)}.</p>
+    ${r.people && r.people.length ? `<p class="help">Your star researchers: ${r.people.join(', ')}.</p>` : ''}
     ${rsiLine(r.idle.rsi)}
     <p><b>${n0(r.researchers)}</b> researchers, ${f(r.stars,1)} stars. You offer $${n0(r.comp_offer/1e3)}k against a market rate of $${n0(r.market_comp/1e3)}k${below?' <span class="behind">— below market, people are leaving</span>':''}.</p>
     ${r.arriving.length || r.run_eta ? `<table class="arrive"><tr><th>Arriving</th><th>What</th></tr>${r.run_eta ? `<tr><td class="mono">${r.run_eta}</td><td>training run lands (estimate; the popup asks you then)</td></tr>` : ''}${r.arriving.map(a => `<tr><td class="mono">${a.when}</td><td>${a.what}</td></tr>`).join('')}</table>` : '<p class="dim">Nothing on order and no run in progress.</p>'}

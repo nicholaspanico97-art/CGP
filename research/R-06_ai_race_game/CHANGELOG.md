@@ -3,6 +3,16 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.33 — named people (Sep 15 2026)
+ROADMAP item 7, first cut. A roster of named star researchers lies over
+the star counts the talent market already moves: each whole star is a
+person; when a lab's count rises or falls the roster changes with names,
+and a loss in one lab matched to a gain in another the same month is a
+poach ("Wen Osei left Vantor for Tessellate"). Your own joins and
+departures are in the event log by name; the others' are one summary
+line. Your researchers are listed on the compute panel. Draws no
+randomness, changes no outcome. *File: `sim/people.py`.*
+
 ## v1.32 — your charter (Sep 15 2026)
 ROADMAP item 6. The player is scored on their strategy's goals exactly
 as the AI labs are (`objectives.evaluate`): a "Your charter" panel with

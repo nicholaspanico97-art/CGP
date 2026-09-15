@@ -442,6 +442,7 @@ class Game:
         return dict(
             month=m, date=date(m), turn=self.turn, name=me.name,
             why=why, run_plan=run_plan, run_preview=run_preview, board=board, idle=idle, charter=charter,
+            people=w.roster.of(me.name),
             dead=(dict(date=date(me.dead[0]), how=me.dead[1]) if me.dead else None),
             graveyard=[dict(name=l.name, date=date(l.dead[0]), how=l.dead[1]) for l in w.graveyard],
             geo=w.geo.snapshot(), my_bloc=GEO.bloc_of(me), hardware=w.hardware.snapshot(),
@@ -638,6 +639,7 @@ class _Snapshot:
         self.fleet = me.fleet.count()
         self.notices = len(me.notices)
         self.news = len(w.news)
+        self.people = len(w.roster.events)
 
     def events_since(self, w, me):
         ev = []
@@ -646,6 +648,15 @@ class _Snapshot:
         if me.dead is not None:
             m, how = me.dead
             ev.append(f"{date(m)}  ** YOUR COMPANY IS GONE: {how}. The game is over. **")
+        mine, theirs = [], []
+        for m, text in w.roster.events[self.people:]:
+            (mine if me.name in text else theirs).append((m, text))
+        for m, text in mine:
+            ev.append(f"{date(m)}  {text.replace(me.name, 'you')}")
+        if theirs:
+            poached = [t for _m, t in theirs if " for " in t]
+            ev.append(f"          people moved: {len(theirs)} star researchers changed jobs"
+                      + (f" ({'; '.join(poached[:3])}{'...' if len(poached) > 3 else ''})" if poached else ""))
         for m, cap, held, rel in me.policy.interrupts[self.interrupts:]:
             what = "the model you were holding" if held else "your training run"
             if rel.ship:
