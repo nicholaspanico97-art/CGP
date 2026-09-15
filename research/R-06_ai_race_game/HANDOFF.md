@@ -297,27 +297,29 @@ regenerated.
 
 ## What I would do next, in order
 
-Written Sep 15 2026 after the second batch (v1.21-1.28; `CHANGELOG.md`
-has each step with its numbers). The sector instrument stands at timing
-median -5 / mean 5.9 / worst -16 / 16 of 16 / order 113, magnitude
-2.09x (power 1.85x, frontier 2.4x). Demand comes from the four blocs'
-labour markets; the AI labs buy in the hardware market and one owns
-its silicon; the world state acts on compute access, power, capital and
-regulation, and mood and rules move on their own. Labs can die.
+Written Sep 15 2026 after the third batch (v1.29-1.35; `CHANGELOG.md`).
+Sector instrument: timing median -4 / mean 5.2 / worst -15 / 16 of 16
+/ order 114; magnitude 1.96x. All four layers have instruments
+(`sim.checkpoints`, `sim.hardware_checkpoints`, `sim.econ_checkpoints`,
+`sim.geo_checkpoints`) and results files. The game has a charter and a
+legacy report, named people, deals with the chip designers, a
+placeholder map, and save/load.
 
-1. **Nick reviews `CHANGELOG.md` v1.12-1.28** and plays a decade. Things
-   to look at: HYPERSCALER's goals (~55-67%), runaways (4-17% depending
-   on the batch - watch whether the cost-led lab on the cheaper chips
-   runs away), the 2022 frontier run still ~6x the record, and whether
-   the labour-market demand feels right in play (the World tab shows it
-   against the old curve and booked revenue).
-2. **The three tier instruments** (`sim.hardware_checkpoints`,
-   `sim.econ_checkpoints`, and WORLD_STATE.md 6 which has no script yet)
-   should be run and pinned like the sector one; write the geo one.
-3. **Diplomacy** (HARDWARE.md 4): exclusive supply, prepayment for slots,
-   funding a designer's next generation - the entities have books now.
-4. **Named people** and **charters** (ROADMAP D): the organisation layer.
-5. **The map** (ROADMAP E): blocs exist; there is something to draw.
+1. **Nick plays a decade, saving as he goes**, and reviews
+   `CHANGELOG.md` v1.12-1.35. Watch: HYPERSCALER's goals, runaways, the
+   2022 frontier outlier, whether deals and in-house silicon are priced
+   so they are decisions rather than obvious buys, the churn of named
+   people (18 moves a quarter reads high), and the map's tile text.
+2. **The AIs should deal too** (prepay when their lead time runs past 8
+   months; fund a generation when behind) so the deals have rivals.
+3. **Events beyond the record** (ROADMAP item 4): the world's dated
+   events are announced; the sandbox needs events that fire on state
+   after 2025 - a fab fire, a talent raid, a lawsuit, a viral quarter -
+   as a JSON deck conditional on world state.
+4. **The map as geometry**: real bloc shapes, datacentre sites, power.
+5. **Products as things** (ROADMAP D): segments are shares of a pie;
+   a product with a name, a price and a launch would be what the public
+   sees.
 
 Standing checks after any change to `world.py`: `python -m sim.replay`
 (must say "seam holds"), then `sim.checkpoints`, and the tier
