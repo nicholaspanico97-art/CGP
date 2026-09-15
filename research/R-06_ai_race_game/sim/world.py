@@ -728,7 +728,7 @@ class World:
             if isinstance(amount, dict):
                 supplier = amount.get("supplier")
                 amount = amount.get("count", 0)
-            supply = K.FAB_OUTPUT_PER_MONTH.get(year, 3_800_000)
+            supply = self.hardware.sellable_per_month(GEO.bloc_of(lab)) or K.FAB_OUTPUT_PER_MONTH.get(year, 3_800_000)
             fab = int(supply * lab.doctrine.get("supply_share", 0.2)) - lab.bought_now
             count = int(amount)
             if count > fab:
@@ -984,6 +984,7 @@ class World:
         self.economy.step(self)
         for lab in self.labs:
             lab.accels_bought_month = 0
+            lab.accels_wanted_month = 0
         self.month += 1
 
     def _next_run_size(self, lab, m):
@@ -1453,7 +1454,9 @@ class World:
     def _procure(self, m):
         """Buy iron, subject to capital, power, and the industry's fab output."""
         year = 2020 + m // 12
-        supply = K.FAB_OUTPUT_PER_MONTH.get(year, 3_800_000)
+        # the industry's deliverable chips this month come from the hardware
+        # tier's packaging capacity, not a table by year (v1.19)
+        supply_table = K.FAB_OUTPUT_PER_MONTH.get(year, 3_800_000)
         accel = E.best_available(m)
         price, lead = self.market_terms(accel)
         self._capital_market(m)
@@ -1566,6 +1569,7 @@ class World:
             # is itself the signal that worries everyone else
             aggression = lab.actions.capex_aggression
             lab.effective_aggression = aggression
+            supply = self.hardware.sellable_per_month(GEO.bloc_of(lab)) or supply_table
             lab.fab_cap = int(supply * lab.doctrine.get("supply_share", 0.2))
             if lab.actions.auto_capex:
                 # spend only what is beyond the runway floor: nobody puts
@@ -1576,6 +1580,9 @@ class World:
                 count = int(budget / price)
             else:
                 count = int(lab.actions.buy_accels)
+            # what the lab wanted before supply clipped it - the demand the
+            # industry sees and builds for (v1.19)
+            lab.accels_wanted_month = getattr(lab, "accels_wanted_month", 0) + max(count, 0)
             asked = count
             count = min(count, lab.fab_cap)
             if not lab.actions.auto_capex and count < asked:

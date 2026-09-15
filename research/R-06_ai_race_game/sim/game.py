@@ -363,7 +363,8 @@ class Game:
         shopping = dict(
             accel=accel.name, accel_capex=mkt_price, list_price=accel.capex,
             accel_mw=accel.watts * K.PUE / 1e6,
-            fab_cap=int(K.FAB_OUTPUT_PER_MONTH.get(2020 + m // 12, 3_800_000)
+            fab_cap=int((w.hardware.sellable_per_month(GEO.bloc_of(me))
+                         or K.FAB_OUTPUT_PER_MONTH.get(2020 + m // 12, 3_800_000))
                         * me.doctrine.get("supply_share", 0.2)),
             power_headroom=me.headroom_accels(accel, m),
             lease_cap_mw=(K.LEASE_MARKET_MW.get(2020 + m // 12, 52_000)
@@ -629,6 +630,7 @@ class _Snapshot:
                           + ("" if rel.evaluate else " -- WITHOUT a full evaluation"))
             else:
                 ev.append(f"{date(m)}  {what} landed at {cap:.2f}; you held it back")
+        point = []                     # rivals' point releases, summarised
         for l in w.labs:
             if l.name not in self.ships:
                 continue
@@ -637,10 +639,17 @@ class _Snapshot:
                     continue           # already reported above
                 who = "you" if l is me else l.name
                 if kind == "post":
-                    ev.append(f"{date(m)}  {who} released a point upgrade ({cap:.2f})")
+                    if l is me:
+                        ev.append(f"{date(m)}  you released a point upgrade ({cap:.2f})")
+                    else:
+                        point.append(l.name)
                 else:
                     t = f", a {tag}" if tag else ""
                     ev.append(f"{date(m)}  {who} shipped a new model ({cap:.2f}{t})")
+        if point:
+            names = sorted(set(point))
+            ev.append(f"          point upgrades from {', '.join(names)}"
+                      + (f" ({len(point)} in all)" if len(point) > len(names) else ""))
         if me.shelved > self.shelved:
             ev.append(f"          a run of yours came in below what you already sell and was shelved")
         for x in w.incident_log[self.incidents:]:

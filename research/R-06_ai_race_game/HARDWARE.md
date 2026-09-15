@@ -15,8 +15,16 @@ lists every seller's current chip at its price and lead time, greyed
 where export controls forbid it; an order placed with a named seller
 lands in that designer's backlog (`Hardware.offers`, `buy_now` with a
 supplier). The strategy AIs still buy the year's best chip, so
-calibration is untouched. Steps 3-4 (capacity from sector capex;
-in-house silicon) are not wired. The tier is fed the sim's real
+calibration is untouched. Step 3 is wired (v1.19): the chips the industry can deliver each month
+come from the tier's packaging capacity (`Hardware.sellable_per_month`)
+instead of a table by year, and that capacity grows on the demand the
+labs *wanted*, including what was turned away - orders queue with a
+seller and lapse after a year, so a backlog forms when demand runs past
+capacity and the lead time rises. The 2024 crunch now emerges: an
+11-month peak in mid-2024 with the incumbent at 82-83% through it.
+Step 4 (in-house silicon) is not wired. Late-decade supply runs a
+little tighter than the record (2025-26 frontier runs 0.5-0.8x); the
+packaging forecast rule is the knob. The tier is fed the sim's real
 order flow and checked against §6 (`results_hardware.txt`).
 
 ## 1. Three tiers, each with entities that have books

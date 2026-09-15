@@ -3,6 +3,23 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.19 — chip supply responds to demand (Sep 15 2026)
+HARDWARE.md 5 step 3 / ROADMAP item 8. The industry's deliverable chips
+per month come from the hardware tier's packaging capacity, not a
+yearly table; capacity is built on forecast against the demand labs
+*wanted* (orders queue with a seller and lapse after a year), so a
+backlog and a lead-time spike form when demand runs past capacity. Two
+false starts on the way: capacity that only saw delivered orders never
+saturated (no crunch), and a backlog that never lapsed pinned lead time
+at 24 months. Now: an 11-month peak in mid-2024, incumbent 82-83%
+through it, the 100k-cluster checkpoint at +1 month. Sector timing
+median -4 / mean 6.5 / worst -16 / 16 of 16 / order 114; magnitude
+2.06x (frontier runs mixed: early years high, 2025-26 a little small -
+supply post-2025 is tighter than the record; the packaging forecast
+rule is the knob). Rivals' point releases are one summary line in the
+event log. *Files: `Hardware.sellable_per_month`, `Hardware.step`,
+`World._procure`.*
+
 ## v1.18 — the private algorithmic edge, bounded (Sep 15 2026)
 The last year of capability earliness. With runs on the record,
 capability per FLOP was still high; switching off the private

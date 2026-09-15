@@ -1,52 +1,52 @@
 BALANCE over 24 seeds
 
   domain            lead changes    dominant holds  longest reign
-  LANG        16.9 (min 9, max 24)             46%          28 mo
-  REASON      16.2 (min 7, max 27)             48%          30 mo
-  CODE        16.2 (min 7, max 25)             47%          30 mo
-  AGENT       16.2 (min 7, max 27)             47%          30 mo
-  IMAGE        5.0 (min 0, max 12)             82%          81 mo
-  VIDEO        7.5 (min 0, max 21)             73%          67 mo
-  AUDIO        5.6 (min 0, max 14)             78%          72 mo
-  ROBOT        0.1 (min 0, max 2)             58%          73 mo
+  LANG        14.9 (min 6, max 23)             51%          33 mo
+  REASON      15.4 (min 7, max 24)             48%          32 mo
+  CODE        14.8 (min 4, max 21)             50%          33 mo
+  AGENT       15.0 (min 5, max 22)             50%          33 mo
+  IMAGE        4.8 (min 0, max 15)             84%          82 mo
+  VIDEO        7.5 (min 0, max 23)             78%          70 mo
+  AUDIO        5.6 (min 0, max 15)             83%          76 mo
+  ROBOT        0.0 (min 0, max 0)             58%          72 mo
 
-  total lead changes per run : mean 83.7  median 83  range 39-117
-  top lab's revenue share    : mean 39%  range 21-65%
-  runs ending in a runaway   : 8%  (top lab over 60%)
-  labs still viable at 2030  : 5.5 of 7
+  total lead changes per run : mean 77.9  median 72  range 37-127
+  top lab's revenue share    : mean 41%  range 27-65%
+  runs ending in a runaway   : 4%  (top lab over 60%)
+  labs still viable at 2030  : 5.0 of 7
 
   DID EACH STRATEGY MEET ITS OWN GOALS?
   Revenue share is the wrong scoreboard for most of these; each is
   scored against what it was actually trying to do.
 
     strategy        games  goal score   achieved  rev share
-    COST               10        100%       100%        14%
-    SCALE              14         94%        93%        26%
-    ENTERPRISE          5         87%       100%        21%
-    OPEN               12         84%        83%        13%
-    SOVEREIGN          13         80%        92%        12%
-    FOLLOWER            7         75%       100%         6%
-    CONSUMER           10         74%        90%        18%
-    DATA               15         73%        67%        32%
-    RSI                15         70%        27%        26%
-    VERTICAL           15         69%        60%        12%
-    HYPERSCALER        18         36%        11%        11%
+    COST                8        100%       100%         2%
+    ENTERPRISE          5         94%       100%        28%
+    RSI                14         93%        86%        21%
+    SCALE              14         91%       100%        27%
+    DATA               13         80%        77%        31%
+    VERTICAL           13         79%        62%        14%
+    SOVEREIGN          13         78%        62%        16%
+    CONSUMER           10         78%       100%        21%
+    FOLLOWER            6         75%       100%         7%
+    OPEN               13         71%        77%        15%
+    HYPERSCALER        18         56%        22%        19%
 
   WHICH GOALS ARE FAILING
-    CONSUMER      Own the consumer default 41% · Survive the land grab 100%
+    CONSUMER      Own the consumer default 49% · Survive the land grab 100%
     COST          Be the cheapest tokens in the world 100% · And still make money doing it 100%
-    DATA          Lock up the corpora that matter 58% · Turn that into a top-two model 71%
-    ENTERPRISE    Be the enterprise standard 80% · With the reputation intact 81%
+    DATA          Turn that into a top-two model 71% · Lock up the corpora that matter 74%
+    ENTERPRISE    With the reputation intact 87% · Be the enterprise standard 95%
     FOLLOWER      Earn more per dollar of iron than anyone 42% · On other people's research 100%
-    HYPERSCALER   While staying at the frontier 33% · Take the largest share of the market 35%
-    OPEN          Stay the developers' default 77% · Keep the field within an order of magnit 81%
-    RSI           Lead the field outright, not narrowly 21% · Reach a decisive capability level 95%
-    SCALE         Hold the most capable model in the world 88% · Run the largest training run in the fiel 99%
-    SOVEREIGN     Top two, independently 45% · Reach the frontier without permission 94%
-    VERTICAL      Own your segment outright 41% · Without needing anyone else's market 100%
+    HYPERSCALER   Take the largest share of the market 50% · While staying at the frontier 55%
+    OPEN          Keep the field within an order of magnit 50% · Stay the developers' default 79%
+    RSI           Lead the field outright, not narrowly 85% · Reach a decisive capability level 97%
+    SCALE         Hold the most capable model in the world 81% · Run the largest training run in the fiel 100%
+    SOVEREIGN     Top two, independently 41% · Reach the frontier without permission 93%
+    VERTICAL      Own your segment outright 59% · Without needing anyone else's market 100%
 
-  months of capability deliberately withheld: 7 per run
+  months of capability deliberately withheld: 17 per run
 
-  pretrained models shipped  : 66 per run, all labs combined
-  runs shelved as not better : 15 per run (19% of runs)
-  breakthrough runs          : 11.2 per run
+  pretrained models shipped  : 62 per run, all labs combined
+  runs shelved as not better : 13 per run (18% of runs)
+  breakthrough runs          : 10.3 per run

@@ -81,6 +81,10 @@ class Foundry:
         self.pending = keep
         if self.packaging_from and m == self.packaging_from[0]:
             self.packaging_k = self.packaging_from[1]
+        # the record's pre-surge packaging growth, ~40%/yr to end 2022
+        # (4k -> 8k); after that the forecast rule carries it
+        if self.packaging_k > 0 and m < 36:
+            self.packaging_k *= 1.40 ** (1 / 12)
         if self.growth:
             self.wafers_k *= (1 + self.growth) ** (1 / 12)
         # the leading edge moves about one node every 30 months
@@ -231,14 +235,22 @@ class Hardware:
         from . import geo as GEO
 
         # 1. demand: what the sector ordered this month, by bloc
-        demand_by_bloc = {}
+        demand_by_bloc = {}          # orders placed: what sits in a backlog
+        wanted_by_bloc = {}          # orders wanted: what the industry builds for
         for lab in world.labs:
             n = getattr(lab, "accels_bought_month", 0) or 0
+            wnt = max(getattr(lab, "accels_wanted_month", 0) or 0, n)
+            b = GEO.bloc_of(lab)
             if n > 0:
-                b = GEO.bloc_of(lab)
                 demand_by_bloc[b] = demand_by_bloc.get(b, 0.0) + n
+            if wnt > 0:
+                wanted_by_bloc[b] = wanted_by_bloc.get(b, 0.0) + wnt
         self.demand_by_bloc = demand_by_bloc
         self.demand_chips = sum(demand_by_bloc.values())
+        self.wanted_chips = sum(wanted_by_bloc.values())
+        # unmet demand, as a multiple of what was placed: the foundries book
+        # against it (they build for the orders they turned away too)
+        self.unmet_mult = (self.wanted_chips / self.demand_chips) if self.demand_chips > 0 else 1.0
 
         # 2. allocate demand across sellers, per bloc, by perf/$ and lead time
         hbm = self.hbm_price()
@@ -250,7 +262,7 @@ class Hardware:
                 if name in orders:
                     orders[name] += n
             lab.bought_from_month = {}
-        for b, n in demand_by_bloc.items():
+        for b, n in wanted_by_bloc.items():          # orders wanted queue with a seller
             elig = [d for d in sellers if self._may_sell(d, b, access)]
             if not elig:
                 continue
@@ -290,6 +302,9 @@ class Hardware:
             buildable = min(want_chips, wafer_cap * WAFER_USABLE_MM2 / c.die_mm2, pkg_cap)
             built = max(0.0, buildable)
             d.backlog -= built
+            # orders that cannot be served within a year lapse - a lab
+            # re-decides monthly, it does not queue forever
+            d.backlog = min(d.backlog, 12.0 * max(built, 1.0))
             d.built_m = built
             rate = max(built, 1.0)
             d.lead_months = 5.0 + (d.backlog / rate if d.backlog > 0 else 0.0) * 0.5
@@ -327,6 +342,24 @@ class Hardware:
         for mm in self.memory.values():
             mm.step(m)
         self.history.append(self.snapshot())
+
+    def sellable_per_month(self, bloc=None):
+        """
+        Chips the industry can deliver to labs this month: packaging
+        capacity at the foundries that sell into `bloc` (all, if None),
+        times chips per packaging wafer, times the share of packaging that
+        goes to AI. Demand-responsive through the foundries' capex rules
+        (v1.19, HARDWARE.md 5 step 3 / ROADMAP item 8).
+        """
+        access = getattr(self, "_access", {})
+        total = 0.0
+        for f in self.foundries.values():
+            if f.packaging_k <= 0:
+                continue
+            if bloc == "China" and f.bloc != "China" and access.get("China", 1.0) < 0.5:
+                continue                    # controls: only the domestic fab
+            total += f.packaging_k * 1e3 * CHIPS_PER_PACKAGING_WAFER
+        return total * 0.8
 
     def offers(self, bloc, m=None):
         """What each seller offers a lab in `bloc` this month: chip, price,
