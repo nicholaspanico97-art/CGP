@@ -3,6 +3,13 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.35.1 — the page's script was broken (Sep 15 2026)
+A bad escape in the Load dialog's code (a literal newline inside a
+string) was a syntax error for the whole page script, so no button did
+anything. Fixed; a parse check of the page is now part of my smoke
+test. If nothing on the page responds to clicks, this is the first
+thing to look for: the browser console will show "SyntaxError".
+
 ## v1.35 — save and load (Sep 15 2026)
 Save and Load buttons in the header. A save is the seed, the seat and
 the action log (`Game.save`); a load replays it into a fresh world - bit

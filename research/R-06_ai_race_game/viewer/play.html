@@ -954,10 +954,8 @@ $('#save').addEventListener('click', async () => {
 $('#load').addEventListener('click', async () => {
   const r = await fetch('/api/saves').then(x => x.json());
   if (!r.saves || !r.saves.length) { setStatus('No saves yet.', true); return; }
-  const list = r.saves.map((s, i) => `${i + 1}. ${s.name}  (seed ${s.seed}, lab ${s.lab}, ${s.date})`).join('
-');
-  const pick = prompt('Load which?
-' + list, '1');
+  const list = r.saves.map((s, i) => `${i + 1}. ${s.name}  (seed ${s.seed}, lab ${s.lab}, ${s.date})`).join('\n');
+  const pick = prompt('Load which?\n' + list, '1');
   if (pick == null) return;
   const sv = r.saves[(+pick) - 1]; if (!sv) return;
   setStatus(`Loading ${sv.name} — replaying ${sv.months} months…`);
