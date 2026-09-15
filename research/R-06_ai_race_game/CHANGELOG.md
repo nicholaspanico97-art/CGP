@@ -3,6 +3,21 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.17 — the world's events are news; bloc power reaches the labs (Sep 15 2026)
+The dated world events (export controls, the AI Act, the assistant
+moment, the Gulf deals, the US order and its rescinding) now appear in
+the event log the month they happen. WORLD_STATE.md 5 step 2: a lab's
+build lead is max(greenfield build, its bloc's interconnect queue) + 6
+months, and leased power is priced at the bloc's industrial rate. The
+chip-price premium from the hardware tier is capped at 1.3x list (the
+record's 20-30% over list at the 2023 peak; 1.6x was pushing capex 1.6x
+over while power stayed 1.8x under). Timing mean 7.5 / worst -19 / 15
+of 16 / order 112; magnitude 1.89x. The power family stays ~1.8x under
+and 10 GW lands a year late: the anchor counts all AI load, the sim's
+seven labs are the sector - a definitional gap to resolve when the
+economy layer gives the rest of the world its own AI load. *Files:
+`geo.EVENTS`, `Lab.contract_power`, `World._decide`, `market_terms`.*
+
 ## v1.16 — choose your supplier (Sep 15 2026)
 HARDWARE.md 5, step 2, player side. "Buy from" on the compute panel:
 each seller's current chip, price, lead time; greyed under export

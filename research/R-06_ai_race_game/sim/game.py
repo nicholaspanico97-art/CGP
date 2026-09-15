@@ -371,8 +371,8 @@ class Game:
             dc_capex_per_mw=K.DC_CAPEX_PER_MW,
             lease_opex_per_mw_month=K.LEASE_OPEX_PER_MW_MONTH,
             lease_lead_months=K.LEASE_LEAD_MONTHS,
-            build_lead_months=(K.DC_LEAD_TIME_MONTHS
-                               + (K.GRID_QUEUE_MONTHS if m >= 66 else 0)),
+            build_lead_months=int(round(max(K.DC_LEAD_TIME_MONTHS,
+                                            getattr(me, "bloc_queue_months", K.DC_LEAD_TIME_MONTHS)) + 6)),
             accel_lead_months=mkt_lead,
             offers=w.hardware.offers(GEO.bloc_of(me), m),
             cash_cap_power=me.cash * 0.45,

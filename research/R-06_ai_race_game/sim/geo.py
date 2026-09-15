@@ -32,19 +32,19 @@ INITIAL = {
                   power_price=90.0, queue_months=24, access=0.8, mood=0.00, regulation=0.20),
 }
 
-# dated changes on the record: (year, month, bloc, field, value)
+# dated changes on the record: (year, month, bloc, field, value, headline)
 EVENTS = [
-    (2022, 10, "China", "access", 0.35),      # US export controls
-    (2023, 10, "China", "access", 0.15),      # tightened
-    (2023, 1,  "Gulf",  "access", 0.50),      # licence regime
-    (2024, 6,  "Gulf",  "access", 0.80),      # the compute deals
-    (2023, 8,  "China", "regulation", 0.50),  # generative AI rules
-    (2023, 10, "US",    "regulation", 0.35),  # the executive order
-    (2025, 1,  "US",    "regulation", 0.20),  # rescinded
-    (2024, 8,  "EU",    "regulation", 0.70),  # AI Act in force
-    (2022, 12, "US",    "mood", 0.40),        # the assistant moment
-    (2022, 12, "EU",    "mood", 0.15),
-    (2022, 12, "RoW",   "mood", 0.25),
+    (2022, 10, "China", "access", 0.35, "WORLD: the US restricts exports of advanced accelerators to China; China-bloc labs can now buy only a third of what they could"),
+    (2023, 10, "China", "access", 0.15, "WORLD: export controls tightened; China-bloc labs are down to domestic silicon and what slips through"),
+    (2023, 1,  "Gulf",  "access", 0.50, "WORLD: a licence regime halves the Gulf's access to advanced accelerators"),
+    (2024, 6,  "Gulf",  "access", 0.80, "WORLD: the Gulf compute deals - sovereign clusters get access back under conditions"),
+    (2023, 8,  "China", "regulation", 0.50, "WORLD: China's generative-AI rules take effect"),
+    (2023, 10, "US",    "regulation", 0.35, "WORLD: a US executive order on AI - reporting thresholds for large runs"),
+    (2025, 1,  "US",    "regulation", 0.20, "WORLD: the US executive order on AI is rescinded"),
+    (2024, 8,  "EU",    "regulation", 0.70, "WORLD: the EU AI Act is in force; agentic products face a higher bar there"),
+    (2022, 12, "US",    "mood", 0.40, "WORLD: the assistant moment - the public discovers what these models can do; mood jumps"),
+    (2022, 12, "EU",    "mood", 0.15, None),
+    (2022, 12, "RoW",   "mood", 0.25, None),
 ]
 
 # yearly tracks, 2020..2025 on the record, projected after
@@ -93,9 +93,11 @@ class Geo:
             if b == "China" and year >= 2023:
                 s["growth"] = 0.040
         self.blocs["US"]["queue_months"] = _track(US_QUEUE_MONTHS, year, 0.0)
-        for (y, mm, b, field, v) in EVENTS:
+        for (y, mm, b, field, v, headline) in EVENTS:
             if (y, mm) == (year, mo):
                 self.blocs[b][field] = v
+                if headline:
+                    world.news.append((m, headline))
         self.rate = _track(POLICY_RATE, year, 0.0)
         self.appetite = _track(VENTURE_APPETITE, year, 0.05)
         self.sentiment = _track(MARKET_SENTIMENT, year, 0.0)

@@ -9,6 +9,13 @@ order-of-magnitude number for **January 2020**, tagged HIGH / MED / LOW
 like `sim/anchors.py`; the exogenous tracks run to 2025 on the record and
 are projected after.
 
+**v1.17 status: partly acting.** Step 2 of §5 is wired: a lab's
+datacentre build lead is the greater of the greenfield build and its
+bloc's interconnect queue (the US 24→48-month track), plus commissioning;
+its leased power is priced at its bloc's industrial rate. The dated
+events (§4) are announced in the player's event log as they happen.
+Steps 1, 3-5 are not wired. *Original status note follows.*
+
 **v1.9 status: observed, not acting.** `sim/geo.py` carries this state,
 steps it monthly, and the dashboard's World tab shows it. Nothing in it
 changes a lab's outcome yet. That is deliberate: the roadmap rule is

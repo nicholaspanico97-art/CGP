@@ -543,9 +543,16 @@ class Lab:
         built = mw - leased
         self.leased_mw = getattr(self, "leased_mw", 0.0) + leased
         self.mw_pipeline.append([leased, month + K.LEASE_LEAD_MONTHS])
-        lead = K.DC_LEAD_TIME_MONTHS
-        if month >= A.month_index((2025, 6)):
-            lead += K.GRID_QUEUE_MONTHS      # the interconnect queue arrives
+        # the build lead is the greenfield build or the bloc's interconnect
+        # queue, whichever is longer, plus commissioning (v1.17, WORLD_STATE.md
+        # 5 step 2; was a constant with a 2025 step)
+        queue = getattr(self, "bloc_queue_months", None)
+        if queue is None:
+            lead = K.DC_LEAD_TIME_MONTHS
+            if month >= A.month_index((2025, 6)):
+                lead += K.GRID_QUEUE_MONTHS
+        else:
+            lead = int(round(max(K.DC_LEAD_TIME_MONTHS, queue) + 6))
         if built > 0:
             self.mw_pipeline.append([built, month + lead])
         return built * K.DC_CAPEX_PER_MW
@@ -695,7 +702,7 @@ class World:
         inc = self.hardware.designers.get("Aurex")
         if inc is None or not inc.current(self.month):
             return accel.capex, 5
-        mult = max(0.8, min(1.6, (1.0 - 0.60) / max(1.0 - inc.margin, 0.25)))
+        mult = max(0.8, min(1.3, (1.0 - 0.60) / max(1.0 - inc.margin, 0.25)))
         lead = int(round(max(3.0, min(14.0, inc.lead_months))))
         return accel.capex * mult, lead
 
@@ -841,6 +848,11 @@ class World:
         """observe -> decide -> apply, for every lab, once a month."""
         for lab in self.labs:
             lab.sector_algo = self.algo_frontier        # public
+            # the bloc's grid, as the lab experiences it (public numbers)
+            b = self.geo.blocs.get(GEO.bloc_of(lab))
+            if b:
+                lab.bloc_queue_months = b["queue_months"]
+                lab.bloc_power_price_rel = b["power_price"] / 70.0
         # the going rate for people is public; every lab prices against it
         supply = T.global_researcher_pool(m)
         demand = sum(l.researchers for l in self.labs)
@@ -1124,7 +1136,9 @@ class World:
             staff = (lab.researchers * lab.comp_offer
                      + lab.engineers * K.ENGINEER_COST_PER_YEAR) / 12.0
             other = 0.25 * staff
-            lease = getattr(lab, "leased_mw", 0.0) * K.LEASE_OPEX_PER_MW_MONTH
+            # leased power is priced at the bloc's industrial rate (v1.17)
+            lease = (getattr(lab, "leased_mw", 0.0) * K.LEASE_OPEX_PER_MW_MONTH
+                     * getattr(lab, "bloc_power_price_rel", 1.0))
             fleet_cost += lease
             data_annual = getattr(lab, "annual_data_cost", 0.0) / 12.0
             compliance = (lab.revenue_m * K.REGULATION_COMPLIANCE_COST

@@ -8,18 +8,18 @@ CHECKPOINT TIMING  (5 seeds, band +/-18 months)
   A 1e25 FLOP training run              2023-032022-07       -8        6
   Broad knowledge reaches 86            2023-032022-01      -14       22
   Sector revenue passes $1B/yr          2023-062023-03       -3       12
-  1 GW of AI load                       2023-122024-03       +3        6
+  1 GW of AI load                       2023-122024-03       +3        7
   Software-issue solving reaches 25%    2024-062023-06      -12       13
   Graduate science reaches 78           2024-122023-11      -13       15
   A 1e26 FLOP training run              2024-122024-10       -2        8
-  Sector revenue passes $10B/yr         2025-032025-03       +0        7
-  A 100k-accelerator coherent cluster   2025-032025-11       +8       11
+  Sector revenue passes $10B/yr         2025-032025-03       +0        8
+  A 100k-accelerator coherent cluster   2025-032025-11       +8        9
   An enterprise agent market opens      2025-062023-11      -19       15  <-- outside band
-  10 GW of AI load                      2025-122027-01      +13        8
-  Sector revenue passes $60B/yr         2026-062026-12       +6        4
+  10 GW of AI load                      2025-122026-12      +12       10
+  Sector revenue passes $60B/yr         2026-062026-10       +4        6
 
   median offset   -2 months   (positive = sim runs late)
-  mean |offset|   7.7 months
+  mean |offset|   7.5 months
   worst           -19 months
   inside +/-18     15/16 checkpoints
 
