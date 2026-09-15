@@ -127,6 +127,12 @@ def threat(observer, beliefs, own_best):
     """
     par = observer.doctrine.get("paranoia", K.PARANOIA_DEFAULT)
     worst, who = 0.0, None
+    # a lab that has not landed anything yet is not behind anyone - it has
+    # not entered. (Before v1.14 own_best = 0 read as 23 OOM behind, which
+    # compressed its first run to the minimum window and inflated its
+    # capex and comp - masked while every lab started on day one.)
+    if own_best <= 0:
+        return 0.0, None
     for b in beliefs:
         d = b.upper(par) - own_best
         if d > worst:

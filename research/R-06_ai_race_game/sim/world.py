@@ -30,8 +30,13 @@ class Model:
     def __init__(self, name, capability, active_params, month, caps=None,
                  tag="", generation=0):
         self.name = name
-        self.capability = capability          # headline, for reporting only
         self.caps = caps or {}                # the real answer: per domain
+        # ONE meaning (v1.14, finding 2): the best domain. Before, this was
+        # the headline index at ship and the best domain after the first
+        # point release, and the frontier, pricing, valuation, prestige and
+        # safety all read it. The headline is kept separately.
+        self.headline = capability
+        self.capability = max(self.caps.values()) if self.caps else capability
         self.active_params = active_params
         self.shipped = month
         self.tag = tag                        # 'breakthrough' / 'dud' / ''
@@ -366,7 +371,7 @@ class Lab:
         for dom, c in list(self.model.caps.items()):
             if c > 0:
                 self.model.caps[dom] = c + gain * self.POST_TRAIN_WEIGHT.get(dom, 0.5)
-        self.model.capability = max(self.model.caps.values())
+        self.model.capability = max(self.model.caps.values())   # same meaning as at ship
         self.post_gen += 1
         self.model.generation = self.post_gen
         self.post_timer = K.POST_TRAIN_MONTHS + self.rng.randint(0, 3)

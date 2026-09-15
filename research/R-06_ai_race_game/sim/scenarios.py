@@ -70,14 +70,17 @@ DOCTRINES = {
 # Strategy assignment for the calibration roster: the archetypes that were
 # actually on the board in 2020, fixed so the calibration score stays
 # comparable across changes.
+# ... and where each was in its cycle: the month its first run starts.
+# Jan 2020 was not a starting line - one lab was mid-run toward a
+# mid-2020 release, others months from starting theirs (v1.14).
 CALIBRATION_ROSTER = [
-    ("Helion",     "CONSUMER",    1.0e9, 120, 11_000),
-    ("Vantor",     "SCALE",       0.8e9,  90,  9_000),
-    ("Tessellate", "HYPERSCALER", 4.0e9, 210, 26_000),
-    ("Meridian",   "ENTERPRISE",  0.3e9,  45,  3_000),
-    ("Openwater",  "OPEN",        0.5e9,  60,  6_000),
-    ("Redshift",   "SOVEREIGN",   1.5e9,  80,  7_000),
-    ("Lumen",      "VERTICAL",    0.4e9,  40,  3_500),
+    ("Helion",     "CONSUMER",    1.0e9, 120, 11_000, 2),
+    ("Vantor",     "SCALE",       0.8e9,  90,  9_000, 4),
+    ("Tessellate", "HYPERSCALER", 4.0e9, 210, 26_000, 6),
+    ("Meridian",   "ENTERPRISE",  0.3e9,  45,  3_000, 8),
+    ("Openwater",  "OPEN",        0.5e9,  60,  6_000, 5),
+    ("Redshift",   "SOVEREIGN",   1.5e9,  80,  7_000, 7),
+    ("Lumen",      "VERTICAL",    0.4e9,  40,  3_500, 9),
 ]
 
 # Names a randomized game draws from.
@@ -109,6 +112,7 @@ def randomized_2020(seed=0, n=7):
         params = STRAT.draw(picks[i], rng)
         cash, res, accels = starts[i]
         params["first_run_flop"] = _FIRST_RUN * (0.5 + 1.5 * (accels / 26_000))
+        params["first_run_delay"] = rng.randint(0, 9)
         params["story_value"] = cash * 2.5
         params["raise_fraction"] = 0.10 + 0.08 * rng.random()
         params["researcher_quality"] = 0.85 + 0.35 * rng.random()
@@ -126,8 +130,9 @@ def historical_2020():
     from . import strategy as STRAT
     rng = random.Random(4242)
     labs = []
-    for name, key, cash, res, accels in CALIBRATION_ROSTER:
+    for name, key, cash, res, accels, delay in CALIBRATION_ROSTER:
         params = STRAT.draw(key, rng)
+        params["first_run_delay"] = delay
         if key == "VERTICAL":                       # Lumen is the media house
             mix, data = STRAT.FOCUS["media"]
             params["mixture"] = dict(mix)

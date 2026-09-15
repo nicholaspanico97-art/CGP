@@ -485,7 +485,10 @@ class DoctrinePolicy(Policy):
         wait = proposal.copy()
         wait.target_flop = 0.0
         if lab.largest_run <= 0:
-            return proposal                       # the first run: no history to wait on
+            # the first run starts when this lab's cycle says, not on day one
+            if obs.month < self.p.get("first_run_delay", 0):
+                return wait
+            return proposal
         if lab.launch_prep > 0:
             return wait
         # fear does not run through cadence: the record says labs did not

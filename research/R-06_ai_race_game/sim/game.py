@@ -75,7 +75,8 @@ class PlayerPolicy(Policy):
         """Asked every month there is no run. The player is only interrupted
         when they pressed 'start a new run' (a one-shot); otherwise the lane
         keeps post-training, researching and serving."""
-        first = obs.lab.largest_run <= 0 and not obs.lab.ships
+        first = (obs.lab.largest_run <= 0 and not obs.lab.ships
+                 and obs.month >= obs.lab.doctrine.get("first_run_delay", 0))
         if self.ask_run is None:
             plan = proposal
         elif first or (self.orders is not None and self.orders.start_run):

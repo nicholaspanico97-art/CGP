@@ -3,6 +3,22 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.14 — one meaning for capability; a staggered opening (Sep 15 2026)
+Finding 2: `Model.capability` is now always the best domain (the
+headline index is kept as `Model.headline`); the frontier, pricing,
+valuation, prestige and safety all read one thing. Finding 3: each lab's
+first run starts at a month its cycle says (fixed on the calibration
+roster, 2-9; drawn 0-9 in a random game) instead of everyone on day one
+- "a paid API exists" moved from -5 to +1 months. That exposed a bug: a
+lab with no model yet read as 23 OOM behind, which compressed its first
+run to the minimum window and inflated its capex and comp; threat is
+now zero before a lab has entered (`intel.threat`). Measured: timing
+median -1 / mean 6.9 / worst -18 / 16 of 16 / order 112 (v1.13: -6 /
+7.5 / -20 / 15 / 114); magnitude 1.85x; balance 40-100% of goals, 5.2
+of 7 viable, 0% runaways, 81 lead changes. HYPERSCALER still 40% (see
+v1.13). *Files: `World.Model`, `scenarios.CALIBRATION_ROSTER`,
+`DoctrinePolicy.decide_run`, `intel.threat`.*
+
 ## v1.13 — labs can die (Sep 15 2026)
 Finding 1. Six months of negative cash with no round closed puts a lab
 in distress: the rival with the deepest pockets acquires it (iron,
