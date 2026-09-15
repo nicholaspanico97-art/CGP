@@ -608,6 +608,7 @@ function renderDash() {
     rv += `<tr><td>${x.name_html}${x.feared?' <span class="behind">▲</span>':''}</td><td class="n mono">${x.aa==null?'—':f(x.aa,1)}</td><td class="n mono">${cap(x.est)} \u00b1${(x.sigma*10).toFixed(0)}</td><td class="n mono" title="${n0(x.scale)} accelerators, est.">${h100e(x.h100e)}</td><td class="n mono ${x.h100e > myH * 1.15 ? 'capped' : x.h100e < myH / 1.15 ? 'ok' : ''}">${myH > 0 ? '×' + f(x.h100e / myH, 1) : '—'}</td><td class="n mono">${x.silent} mo</td><td class="n mono">${f(x.price)}</td></tr>`;
   }
   rv += '</table><p class="help" style="margin-top:6px">▲ = the rival you plan against. Estimates come from published scores, power footprint and silence — a quiet, growing rival might be hoarding, or stuck.</p>';
+  if (r.graveyard.length) rv += `<p class="help">Gone: ${r.graveyard.map(g => `${g.name} (${g.how}, ${g.date})`).join('; ')}.</p>`;
   rv += `<p class="help">Compute is training throughput in <b>H100-equivalents</b> (one H100 at its usual utilisation = 1). Rivals' figures are read off power siting and shipments, so they are noisy and lag; spend on intel to narrow them.</p>`;
   $('#rivals').innerHTML = rv;
   $('#board').innerHTML = bars(r.board) + `<p class="help">Published scores only — what Artificial Analysis would print. A quiet lab's bar is stale; a hoarder's is a lie. Your row is your own published number.</p>`;
@@ -891,7 +892,7 @@ async function refresh(force) {
   S = j;
   $('#end').disabled = S.busy || S.over;
   if (!wasBusy && !S.busy && document.activeElement !== $('#seed') && document.activeElement !== $('#lab')) { $('#seed').value = S.seed; $('#lab').value = S.lab; }
-  $('#end').textContent = S.over ? '2030 — the decade is over' : (S.busy ? 'Simulating…' : 'End turn ▸');
+  $('#end').textContent = S.over ? (S.report.dead ? `Game over — ${S.report.dead.how} (${S.report.dead.date})` : '2030 — the decade is over') : (S.busy ? 'Simulating…' : 'End turn ▸');
   const [done, total] = S.progress || [0, 0];
   $('#prog').classList.toggle('on', S.busy);
   if (S.busy) { $('#bar').style.width = (total ? (done / total) * 100 : 0) + '%'; $('#proglbl').textContent = S.pending ? (S.pending.kind === 'run' ? 'waiting for your run plan' : 'waiting for your answer') : `simulating month ${Math.min(done + 1, total)} of ${total} — seven labs are deciding`; }

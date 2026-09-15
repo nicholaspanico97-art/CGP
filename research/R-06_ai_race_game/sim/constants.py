@@ -420,6 +420,24 @@ SPARE_TO_RESEARCH = 0.2
 # Real successive frontier runs were 3-10x apart in raw FLOP.    (MED)
 NEXT_RUN_MIN_GROWTH = 1.5
 
+# A lab that cannot pay does not keep operating (v1.13, finding 1). After
+# this many consecutive months of negative cash with no round closed it is
+# in distress: acquired by the rival with the deepest pockets if one can
+# absorb it, otherwise wound down. Fleets, power, data and most of the
+# people move; the models do not (the acquirer keeps its own).    (MED)
+INSOLVENCY_MONTHS = 6
+ACQUIRER_CASH_MULTIPLE = 3.0    # acquirer's cash vs the target's hole
+ACQUISITION_STAFF_KEPT = 0.70   # researchers who stay through a deal
+# ... which exposed that every lab ran at negative cash through 2020-21
+# and the model never enforced it. Two things real labs have:
+CAPEX_RUNWAY_FLOOR_MONTHS = 9   # the standing capex rule spends only cash
+                                # beyond this many months of costs   (MED)
+CAPEX_SPREAD_MONTHS = 6         # ... and spreads the spend over this long
+BRIDGE_MAX_DILUTION = 0.35      # an emergency round while the story holds:
+BRIDGE_DISCOUNT = 0.70          # a down round, at this fraction of the
+                                # narrative valuation; the hole must fit
+                                # under max dilution or nobody bites (MED)
+
 # Scenario dial. 1.0 is the historical-realism setting. Higher values widen
 # run variance and speed diffusion, producing a more contested race at some
 # cost in fidelity - the realism/fun trade, made explicit and tunable.

@@ -164,7 +164,7 @@ class Game:
 
     @property
     def over(self):
-        return self.world.month >= 132
+        return self.world.month >= 132 or self.player.dead is not None
 
     # ----------------------------------------------------- buy it now
     def buy_now(self, kind, amount):
@@ -409,6 +409,8 @@ class Game:
         return dict(
             month=m, date=date(m), turn=self.turn, name=me.name,
             why=why, run_plan=run_plan, run_preview=run_preview, board=board, idle=idle,
+            dead=(dict(date=date(me.dead[0]), how=me.dead[1]) if me.dead else None),
+            graveyard=[dict(name=l.name, date=date(l.dead[0]), how=l.dead[1]) for l in w.graveyard],
             geo=w.geo.snapshot(), my_bloc=GEO.bloc_of(me), hardware=w.hardware.snapshot(),
             economy=(w.economy.snapshot() if w.economy.last else None),
             data=EXPL.data_holdings(me),
@@ -602,9 +604,15 @@ class _Snapshot:
         self.shelved = me.shelved
         self.fleet = me.fleet.count()
         self.notices = len(me.notices)
+        self.news = len(w.news)
 
     def events_since(self, w, me):
         ev = []
+        for m, text in w.news[self.news:]:
+            ev.append(f"{date(m)}  {text.upper() if me.name in text.split(',')[0] else text}")
+        if me.dead is not None:
+            m, how = me.dead
+            ev.append(f"{date(m)}  ** YOUR COMPANY IS GONE: {how}. The game is over. **")
         for m, cap, held, rel in me.policy.interrupts[self.interrupts:]:
             what = "the model you were holding" if held else "your training run"
             if rel.ship:
@@ -613,6 +621,8 @@ class _Snapshot:
             else:
                 ev.append(f"{date(m)}  {what} landed at {cap:.2f}; you held it back")
         for l in w.labs:
+            if l.name not in self.ships:
+                continue
             for m, kind, tag, cap in l.ships[self.ships[l.name]:]:
                 if l is me and kind == "pretrain":
                     continue           # already reported above

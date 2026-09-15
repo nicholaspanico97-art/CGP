@@ -3,27 +3,27 @@ CHECKPOINT TIMING  (5 seeds, band +/-18 months)
   checkpoint                                 real       sim   offset   spread
   A GPT-3-class model exists            2020-062020-02       -4        0
   A paid model API exists               2020-072020-02       -5        5
-  Broad-knowledge score reaches 70      2022-042021-10       -6        7
-  A consumer assistant market opens     2022-112021-10      -13        5
+  Broad-knowledge score reaches 70      2022-042021-10       -6        4
+  A consumer assistant market opens     2022-112021-10      -13        4
   A 1e25 FLOP training run              2023-032022-06       -9       15
   Broad knowledge reaches 86            2023-032022-06       -9       19
-  Sector revenue passes $1B/yr          2023-062023-02       -4       15
-  1 GW of AI load                       2023-122024-01       +1        1
-  Software-issue solving reaches 25%    2024-062023-05      -13       16
-  Graduate science reaches 78           2024-122024-02      -10        8
-  A 1e26 FLOP training run              2024-122024-02      -10        9
-  Sector revenue passes $10B/yr         2025-032025-04       +1       17
-  A 100k-accelerator coherent cluster   2025-032025-06       +3       19
-  An enterprise agent market opens      2025-062024-01      -17        9
-  10 GW of AI load                      2025-122027-02      +14        4
-  Sector revenue passes $60B/yr         2026-062027-02       +8        8
+  Sector revenue passes $1B/yr          2023-062023-01       -5       17
+  1 GW of AI load                       2023-122024-01       +1        7
+  Software-issue solving reaches 25%    2024-062023-10       -8        9
+  Graduate science reaches 78           2024-122024-03       -9        8
+  A 1e26 FLOP training run              2024-122024-04       -8       15
+  Sector revenue passes $10B/yr         2025-032024-10       -5       10
+  A 100k-accelerator coherent cluster   2025-032025-10       +7       10
+  An enterprise agent market opens      2025-062023-10      -20        9  <-- outside band
+  10 GW of AI load                      2025-122026-08       +8        4
+  Sector revenue passes $60B/yr         2026-062026-09       +3        9
 
   median offset   -6 months   (positive = sim runs late)
-  mean |offset|   7.9 months
-  worst           -17 months
-  inside +/-18     16/16 checkpoints
+  mean |offset|   7.5 months
+  worst           -20 months
+  inside +/-18     15/16 checkpoints
 
-  ORDER: 115/120 pairs in the right sequence  (5 inversions)
+  ORDER: 114/120 pairs in the right sequence  (6 inversions)
   Order matters more than dates: a world where the milestones happen
   in the wrong sequence is a different world. One where they all happen
   a year late is the same world running slow.

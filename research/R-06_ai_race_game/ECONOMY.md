@@ -123,3 +123,13 @@ was calibrated on top of that earliness, absorbing it. The labour model
 exposes it. So the switch (§4) waits on fixing the sim's early
 capability at the source (HANDOFF.md finding 12), not on shifting the
 tiers to match it.
+
+**After v1.12** (the flagship-share fix): the sim's 2023 score is 113,
+2024 is 124, ~a year ahead of the record; the labour model gives $67B /
+$413B there. Read on the *real* timeline it is right where it can be
+checked: at score ~110 (the real 2024 frontier) it gives ~$35B against
+~$40B recorded. So what remains is the sim's residual year of earliness
+in capability (checkpoints −6 to −13 months), plus a labs' share of AI
+spend (the seven labs book perhaps a third of what the world pays for
+AI; the rest is applications and cloud) that the switch will need. The
+switch stays off until capability is within ±6 months of the record.

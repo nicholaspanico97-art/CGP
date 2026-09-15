@@ -122,6 +122,8 @@ class Lab:
         self.history = []
         self.ledger = {}                  # month -> {category: dollars}; + in, - out
         self.notices = []                 # (month, text): why a manual order was clipped
+        self.distress_months = 0          # consecutive months of negative cash
+        self.dead = None                  # (month, "acquired by X" | "wound down") once gone
 
     def book(self, month, key, amount):
         """Every dollar that moves, by category. Positive in, negative out."""
@@ -611,6 +613,8 @@ class World:
         # The sector's algorithmic frontier, as a stock that labs advance.
         self.algo_frontier = 1.0
         self.regulation = 0.0             # sector-wide, rises with severe incidents
+        self.graveyard = []               # labs that died, with how and when
+        self.news = []                    # (month, text): things that happened to the sector
         self.geo = GEO.Geo()              # the world outside the labs (observed, v1.9)
         self.hardware = HW.Hardware()     # the supply chain (observed, v1.10)
         self.economy = ECON.Economy()     # four blocs, demand as a labour market (observed, v1.11)
@@ -916,6 +920,7 @@ class World:
         self._score_suites(m)
         self._resolve_market(m)
         self._finance(m)
+        self._insolvency(m)
         self._procure(m)
         # the world outside: stepped after the sector, reads it, does not
         # yet push back (WORLD_STATE.md)
@@ -1110,6 +1115,59 @@ class World:
                 "ship_kind": lab.ships[-1][1] if lab.ships and lab.ships[-1][0] == m else "",
                 "ship_tag": lab.ships[-1][2] if lab.ships and lab.ships[-1][0] == m else "",
             })
+
+    def _insolvency(self, m):
+        """
+        A lab with negative cash for INSOLVENCY_MONTHS running, and no round
+        closed in that time, is in distress. The rival with the most cash
+        takes it over if it can cover the hole several times; otherwise it
+        is wound down. Either way it leaves the field: the market, the
+        talent pool and the data auctions no longer see it. Deterministic -
+        the world decides, not a policy - so replay is unaffected.
+        """
+        for lab in list(self.labs):
+            if lab.cash < 0:
+                lab.distress_months += 1
+            else:
+                lab.distress_months = 0
+            if lab.distress_months < K.INSOLVENCY_MONTHS:
+                continue
+            others = [o for o in self.labs if o is not lab]
+            buyer = max(others, key=lambda o: o.cash, default=None)
+            hole = -lab.cash
+            if buyer is not None and buyer.cash >= K.ACQUIRER_CASH_MULTIPLE * hole:
+                # the iron, the power, the data and most of the people move
+                buyer.cash -= hole
+                buyer.book(m, "acquisitions", -hole)
+                for h in lab.fleet.holdings:
+                    buyer.fleet.add(h[0], h[1], h[2])
+                buyer.orders.extend(lab.orders)
+                buyer.contracted_mw += lab.contracted_mw
+                buyer.mw_pipeline.extend(lab.mw_pipeline)
+                buyer.leased_mw = getattr(buyer, "leased_mw", 0.0) + getattr(lab, "leased_mw", 0.0)
+                for d in D.DOMAIN_KEYS:
+                    buyer.data.tokens[d] += lab.data.tokens[d]
+                    buyer.data.quality_num[d] += lab.data.quality_num[d]
+                buyer.data.sources |= lab.data.sources
+                buyer.data.exclusives |= lab.data.exclusives
+                buyer.researchers += int(lab.researchers * K.ACQUISITION_STAFF_KEPT)
+                buyer.stars += lab.stars * K.ACQUISITION_STAFF_KEPT
+                how = f"acquired by {buyer.name}"
+                self.news.append((m, f"{lab.name}, insolvent for {lab.distress_months} months, "
+                                     f"was acquired by {buyer.name}: {lab.fleet.count():,} accelerators, "
+                                     f"{lab.contracted_mw:,.0f} MW and {int(lab.researchers * K.ACQUISITION_STAFF_KEPT)} researchers change hands"))
+            else:
+                how = "wound down"
+                self.news.append((m, f"{lab.name}, insolvent for {lab.distress_months} months with no buyer, "
+                                     f"was wound down; {lab.researchers} researchers return to the market"))
+            lab.dead = (m, how)
+            lab.model = None
+            lab.internal = None
+            lab.run_target = None
+            lab.revenue_m = 0.0
+            lab.seg_revenue = {}
+            self.labs.remove(lab)
+            self.graveyard.append(lab)
 
     def _observe(self, m):
         """
@@ -1319,10 +1377,13 @@ class World:
             # A lab at the frontier with no revenue is still worth funding -
             # that is what the whole 2020-2023 period was. Capability-led
             # strategies raise on the story; earnings-led ones do not.
+            # v1.13: a lab a couple of OOMs behind the frontier still raised
+            # at $1-4B in 2021-23 (Cohere, Inflection, Adept, Character); the
+            # old 12x-per-OOM penalty valued them at $60M and they died
             narrative = 10 ** (lab.doctrine.get("story_cap_gain", 0.35)
-                               * max(0.0, own - 24.0))
+                               * max(0.0, own - 23.0))
             story = (lab.doctrine.get("story_value", 2.0e9) * narrative
-                     * (10 ** (-0.55 * behind)))
+                     * (10 ** (-0.25 * behind)))
             multiple = 20.0 + 45.0 * min(1.0, m / 72.0)   # multiples expanded
             lab.valuation = max(story, lab.arr * multiple)
             if lab.doctrine.get("backer_funded"):
@@ -1351,8 +1412,13 @@ class World:
             since = m - getattr(lab, "last_raise", -99)
             dilution = 0.0
             if lab.actions.auto_raise:
-                if runway < lab.actions.raise_runway and can and since >= 11:
-                    dilution = lab.actions.raise_fraction
+                # a round is sized to runway - enough for two years of burn
+                # - and capped at what the company will sell; not before six
+                # months have passed since the last one
+                if runway < lab.actions.raise_runway and can and since >= 6:
+                    want = max(0.0, 24 * lab.last_costs - lab.cash)
+                    dilution = min(0.30, max(lab.actions.raise_fraction,
+                                             want / max(lab.valuation, 1.0)))
             elif lab.actions.raise_now > 0 and can and since >= 3:
                 dilution = lab.actions.raise_now
             if (not lab.actions.auto_raise and lab.actions.raise_now > 0
@@ -1366,6 +1432,29 @@ class World:
                 lab.last_raise = m
                 lab.raised = getattr(lab, "raised", 0.0) + amount
                 lab.book(m, "equity_raised", amount)
+            # ---- the hole. A backed lab is bridged by its parent (that is
+            # what a parent is for); an independent gets an emergency down
+            # round while the hole still fits under what investors will
+            # dilute for. Otherwise it stays in the hole, and the clock in
+            # _insolvency runs.
+            if lab.cash < 0:
+                hole = -lab.cash
+                need = hole + 3 * max(lab.last_costs, 0.0)       # plus a quarter of runway
+                if parent:
+                    lab.cash += need
+                    lab.book(m, "parent", need)
+                    lab.bridged = getattr(lab, "bridged", 0) + 1
+                elif can:
+                    price = lab.valuation * K.BRIDGE_DISCOUNT
+                    dil = need / max(price, 1.0)
+                    if dil <= K.BRIDGE_MAX_DILUTION:
+                        lab.cash += need
+                        lab.last_raise = m
+                        lab.raised = getattr(lab, "raised", 0.0) + need
+                        lab.book(m, "equity_raised", need)
+                        lab.down_rounds = getattr(lab, "down_rounds", 0) + 1
+                        lab.notices.append((m, f"emergency round: {need/1e6:,.0f}M raised at a "
+                                               f"{(1-K.BRIDGE_DISCOUNT)*100:.0f}% discount, {dil*100:.0f}% sold"))
 
             # ---- infrastructure finance: from 2024 datacenters were funded
             # against contracted revenue through SPVs and vendor credit, not
@@ -1417,7 +1506,11 @@ class World:
             lab.effective_aggression = aggression
             lab.fab_cap = int(supply * lab.doctrine.get("supply_share", 0.2))
             if lab.actions.auto_capex:
-                budget = max(0.0, lab.cash * aggression)
+                # spend only what is beyond the runway floor: nobody puts
+                # half their cash into chips at nine months of runway
+                spare_cash = lab.cash - K.CAPEX_RUNWAY_FLOOR_MONTHS * getattr(lab, "last_costs", 0.0)
+                # ... and spends it over about half a year, not in one go
+                budget = max(0.0, spare_cash * aggression / K.CAPEX_SPREAD_MONTHS)
                 count = int(budget / accel.capex)
             else:
                 count = int(lab.actions.buy_accels)
