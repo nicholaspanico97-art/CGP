@@ -3,6 +3,22 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.20 — the economy gets its instrument (Sep 15 2026)
+`sim/econ_checkpoints.py` scores the labour-market demand model against
+ECONOMY.md 5. Two of its parameters were wrong by the record and are
+fixed: deployability (half at 150, width 12 - ~6% of tasks in
+production at the 2025 frontier, per the adoption surveys) and the
+productivity multiplier (2 -> 1). And one anchor was mis-specified: the
+labour model measures what the world pays for AI, the fitted curve what
+seven labs book - about a tenth of it in 2025 (`LAB_SHARE_2025` =
+0.12). On the calibration roster 6 of 7 anchors hold (enterprise $55B
+in 2024, 7.5% of US software spend in 2025, unemployment flat, labs'
+share within 1.2-1.6x of the curve, convergence by 2030); the
+productivity effect through 2025 is 0.30 pt against an anchor of 0.20.
+The switch (`DEMAND_MODEL`) stays on the curve; flipping it is the next
+session's job, with the sector checkpoints re-passed. *Files:
+`sim/econ_checkpoints.py`, `sim/econ.py`, `results_economy.txt`.*
+
 ## v1.19 — chip supply responds to demand (Sep 15 2026)
 HARDWARE.md 5 step 3 / ROADMAP item 8. The industry's deliverable chips
 per month come from the hardware tier's packaging capacity, not a

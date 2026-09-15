@@ -43,9 +43,9 @@ by task tier:
 
 Each tier is a sigmoid in C. GPT-4-class ≈ 14% of tasks; ~120 ≈ 45%;
 ~150 ≈ 85%. (LOW — the shape is defensible, the half-points are guesses
-pinned by §5.) **Deployable** is a second sigmoid (half 135, width 10):
+pinned by §5.) **Deployable** is a second sigmoid (half 150, width 12):
 a task the model can do acceptably is not one a firm has integrated
-reliably — ~3% of GPT-4-class tasks, ~10% at 113, half at 135. This is
+reliably — ~1.5% of GPT-4-class tasks, ~6% at 122, half at 150. This is
 the number the 2023-24 adoption surveys pin (~5% of firms in production).
 
 **Value unlocked** per bloc = automatable share × knowledge wage bill ×
@@ -58,9 +58,9 @@ regulation, China fast for domestic products only. This is the missing
 piece behind "enterprise agents open two years early".
 
 **Feedback.**
-- Productivity: the year-on-year *increase* in realised spend × 2 (value
-  bought is a fraction of value created) lifts the bloc's growth that
-  year — a level of spend adds a level of output once.
+- Productivity: the year-on-year *increase* in realised spend × 1 lifts
+  the bloc's growth that year — a level of spend adds a level of output
+  once. (Was ×2; the negative anchor wants it barely visible to 2025.)
 - Displacement: hours automated × (1 − re-employment rate) → knowledge
   unemployment, with a 12-month lag; wage pressure on knowledge work.
 - Expansion: as agents get cheaper per task, the addressable work grows
@@ -92,7 +92,7 @@ least as well as now (median −9 / mean 8.9 / worst −19 / 15 of 16 / 113)
 | Anchor | When | What the model must show |
 |---|---|---|
 | Consumer assistant reaches ~100M users | 2 months after the consumer gate opens (Nov 2022 → Jan 2023) | consumer-tier realised spend at ≥ 50% of unlocked within 3 months of the gate |
-| Sector revenue $1B / $10B / $60B | 2023-06 / 2025-03 / 2026-06 | already in `sim/checkpoints.py`; must hold under "labour" |
+| Sector revenue $1B / $10B / $60B | 2023-06 / 2025-03 / 2026-06 | already in `sim/checkpoints.py`; must hold under "labour" — via the labs' share of world AI spend (`LAB_SHARE_2025` ≈ 0.12: lab revenue ~$26B against ~$250B of AI spend in 2025) |
 | Enterprise AI spend ~$40B/yr | 2024 | enterprise segments' realised spend $25–60B in 2024 |
 | AI ≈ 5% of US software spend | 2025 | US realised AI spend / software spend 3–8% in 2025 |
 | **No measurable productivity effect** | through 2025 | bloc GDP growth within ±0.2 pt of trend through 2025 (a negative anchor) |

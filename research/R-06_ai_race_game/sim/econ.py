@@ -41,14 +41,18 @@ TIERS = [
 CAPTURE_0, CAPTURE_1, CAPTURE_HALFLIFE_M = 0.06, 0.20, 36.0   # of value saved
 # a task the model can do acceptably is not a task a firm has deployed:
 # reliability, integration and liability gate it. Sigmoid in the score.
-DEPLOY_HALF, DEPLOY_WIDTH = 135.0, 10.0
-PRODUCTIVITY_MULT = 2.0            # value created per dollar of AI bought;
+DEPLOY_HALF, DEPLOY_WIDTH = 150.0, 12.0
+PRODUCTIVITY_MULT = 1.0            # value created per dollar of AI bought;
                                    # growth comes from the INCREASE in it
 REEMPLOYMENT = 0.85                # share of displaced hours re-absorbed
 DISPLACEMENT_LAG_M = 12
 EXPANSION_PER_OOM_CHEAPER = 0.35   # addressable work grows as $/task falls
 
 CAP_REF = 26.5                     # GPT-4-class in log-FLOP; score 100
+# what the seven labs book of what the world pays for AI: ~a tenth in
+# 2025 (lab revenue ~$26B against ~$250B of AI spend); the rest is
+# applications, cloud and services. The switch multiplies by this.  (LOW)
+LAB_SHARE_2025 = 0.12
 
 
 def score(c):

@@ -1,0 +1,21 @@
+ECONOMY CHECKPOINTS  (the labour-market demand model, read beside the sim, vs the record)
+
+historical roster, seed 0
+  PASS  Enterprise AI spend $25-60B/yr at end 2024 (labour model)      $55B
+  PASS  US AI spend 3-8% of software spend at end 2025                 7.5%
+  FAIL  US growth within +/-0.2 pt of trend through 2025 (negative anchor) max deviation 0.30 pt
+  PASS  US unemployment <= +0.5 pt over trend by end 2025 (negative anchor) +0.13 pt
+  PASS  Labour model x labs' share within 2x of the curve, end 2023    $2.8B vs curve $2.2B (1.2x)
+  PASS  Labour model x labs' share within 2x of the curve, end 2025    $38.8B vs curve $23.8B (1.6x)
+  PASS  Labour model within 3x of the capability curve at 2030         labour $4614B vs curve $3137B (1.5x)
+
+randomised roster, seed 7
+  FAIL  Enterprise AI spend $25-60B/yr at end 2024 (labour model)      $13B
+  PASS  US AI spend 3-8% of software spend at end 2025                 5.7%
+  FAIL  US growth within +/-0.2 pt of trend through 2025 (negative anchor) max deviation 0.30 pt
+  PASS  US unemployment <= +0.5 pt over trend by end 2025 (negative anchor) +0.03 pt
+  PASS  Labour model x labs' share within 2x of the curve, end 2023    $1.8B vs curve $2.0B (0.9x)
+  PASS  Labour model x labs' share within 2x of the curve, end 2025    $28.6B vs curve $14.4B (2.0x)
+  PASS  Labour model within 3x of the capability curve at 2030         labour $4631B vs curve $3602B (1.3x)
+
+  some anchors FAIL - see ECONOMY.md 5
