@@ -136,6 +136,60 @@ class Game:
         self.progress = (0, 0)              # (months done, months in this turn)
         self.last_months = MONTHS_PER_TURN  # length of the last turn, for the books
 
+    # ------------------------------------------------------ save and load
+    def save(self):
+        """Everything needed to rebuild this game: the seed, the seat, and
+        the action log. A load replays it bit for bit (sim.replay is the
+        proof) and hands control back."""
+        return {"seed": self.seed, "randomized": self.randomized, "player": self.player_index,
+                "months": self.world.month, "turn": self.turn, "last_months": self.last_months,
+                "events": list(self.events),
+                "log": [[m, who, c] for m, who, c in self.world.action_log]}
+
+    @classmethod
+    def load(cls, save, ask_release=None, ask_run=None):
+        """Rebuild a saved game by replaying its log, then give the labs
+        their live policies again - the AIs their doctrines, the player
+        their seat with the standing orders they had."""
+        from .policy import ReplayPolicy
+        from .replay import _run
+        g = cls(seed=save["seed"], player=save["player"], randomized=save["randomized"],
+                ask_release=ask_release, ask_run=ask_run)
+        labs = g.world.labs
+        log = [(m, who, c) for m, who, c in save["log"]]
+        replayers = {}
+        for l in labs:
+            replayers[l.name] = ReplayPolicy(log, l.name)
+            l.policy = replayers[l.name]
+        now = {}
+        for m, who, c in log:
+            if "now" in c:
+                now.setdefault(m, []).append((who, c["now"]["kind"], c["now"]["amount"]))
+        # replay into the same World object the game holds
+        by_name = {l.name: l for l in labs}
+        w = g.world
+        for _ in range(save["months"]):
+            for who, kind, amount in now.get(w.month, []):
+                if who in by_name:
+                    w.buy_now(by_name[who], kind, amount)
+            w.step()
+        # purchases made after the last tick, before the save
+        for who, kind, amount in now.get(w.month, []):
+            if who in by_name:
+                w.buy_now(by_name[who], kind, amount)
+        # hand control back
+        for l in list(w.labs) + list(w.graveyard):
+            if l is g.player:
+                cur = replayers[l.name]._cur
+                g.policy.orders = cur.copy() if cur is not None else None
+                l.policy = g.policy
+            else:
+                l.policy = DoctrinePolicy(l.doctrine)
+        g.turn = save.get("turn", 0)
+        g.last_months = save.get("last_months", MONTHS_PER_TURN)
+        g.events = list(save.get("events", []))
+        return g
+
     # ------------------------------------------------------------ the turn
     @property
     def month(self):
@@ -613,12 +667,10 @@ class Game:
         return "\n".join(f"  {k:<20s} {v}" for k, v in rows)
 
     # ------------------------------------------------------------- saving
-    def save(self, path):
+    def save_to(self, path):
+        """Write `save()` to a file (the old play.py entry point)."""
         with open(path, "w") as f:
-            json.dump({"seed": self.seed, "randomized": self.randomized,
-                       "player": self.player_index, "months": self.world.month,
-                       "log": [[m, who, c] for m, who, c in self.world.action_log]},
-                      f)
+            json.dump(self.save(), f)
 
 
 # ---------------------------------------------------------------- events

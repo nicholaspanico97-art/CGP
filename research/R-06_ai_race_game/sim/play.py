@@ -169,7 +169,7 @@ def handle(g, line):
         print("  autopilot on: the strategy AI holds your seat from here")
     elif cmd == "save":
         path = args[0] if args else "game.json"
-        g.save(path)
+        g.save_to(path)
         print(f"  saved {path}")
     else:
         raise IllegalAction(f"unknown command {cmd!r}; type help")

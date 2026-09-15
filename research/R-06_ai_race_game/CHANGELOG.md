@@ -3,6 +3,15 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.35 — save and load (Sep 15 2026)
+Save and Load buttons in the header. A save is the seed, the seat and
+the action log (`Game.save`); a load replays it into a fresh world - bit
+for bit, which `sim.replay` has proved all along - then hands the AIs
+their doctrines back and you your seat with the standing orders you had
+(`Game.load`). Saves live in `saves/` (git-ignored). Loading is refused
+while a question is open. `play.py`'s old file save is `save_to`.
+*Files: `Game.save/load`, `serve.py` (/api/save, /api/saves, /api/load).*
+
 ## v1.34 — a map (Sep 15 2026)
 ROADMAP E, placeholder. The World tab opens with a schematic map: bloc
 tiles sized by GDP and tinted by public mood, your bloc outlined, each

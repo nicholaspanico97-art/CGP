@@ -178,6 +178,7 @@
   <button id="new">New game</button>
   <button id="auto" title="Hand your seat to the strategy AI for the rest of the game">Autopilot</button>
   <label class="status">turn <select id="months"><option value="1" selected>1 month</option><option value="3">1 quarter</option></select></label>
+  <button id="save">Save</button><button id="load">Load…</button>
   <button class="primary" id="end">End turn ▸</button>
   <div class="prog" id="prog"><div class="bar" id="bar"></div><span class="lbl" id="proglbl"></span></div>
 </header>
@@ -944,6 +945,26 @@ function renderRunModal(p) {
   preview();
 }
 
+$('#save').addEventListener('click', async () => {
+  const name = prompt('Save as', `seed${S.seed}-lab${S.lab}-${S.report.date}`);
+  if (name == null) return;
+  const j = await api('/api/save', {name});
+  setStatus(j.error ? j.error : `Saved as ${j.name}.`, !!j.error);
+});
+$('#load').addEventListener('click', async () => {
+  const r = await fetch('/api/saves').then(x => x.json());
+  if (!r.saves || !r.saves.length) { setStatus('No saves yet.', true); return; }
+  const list = r.saves.map((s, i) => `${i + 1}. ${s.name}  (seed ${s.seed}, lab ${s.lab}, ${s.date})`).join('
+');
+  const pick = prompt('Load which?
+' + list, '1');
+  if (pick == null) return;
+  const sv = r.saves[(+pick) - 1]; if (!sv) return;
+  setStatus(`Loading ${sv.name} — replaying ${sv.months} months…`);
+  const j = await api('/api/load', {name: sv.name});
+  if (j.error) { setStatus(j.error, true); return; }
+  S = null; lastMonth = null; refresh(true);
+});
 document.querySelectorAll('.tabs .tab').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.tabs .tab').forEach(x => x.classList.toggle('on', x === b));
   $('#tab-company').hidden = b.dataset.tab !== 'company';

@@ -17,6 +17,9 @@ mid-quarter while the browser shows the question; the page polls `/api/state`.
   POST /api/answer   {"ship": bool, "evaluate": bool}  -> answers a release question
                      {"run": {...}} or {"wait": true}   -> answers a run question
   POST /api/preview  a run shape -> expected capability per domain, risk
+  POST /api/save     {"name": "..."}  -> writes saves/<name>.json
+  GET  /api/saves    -> the saves on disk
+  POST /api/load     {"name": "..."}  -> rebuilds the game from a save
   POST /api/buy      {"kind": "accels"|"power"|"raise"|"data", "amount": ...}
                      -> buys now; cash moves immediately
   POST /api/new      {"seed": int, "lab": int}  -> a fresh game
@@ -178,6 +181,29 @@ class Session:
         })
         self.snapshot = r
 
+    def save_game(self, name):
+        import os, re
+        name = re.sub(r"[^A-Za-z0-9_\-]+", "_", name or "game")[:60] or "game"
+        os.makedirs(SAVE_DIR, exist_ok=True)
+        path = os.path.join(SAVE_DIR, name + ".json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.game.save(), f)
+        return name
+
+    def load_game(self, name):
+        import os
+        path = os.path.join(SAVE_DIR, name + ".json")
+        with open(path, encoding="utf-8") as f:
+            save = json.load(f)
+        # the request handler holds the lock already
+        self.seed, self.lab_index, self.randomized = save["seed"], save["player"], save["randomized"]
+        self.game = Game.load(save, ask_release=self._ask, ask_run=self._ask_run)
+        self.history = []
+        self.pending = None
+        self.error = None
+        self.busy = False
+        self._record()
+
     def end_quarter(self, months=3):
         if self.busy or self.game.over:
             return
@@ -292,6 +318,7 @@ def _finite(x):
 
 
 SESSION = None
+SAVE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "saves")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -318,6 +345,20 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path.startswith("/api/state"):
             with SESSION.lock:
                 self._json(SESSION.state())
+        elif self.path.startswith("/api/saves"):
+            import os
+            names = []
+            if os.path.isdir(SAVE_DIR):
+                for fn in sorted(os.listdir(SAVE_DIR), key=lambda x: -os.path.getmtime(os.path.join(SAVE_DIR, x))):
+                    if fn.endswith(".json"):
+                        try:
+                            with open(os.path.join(SAVE_DIR, fn), encoding="utf-8") as f:
+                                sv = json.load(f)
+                            names.append({"name": fn[:-5], "seed": sv["seed"], "lab": sv["player"],
+                                          "months": sv["months"], "date": date(sv["months"])})
+                        except Exception:
+                            pass
+            self._json({"saves": names})
         else:
             self._json({"error": "not found"}, 404)
 
@@ -358,6 +399,16 @@ class Handler(BaseHTTPRequestHandler):
                     res = SESSION.game.buy_now(str(body.get("kind")), amount)
                     SESSION.snapshot = SESSION.game.report()
                     return self._json({"ok": True, "result": _finite(res)})
+                elif self.path == "/api/save":
+                    if SESSION.busy:
+                        raise IllegalAction("wait for the turn to finish")
+                    name = SESSION.save_game(str(body.get("name") or f"seed{SESSION.seed}-lab{SESSION.lab_index}"))
+                    return self._json({"ok": True, "name": name})
+                elif self.path == "/api/load":
+                    if SESSION.busy:
+                        raise IllegalAction("answer the open question or wait for the turn to finish, then load")
+                    SESSION.load_game(str(body.get("name")))
+                    return self._json({"ok": True})
                 elif self.path == "/api/preview":
                     if SESSION.busy and SESSION.pending is None:
                         raise IllegalAction("a turn is running")
