@@ -3,6 +3,15 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.34 — a map (Sep 15 2026)
+ROADMAP E, placeholder. The World tab opens with a schematic map: bloc
+tiles sized by GDP and tinted by public mood, your bloc outlined, each
+tile carrying its load and share of grid, mood, rules, chip access, AI
+spend and unemployment, and the labs, fabs and chip designers that live
+there. Geometry is a placeholder; the numbers are the world's. The
+World tab's note now says what the world does. *File: `renderMap` in
+`viewer/play.html`.*
+
 ## v1.33 — named people (Sep 15 2026)
 ROADMAP item 7, first cut. A roster of named star researchers lies over
 the star counts the talent market already moves: each whole star is a

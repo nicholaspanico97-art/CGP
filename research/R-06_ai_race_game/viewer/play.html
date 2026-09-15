@@ -116,6 +116,8 @@
   main[hidden] { display: none; }
   .note { background: var(--accent-soft); border-radius: 6px; padding: 10px 14px; font-size: 13px; }
   .blocs td.mine { font-weight: 700; }
+  .map { width: 100%; height: auto; display: block; }
+  .map text { font-family: system-ui, sans-serif; }
   .chart.wide { grid-column: 1 / -1; }
   .chart.wide svg { height: 170px; width: 100%; }
   .chart .t { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
@@ -226,7 +228,8 @@
 </main>
 <main id="tab-world" class="world" hidden>
   <div class="right">
-    <div class="note">The world outside the labs. <b>Observed, not yet acting</b>: this state exists and moves on the record (to 2025) and a projection after, and it reads the sector — but nothing here pushes back on a lab yet. That is the next layer (<code>WORLD_STATE.md</code>).</div>
+    <div class="note">The world outside the labs: blocs with economies, grids, chip access, mood and rules; the supply chain; demand from the four labour markets. <b>It acts on the labs</b> — what you can buy and when, what power costs, what a round raises, what you may sell where — and it reacts: what the labs ship moves mood, mood moves rules. Instruments: <code>sim.geo_checkpoints</code>, <code>sim.econ_checkpoints</code>, <code>sim.hardware_checkpoints</code>.</div>
+    <section class="panel"><h2>The map</h2><div id="w-map"></div></section>
     <section class="panel"><h2>AI's footprint on the world</h2><div class="tiles" id="w-tiles"></div><div class="charts" id="w-charts"></div></section>
     <section class="panel"><h2>The economy — four blocs, and demand as a labour market</h2><div id="w-econ"></div></section>
     <section class="panel"><h2>Blocs — compute, power, politics</h2><div id="w-blocs"></div></section>
@@ -470,10 +473,45 @@ function renderHardware() {
     chart('h2', 'Revenue share', names.map((n, i) => ({name: n, color: `hsl(${i*80+10} 55% 48%)`, values: series(x => (x.share[n] || 0) * 100)})), 'c', {fromZero: true}) +
     chart('h3', 'HBM $/GB and sector chip demand (k/mo)', [{name: 'HBM $/GB', color: 'var(--them)', values: series(x => x.hbm)}, {name: 'chips k/mo', color: 'var(--you)', values: series(x => x.demand / 1000)}], 'c', {fromZero: true});
 }
+function renderMap(r) {
+  // a schematic map: bloc tiles laid out west to east, sized to GDP,
+  // with the labs that live there, the foundries, and each bloc's load,
+  // mood, regulation and chip access. Geometry is a placeholder; the
+  // numbers are the world's.
+  const g = r.geo, h = r.hardware, e = r.economy;
+  const order = ['US', 'EU', 'Gulf', 'China', 'RoW'];
+  const gdp = order.map(b => g.blocs[b].gdp), tot = gdp.reduce((a, b) => a + b, 0);
+  const W = 1000, HH = 300, pad = 8;
+  let x = pad, svg = '';
+  const foundries = {}; for (const f of h.foundries) (foundries[f.bloc] = foundries[f.bloc] || []).push(f);
+  const designers = {}; for (const d of h.designers) (designers[d.bloc] = designers[d.bloc] || []).push(d);
+  order.forEach((b, i) => {
+    const w = (W - 2 * pad) * (0.10 + 0.90 * gdp[i] / tot) / (1 + 0.5), s = g.blocs[b];
+    const mood = s.mood, hue = mood >= 0 ? 140 : 10, light = 92 - Math.min(Math.abs(mood), 1) * 25;
+    const mine = b === r.my_bloc;
+    svg += `<rect x="${x}" y="${pad}" width="${w - 6}" height="${HH - 2 * pad}" rx="10" fill="hsl(${hue} 45% ${light}%)" stroke="${mine ? 'var(--you)' : 'var(--line)'}" stroke-width="${mine ? 3 : 1}"/>`;
+    svg += `<text x="${x + 12}" y="${pad + 26}" font-size="18" font-weight="700" fill="#1b1f27">${b}${mine ? ' (you)' : ''}</text>`;
+    svg += `<text x="${x + 12}" y="${pad + 46}" font-size="11" fill="#2a2f3a">GDP ${money(s.gdp)} · load ${f(g.load_gw[b], 1)} GW (${(g.load_share_grid[b] * 100).toFixed(2)}%)</text>`;
+    svg += `<text x="${x + 12}" y="${pad + 62}" font-size="11" fill="#2a2f3a">mood ${mood >= 0 ? '+' : ''}${f(mood, 2)} · rules ${f(s.regulation, 2)} · chips ${f(s.access, 2)}</text>`;
+    if (e && e.blocs[b === 'Gulf' ? 'RoW' : b]) { const eb = e.blocs[b === 'Gulf' ? 'RoW' : b]; svg += `<text x="${x + 12}" y="${pad + 78}" font-size="11" fill="#2a2f3a">AI spend ${money(eb.realised)} · unemp ${(eb.unemployment * 100).toFixed(1)}%</text>`; }
+    let y = pad + 100;
+    for (const n of (g.labs[b] || [])) {
+      const hue2 = labHue(n), fill = n === r.name ? 'var(--you)' : `hsl(${hue2} 55% 48%)`;
+      const fr = g.frontier_by_bloc[b];
+      svg += `<circle cx="${x + 20}" cy="${y}" r="8" fill="${fill}"/><text x="${x + 34}" y="${y + 4}" font-size="12" fill="#1b1f27" font-weight="${n === r.name ? 700 : 400}">${n}</text>`;
+      y += 20;
+    }
+    for (const fd of (foundries[b] || [])) { svg += `<rect x="${x + 12}" y="${y - 8}" width="16" height="16" fill="#555" rx="2"/><text x="${x + 34}" y="${y + 4}" font-size="11" fill="#2a2f3a">${fd.name} fab · ${n0(fd.packaging_k)}k pkg</text>`; y += 20; }
+    for (const d of (designers[b] || [])) { if (!d.for_sale && !d.name.endsWith('Silicon')) { svg += `<polygon points="${x + 20},${y - 8} ${x + 28},${y} ${x + 20},${y + 8} ${x + 12},${y}" fill="#555"/><text x="${x + 34}" y="${y + 4}" font-size="11" fill="#2a2f3a">${d.name} (in-house)</text>`; } else { svg += `<polygon points="${x + 20},${y - 8} ${x + 28},${y} ${x + 20},${y + 8} ${x + 12},${y}" fill="#8a4b00"/><text x="${x + 34}" y="${y + 4}" font-size="11" fill="#2a2f3a">${d.name} · ${d.chip ? d.chip.name : ''} · ${(d.share * 100).toFixed(0)}%</text>`; } y += 20; }
+    x += w;
+  });
+  $('#w-map').innerHTML = `<svg class="map" viewBox="0 0 ${W} ${HH}">${svg}</svg><p class="help">Tiles sized by GDP, tinted by public mood (green up, red down); your bloc outlined. Labs, fabs and chip designers where they live. A placeholder for the map the game will have — the numbers are real.</p>`;
+}
 function renderWorld() {
   renderHardware();
   const r = S.report, g = r.geo, H = S.history, e = r.economy;
   if (!g) return;
+  renderMap(r);
   const pct = (v, d=2) => (v*100).toFixed(d) + '%';
   const tot_load = Object.values(g.load_gw).reduce((a,b)=>a+b,0);
   $('#w-tiles').innerHTML = [
