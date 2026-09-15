@@ -68,6 +68,9 @@ MOOD_PER_PT_AI_SPEND = 0.004         # per % of software spend that is AI
 MOOD_DECAY_M = 24.0                  # half-life back toward neutral
 REG_FOLLOWS_MOOD = 0.03              # per month, toward (0.3 - mood/2)
 
+# where the world's AI inference is hosted
+HOSTING_SHARE = {"US": 0.55, "China": 0.18, "EU": 0.10, "Gulf": 0.05, "RoW": 0.12}
+
 # the strategy AIs' home blocs, until organisations carry their own
 BLOC_OF_STRATEGY = {"SOVEREIGN": "Gulf", "COST": "China", "OPEN": "EU"}
 
@@ -154,12 +157,13 @@ class Geo:
             b = bloc_of(l)
             load_by_bloc[b] += l.fleet.megawatts() / 1e3          # GW
             labs_by_bloc[b].append(l.name)
-        # the rest of the world's inference load, split by GDP
+        # the rest of the world's inference load, split by where AI is
+        # hosted (the US hosts over half of it; hosting follows cheap
+        # power and cloud regions more than GDP)                     (MED)
         econ = getattr(world, "economy", None)
         rest_gw = (econ.last.get("rest_of_world_mw", 0.0) / 1e3) if econ and econ.last else 0.0
-        gdp_tot = sum(s["gdp"] for s in self.blocs.values())
         for b in BLOCS:
-            load_by_bloc[b] += rest_gw * self.blocs[b]["gdp"] / gdp_tot
+            load_by_bloc[b] += rest_gw * HOSTING_SHARE[b]
         bought = sum(getattr(l, "accels_bought_month", 0) for l in labs)
         fab_month = K.FAB_OUTPUT_PER_MONTH.get(2020 + world.month // 12, 3_800_000)
         self.derived = dict(

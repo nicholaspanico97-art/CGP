@@ -3,6 +3,17 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.30 — the world layer's instrument (Sep 15 2026)
+`sim/geo_checkpoints.py` scores WORLD_STATE.md 6: the controls'
+effect on a China-bloc fleet, the assistant-moment mood jump, appetite
+doubling, the EU stance after the Act, the US queue, AI's share of the
+US grid, Gulf access, the rate cycle. 7 of 8 hold on the calibration
+roster; AI load reaches 0.83% of the US grid against an anchor of 1%
+(same shortfall as the 10 GW milestone at -9 months). The rest of the
+world's AI load is now split by where it is hosted (US 55%) rather than
+by GDP. *Files: `sim/geo_checkpoints.py`, `geo.HOSTING_SHARE`,
+`results_world.txt`.*
+
 ## v1.29 — a higher bar for the next run (Sep 15 2026)
 `NEXT_RUN_MIN_GROWTH` 1.5 -> 2.0 (effective compute over the last landed
 run): swept 1.5 / 2.0 / 2.5. Timing median -4 / mean 5.2 (best yet) /

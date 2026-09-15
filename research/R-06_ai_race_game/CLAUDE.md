@@ -27,7 +27,8 @@ Python. Read this first, then `WORLD_MODEL.md`.
 python3 -m sim.checkpoints   # PRIMARY calibration: timing, in months
 python3 -m sim.replay        # the seam check: record, replay, must match bit for bit
 python3 -m sim.hardware_checkpoints 7   # the supply chain vs the record
-python3 -m sim.econ_checkpoints 7       # the labour-market demand model vs the record (observed)
+python3 -m sim.econ_checkpoints 7       # the labour-market demand model vs the record
+python3 -m sim.geo_checkpoints 7        # the world layer (blocs, supply, capital, mood) vs the record
 python3 -m sim.serve --seed 7 --lab 2  # PLAY IT in a browser: open http://localhost:8765
 python3 -m sim.play --seed 7 --lab 2   # or in the terminal
 python3 -m sim.score         # secondary: magnitude sanity check only
@@ -87,6 +88,7 @@ hardware.py    foundries, memory, chip designers (v1.10: observed, not yet actin
 hardware_checkpoints.py  the supply chain's instrument
 econ.py        four blocs, demand as a labour market (observed; the switch waits)
 econ_checkpoints.py      the economy layer's instrument
+geo_checkpoints.py       the world layer's instrument
 play.py        terminal front end for game.py; `--auto N` watches autopilot
 serve.py       local web dashboard (viewer/play.html) on top of game.py; stdlib only
 objectives.py  what each strategy is trying to do; how success is scored

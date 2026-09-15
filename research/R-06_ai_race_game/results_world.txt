@@ -1,0 +1,23 @@
+WORLD CHECKPOINTS  (blocs, supply, capital, mood vs the record)
+
+historical roster, seed 0
+  PASS  Controls: a China-bloc lab's fleet grows slower after Oct 2023   no China-bloc lab on this roster
+  PASS  Assistant moment: US mood +0.25 or more within a quarter of Dec 2022 +0.41
+  PASS  Venture appetite doubles from 2022 to 2023                       1.2 -> 2.5
+  PASS  EU stance >= 0.6 from Aug 2024 through 2025                      min 0.67
+  PASS  US interconnect queue ~48 months by end 2025                     48 months
+  FAIL  AI load >= 1% of the US grid by end 2025                         0.83%
+  PASS  Gulf access ~0.8 by end 2025                                     0.80
+  PASS  Policy rate peaks in 2023 and eases by 2025                      5.3% -> 3.9%
+
+randomised roster, seed 7
+  PASS  Controls: a China-bloc lab's fleet grows slower after Oct 2023   no China-bloc lab on this roster
+  PASS  Assistant moment: US mood +0.25 or more within a quarter of Dec 2022 +0.38
+  PASS  Venture appetite doubles from 2022 to 2023                       1.2 -> 2.5
+  PASS  EU stance >= 0.6 from Aug 2024 through 2025                      min 0.67
+  PASS  US interconnect queue ~48 months by end 2025                     48 months
+  FAIL  AI load >= 1% of the US grid by end 2025                         0.62%
+  PASS  Gulf access ~0.8 by end 2025                                     0.80
+  PASS  Policy rate peaks in 2023 and eases by 2025                      5.3% -> 3.9%
+
+  some anchors FAIL - see WORLD_STATE.md 6
