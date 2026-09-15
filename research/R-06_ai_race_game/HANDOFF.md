@@ -187,7 +187,8 @@ next session should start from; each is a model finding, not a UI one):
    a placeholder (fixed — the opening rate is now the real one), but the
    real 2020 rate of ~$370k against a per-strategy opening offer of $810k
    still reads oddly. Check `talent.market_comp` at m=0.
-12. **The sim's capability runs ~15 points (a year and a half) early,
+12. *(fixed v1.12 - the flagship run's share of the lane is an era
+    track; see CHANGELOG.md)* **The sim's capability runs ~15 points (a year and a half) early,
     and the demand curve was fitted on top of it.** Exposed by the
     labour-market demand model (v1.11, `ECONOMY.md` 6): pinned to the
     real GPT-4 = 100, it gives ~10x the calibrated spend curve in

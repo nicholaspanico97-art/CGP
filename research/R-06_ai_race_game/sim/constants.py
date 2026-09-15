@@ -162,7 +162,17 @@ RECIPE_ERA_MOE = {                # (year, month): sector-best sparsity factor
 # lane made every lab's frontier model roughly twice as large as it should
 # be, which is the kind of error a magnitude-at-a-date metric hides and a
 # timing metric finds immediately.
-FRONTIER_RUN_SHARE = 0.30
+FRONTIER_RUN_SHARE = 0.30      # kept for reference; the era track below is used
+# ... and that share was not constant. In 2020-22 a lab's lane went to many
+# medium runs; consolidating the cluster onto one flagship run is something
+# the field learned as the scaling result sank in, and by 2024-25 the
+# flagship took most of it. Era knowledge, like the recipe tables. With the
+# constant 0.30, frontier runs were 3-13x the record in 2021-24 while capex
+# was within 1.5x - the iron was right, the run it went into was not (v1.12).
+FRONTIER_RUN_SHARE_ERA = {
+    (2020, 1): 0.06, (2021, 1): 0.08, (2022, 1): 0.12, (2023, 1): 0.18,
+    (2024, 1): 0.22, (2025, 1): 0.25, (2026, 1): 0.28,
+}
 
 AMBITION_COMFORT = 2.6        # multiple of your last run you can attempt
                               # without materially raising the odds of a dud

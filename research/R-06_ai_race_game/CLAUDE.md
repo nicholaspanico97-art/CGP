@@ -17,6 +17,7 @@ Python. Read this first, then `WORLD_MODEL.md`.
 | `WORLD_STATE.md` | The world outside the labs: blocs, supply, capital, mood — initial parameters and the anchors they must reproduce before acting |
 | `HARDWARE.md` | The supply chain: foundries, memory, chip designers with their own books; rules, anchors, first measurement |
 | `ECONOMY.md` | Four blocs and demand as a labour market; parameters, anchors, first reading (observed; the switch waits on finding 12) |
+| `CHANGELOG.md` | Broad strokes of each version, for review |
 
 `PAPER_PROTOTYPE.md` is superseded; kept for its kill-gate discipline only.
 
@@ -148,9 +149,10 @@ export.py      dump a run to JSON for the viewer
 
 ## Current state
 
-Timing 15/16 inside ±18 months, median offset −10, mean |offset| 9.4.
-Order 113/120. Eleven strategies score 54–89% on their own goals. ~86 lead
-changes per run, top lab ~39% of revenue, ~6 of 7 labs viable at 2030.
+Timing 16/16 inside ±18 months, median offset −6, mean |offset| 7.9.
+Order 115/120. Magnitude 1.82x weighted. Eleven strategies score 50–93%
+on their own goals. ~71 lead changes per run, 0% runaways, 5.4 of 7 labs
+viable at 2030.
 Safety incidents fire with the intended severity gradient: nothing severe is
 possible before agentic capability exists, and by 2028–30 severe is ~6% of
 incidents. Every decision goes through the seam; replay is bit-identical.

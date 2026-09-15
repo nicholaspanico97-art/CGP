@@ -937,7 +937,7 @@ class World:
         window = lab.actions.run_months
         lab.run_window = window
         by_fleet = (lab.fleet.train_flops() * lab.actions.train
-                    * K.FRONTIER_RUN_SHARE
+                    * E.era_recipe(m, K.FRONTIER_RUN_SHARE_ERA)
                     * K.SECONDS_PER_MONTH * window / 1.18)
         if lab.largest_run <= 0:
             return min(by_fleet, lab.doctrine.get("first_run_flop", 6e22))
