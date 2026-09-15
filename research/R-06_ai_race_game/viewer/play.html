@@ -180,7 +180,7 @@
   <div class="prog" id="prog"><div class="bar" id="bar"></div><span class="lbl" id="proglbl"></span></div>
 </header>
 
-<nav class="tabs"><button class="tab on" data-tab="company">Your company</button><button class="tab" data-tab="world">The world</button></nav>
+<nav class="tabs"><button class="tab on" data-tab="company">Your company</button><button class="tab" data-tab="world">The world</button><button class="tab" data-tab="hardware">Hardware market</button></nav>
 <main id="tab-company">
   <section class="panel" id="orders">
     <h2>Your standing orders</h2>
@@ -210,6 +210,17 @@
       <section class="panel"><h2>Data on the table</h2><div id="data"></div></section>
       <section class="panel"><h2>What happened</h2><div class="events" id="events"></div></section>
     </div>
+  </div>
+</main>
+<main id="tab-hardware" class="world" hidden>
+  <div class="right">
+    <div class="note">The supply chain: foundries, memory, chip designers — each with its own books and rules, fed the sector's real orders every month. <b>Observed, not yet acting</b>: you still buy the year's best chip at list price with a 5-month lead. When this tier reproduces the record on its own (<code>python -m sim.hardware_checkpoints</code>), lead times and prices will come from here (<code>HARDWARE.md</code>).</div>
+    <section class="panel"><h2>Chip designers</h2><div id="h-designers"></div></section>
+    <div class="row2">
+      <section class="panel"><h2>Foundries</h2><div id="h-foundries"></div></section>
+      <section class="panel"><h2>Memory (HBM)</h2><div id="h-memory"></div></section>
+    </div>
+    <section class="panel"><h2>The market over time</h2><div class="charts" id="h-charts"></div></section>
   </div>
 </main>
 <main id="tab-world" class="world" hidden>
@@ -412,7 +423,35 @@ async function send(patch) {
 // ---------------------------------------------------------- dashboard
 function tile(k, v, cls='') { return `<div class="tile"><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`; }
 
+function renderHardware() {
+  const r = S.report, h = r.hardware, H = S.history;
+  if (!h) return;
+  const dt = (m) => `${2020 + Math.floor(m/12)}-${String(1 + m % 12).padStart(2, '0')}`;
+  let t = `<p class="help">Sector demand this month: <b>${n0(h.demand_chips)}</b> chips${Object.keys(h.demand_by_bloc).length ? ' (' + Object.entries(h.demand_by_bloc).map(([b, v]) => `${b} ${n0(v)}`).join(', ') + ')' : ''}. HBM at <b>$${f(h.hbm_price, 0)}/GB</b>.</p>`;
+  t += `<table><tr><th>Designer</th><th>Bloc</th><th>Shipping now</th><th class="n">Peak</th><th class="n">Perf/W</th><th class="n">HBM</th><th class="n">Price</th><th class="n">Margin</th><th class="n">Lead time</th><th class="n">Backlog</th><th class="n">Share</th><th>Next generation</th></tr>`;
+  for (const d of h.designers) {
+    const c = d.chip;
+    t += `<tr class="${d.for_sale ? '' : 'dim'}"><td><span class="lab">${logo(d.name, 16)}${d.name}</span>${d.for_sale ? '' : ' <span class="dim">(in-house)</span>'}${d.sells_to ? ` <span class="dim">(sells to ${d.sells_to.join(', ')})</span>` : ''}</td><td>${d.bloc}</td><td class="mono">${c ? c.name : '\u2014'}</td><td class="n mono">${c ? (c.tflops >= 1000 ? (c.tflops/1000).toFixed(1) + ' PF' : c.tflops.toFixed(0) + ' TF') : ''}</td><td class="n mono">${c ? f(c.ppw, 2) : ''}</td><td class="n mono">${c ? f(c.hbm_gb, 0) + ' GB' : ''}</td><td class="n mono">${d.for_sale ? money(d.price) : money(d.cost) + ' <span class="dim">cost</span>'}</td><td class="n mono">${d.for_sale ? (d.margin*100).toFixed(0) + '%' : '\u2014'}</td><td class="n mono ${d.lead_months > 9 ? 'capped' : ''}">${f(d.lead_months, 1)} mo</td><td class="n mono">${n0(d.backlog)}</td><td class="n mono">${d.for_sale ? (d.share*100).toFixed(0) + '%' : '\u2014'}</td><td class="mono">${d.next ? `${d.next.name} \u00b7 ${d.next.tflops >= 1000 ? (d.next.tflops/1000).toFixed(1) + ' PF' : d.next.tflops.toFixed(0) + ' TF'} \u00b7 ${dt(d.next.lands)}` : `<span class="dim">in R&D: ${money(d.rd_bank)} of ${money(d.gen_cost)}</span>`}</td></tr>`;
+  }
+  t += `</table><p class="help">Price = die + HBM + packaging, over the designer's gross margin. Margin rises while the backlog runs past six months and falls under three. A generation lands when accumulated R&D reaches its cost; the step is bigger when the foundry has moved a node. Share is of this month's revenue.</p>`;
+  $('#h-designers').innerHTML = t;
+  let fo = `<table><tr><th>Foundry</th><th>Bloc</th><th class="n">Wafers</th><th class="n">Util</th><th class="n">Packaging</th><th class="n">Util</th><th class="n">$/wafer</th><th>Capacity landing</th></tr>`;
+  for (const x of h.foundries) fo += `<tr><td>${x.name}</td><td>${x.bloc}</td><td class="n mono">${n0(x.wafers_k)}k/mo</td><td class="n mono ${x.util > 0.9 ? 'capped' : ''}">${(x.util*100).toFixed(0)}%</td><td class="n mono">${x.packaging_k > 0 ? n0(x.packaging_k) + 'k/mo' : '\u2014'}</td><td class="n mono ${x.pkg_util > 0.9 ? 'capped' : ''}">${x.packaging_k > 0 ? (Math.min(x.pkg_util, 9.99)*100).toFixed(0) + '%' : '\u2014'}</td><td class="n mono">${money(x.wafer_price)}</td><td class="mono dim">${x.pending.length ? x.pending.map(p => `${p[1] === 'pkg' ? 'packaging' : 'wafers'} +${p[2]}k ${dt(p[0])}`).join('; ') : '\u2014'}</td></tr>`;
+  fo += `</table><p class="help">Wafer capacity grows 25% after a year above 90% utilisation, landing 30 months later; packaging doubles after three months above 70%, landing in 12. Packaging, not wafers, is what rations chips.</p>`;
+  $('#h-foundries').innerHTML = fo;
+  let me = `<table><tr><th>Maker</th><th class="n">Capacity</th><th class="n">Util</th><th class="n">Price</th></tr>`;
+  for (const x of h.memory) me += `<tr><td>${x.name}</td><td class="n mono">${(x.capacity_gb_month/1e6).toFixed(1)}M GB/mo</td><td class="n mono ${x.util > 0.9 ? 'capped' : ''}">${(x.util*100).toFixed(0)}%</td><td class="n mono">$${f(x.price, 0)}/GB</td></tr>`;
+  me += `</table><p class="help">Price follows demand over capacity; capacity grows 30% after nine months above 90%, landing 18 months later.</p>`;
+  $('#h-memory').innerHTML = me;
+  const series = (fn) => H.filter(x => x.hw).map(x => ({x: x.q, y: fn(x.hw), label: x.date}));
+  const names = Object.keys((H.at(-1) || {}).hw?.share || {});
+  $('#h-charts').innerHTML =
+    chart('h1', 'Lead time, months (sellers)', names.filter(n => (H.at(-1).hw.share[n] != null)).map((n, i) => ({name: n, color: `hsl(${i*80+10} 55% 48%)`, values: series(x => x.lead[n])})), 'c', {fromZero: true}) +
+    chart('h2', 'Revenue share', names.map((n, i) => ({name: n, color: `hsl(${i*80+10} 55% 48%)`, values: series(x => (x.share[n] || 0) * 100)})), 'c', {fromZero: true}) +
+    chart('h3', 'HBM $/GB and sector chip demand (k/mo)', [{name: 'HBM $/GB', color: 'var(--them)', values: series(x => x.hbm)}, {name: 'chips k/mo', color: 'var(--you)', values: series(x => x.demand / 1000)}], 'c', {fromZero: true});
+}
 function renderWorld() {
+  renderHardware();
   const r = S.report, g = r.geo, H = S.history;
   if (!g) return;
   const pct = (v, d=2) => (v*100).toFixed(d) + '%';
@@ -825,6 +864,7 @@ document.querySelectorAll('.tabs .tab').forEach(b => b.addEventListener('click',
   document.querySelectorAll('.tabs .tab').forEach(x => x.classList.toggle('on', x === b));
   $('#tab-company').hidden = b.dataset.tab !== 'company';
   $('#tab-world').hidden = b.dataset.tab !== 'world';
+  $('#tab-hardware').hidden = b.dataset.tab !== 'hardware';
 }));
 
 // ------------------------------------------------------------- polling

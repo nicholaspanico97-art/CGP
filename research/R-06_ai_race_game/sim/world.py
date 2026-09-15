@@ -18,6 +18,7 @@ from . import safety as SAFE
 from . import tasks as TASKS
 from . import policy as POL
 from . import geo as GEO
+from . import hardware as HW
 from .capability import (BenchmarkModel, FrontierHistory, algo_efficiency, reasoning_multiplier,
                          capability_index, domain_capability)
 
@@ -610,6 +611,7 @@ class World:
         self.algo_frontier = 1.0
         self.regulation = 0.0             # sector-wide, rises with severe incidents
         self.geo = GEO.Geo()              # the world outside the labs (observed, v1.9)
+        self.hardware = HW.Hardware()     # the supply chain (observed, v1.10)
         self.incident_log = []
         self.sector_research = 0.0
         self.bm = benchmarks or BenchmarkModel().fit()
@@ -702,6 +704,7 @@ class World:
                 out["notes"].append(f"clipped to {bought:,} by cash")
             if bought > 0:
                 lab.bought_now += bought
+                lab.accels_bought_month = getattr(lab, "accels_bought_month", 0) + bought
                 lab.capex_by_year[year] = lab.capex_by_year.get(year, 0.0) + bought * accel.capex
                 lab.book(m, "capex_accelerators", -bought * accel.capex)
             out.update(got=bought, cost=bought * accel.capex, what=accel.name,
@@ -915,6 +918,9 @@ class World:
         # the world outside: stepped after the sector, reads it, does not
         # yet push back (WORLD_STATE.md)
         self.geo.step(self)
+        self.hardware.step(self)
+        for lab in self.labs:
+            lab.accels_bought_month = 0
         self.month += 1
 
     def _next_run_size(self, lab, m):
@@ -1424,7 +1430,7 @@ class World:
                                        f"for more (each {accel.name} needs {accel.watts*K.PUE/1e3:.2f} kW)"))
             if count > 0:
                 bought = lab.order(accel, count, m, lead_months=5)
-                lab.accels_bought_month = bought
+                lab.accels_bought_month = getattr(lab, "accels_bought_month", 0) + bought
                 if not lab.actions.auto_capex and bought < count:
                     lab.notices.append((m, f"accelerator order clipped to {bought:,} by cash"))
                 lab.capex_by_year[year] = (lab.capex_by_year.get(year, 0.0)

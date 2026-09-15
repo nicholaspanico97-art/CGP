@@ -15,6 +15,7 @@ Python. Read this first, then `WORLD_MODEL.md`.
 | `HANDOFF.md` | The last session's record: what was just built and why |
 | `BENCHMARKS_PROPOSAL.md` | Why benchmarks work the way they do, with outcome notes |
 | `WORLD_STATE.md` | The world outside the labs: blocs, supply, capital, mood — initial parameters and the anchors they must reproduce before acting |
+| `HARDWARE.md` | The supply chain: foundries, memory, chip designers with their own books; rules, anchors, first measurement |
 
 `PAPER_PROTOTYPE.md` is superseded; kept for its kill-gate discipline only.
 
@@ -23,6 +24,7 @@ Python. Read this first, then `WORLD_MODEL.md`.
 ```
 python3 -m sim.checkpoints   # PRIMARY calibration: timing, in months
 python3 -m sim.replay        # the seam check: record, replay, must match bit for bit
+python3 -m sim.hardware_checkpoints 7   # the supply chain vs the record (observed tier)
 python3 -m sim.serve --seed 7 --lab 2  # PLAY IT in a browser: open http://localhost:8765
 python3 -m sim.play --seed 7 --lab 2   # or in the terminal
 python3 -m sim.score         # secondary: magnitude sanity check only
@@ -78,6 +80,8 @@ replay.py      record -> save -> replay; must be bit-identical
 game.py        the player's seat: PlayerPolicy, Game (turns, board letter, preview)
 explain.py     why a model is what it is: the capability chain, itemised
 geo.py         the world outside the labs (v1.9: observed, not yet acting)
+hardware.py    foundries, memory, chip designers (v1.10: observed, not yet acting)
+hardware_checkpoints.py  the supply chain's instrument
 play.py        terminal front end for game.py; `--auto N` watches autopilot
 serve.py       local web dashboard (viewer/play.html) on top of game.py; stdlib only
 objectives.py  what each strategy is trying to do; how success is scored
