@@ -297,37 +297,33 @@ regenerated.
 
 ## What I would do next, in order
 
-The long-range plan is now `ROADMAP.md` "v2 direction" — read it. Short
-range:
+Written Sep 15 2026 after the v1.12-1.20 batch (see `CHANGELOG.md` for
+each step and its numbers). The sector instrument stands at timing
+median -4 / mean 6.5 / worst -16 / 16 of 16 / order 114, magnitude
+2.06x; labs can die; hardware and world state are partly acting; the
+economy has an instrument and is one step from acting.
 
-Per Nick (below): play testing is its own calibration. The playable path
-exists now, so:
+1. **Nick reviews `CHANGELOG.md` v1.12-1.20.** Two balance shifts need
+   a human eye: HYPERSCALER fell to ~40-56% of its goals once
+   independents could raise properly (v1.13), and the late-decade
+   frontier runs run a little small since supply came from the tier
+   (v1.19).
+2. **Flip `DEMAND_MODEL` to "labour"** (`ECONOMY.md` 4). Sector spend =
+   sum of blocs' realised spend x `LAB_SHARE_2025`; then re-pass
+   `sim.checkpoints` and `sim.econ_checkpoints`. The remaining miss is
+   the productivity effect through 2025 (0.30 pt vs 0.20).
+3. **Power.** The 10 GW checkpoint is +15 months and the power family
+   ~1.8x under: the anchor counts all AI load, the seven labs are the
+   sim's sector. Give the rest of the world an AI load from the
+   economy's realised spend (inference for everyone), then re-measure.
+4. **Hardware step 4**: in-house silicon as a lab decision; and let the
+   AIs choose suppliers (they still buy the year's best chip).
+5. **World state steps 1, 3, 5**: `supply_share` from bloc access x
+   slots; rounds and debt priced off rates and appetite; regulation per
+   bloc. Each against `WORLD_STATE.md` 6.
+6. The older findings still open: 4 (opening comp reads oddly) is
+   resolved by the threat fix; nothing else from the first list remains.
 
-1. **Nick plays a decade** (`python3 -m sim.play --seed 7 --lab 2`, ~40
-   turns, each `end` is ~25 s of sim) and writes down where the model
-   felt wrong. Then fix those, starting with the five findings above.
-2. **Events** (`ROADMAP.md` item 4). A JSON deck, conditional on world
-   state, visible in the viewer as a timeline. Cheapest large gain in
-   run-to-run variety, and now there is a clean place for an event to
-   *act*: it can change an `Observation`, constrain `Actions` (an export
-   control is a bound on `capex_aggression` or `supply_share`), or force
-   an interrupt.
-3. **Demand as a labour market** (`PREMISES.md` structural issue 3). Still
-   the weakest part of the late game.
-
-## Standing instructions from Nick, for the record
-
-- Develop on `claude/ai-race-game-plan-vl6gi3`; never push elsewhere
-  without asking. No PR unless explicitly requested.
-- This is a personal project. Fidelity first: *"model this world really
-  really well, the game is the player's window into the simulation."*
-- Real units everywhere. Abstract "compute units" were rejected explicitly.
-- Calibration does not need to be exact — *"this is an alternate universe,
-  kind of"* — but it must stay inside an order of magnitude, and timing is
-  the instrument, not magnitude.
-- Target feeling: *"staring at benchmarks pissed they lost on AA by 2
-  points, seeing how long they can burn cash on inference."*
-- Sep 13: *"our goal is to make a viable simulation model, and then make a
-  way for the game to be played because play testing is its own
-  calibration."* The playable path is an instrument; sequence it ahead of
-  content.
+Standing checks after any change to `world.py`: `python -m sim.replay`
+(must say "seam holds"), then `sim.checkpoints`, and the tier
+instruments if the change touches them.
