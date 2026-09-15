@@ -40,6 +40,13 @@ class Chip:
     def perf_per_watt(self):
         return self.peak_tflops / self.watts
 
+    def as_accelerator(self, price):
+        """The chip as something a fleet can hold (economics.Accelerator)."""
+        from . import economics as E
+        y, mo = 2020 + self.lands // 12, 1 + self.lands % 12
+        return E.Accelerator((self.name, (y, mo), self.peak_tflops, self.watts,
+                              price, 0.40, 0.24))
+
 
 class Foundry:
     def __init__(self, name, wafers_k, packaging_k, wafer_price, node, bloc,
@@ -220,6 +227,7 @@ class Hardware:
         self.month = m
         geo = getattr(world, "geo", None)
         access = {b: s["access"] for b, s in geo.blocs.items()} if geo else {}
+        self._access = access
         from . import geo as GEO
 
         # 1. demand: what the sector ordered this month, by bloc
@@ -236,6 +244,12 @@ class Hardware:
         hbm = self.hbm_price()
         sellers = [d for d in self.designers.values() if d.for_sale and d.current(m)]
         orders = {name: 0.0 for name in self.designers}
+        # orders placed with a named supplier (the player) go straight to it
+        for lab in world.labs:
+            for name, n in (getattr(lab, "bought_from_month", None) or {}).items():
+                if name in orders:
+                    orders[name] += n
+            lab.bought_from_month = {}
         for b, n in demand_by_bloc.items():
             elig = [d for d in sellers if self._may_sell(d, b, access)]
             if not elig:
@@ -313,6 +327,26 @@ class Hardware:
         for mm in self.memory.values():
             mm.step(m)
         self.history.append(self.snapshot())
+
+    def offers(self, bloc, m=None):
+        """What each seller offers a lab in `bloc` this month: chip, price,
+        lead time, perf per dollar - and whether controls allow it."""
+        m = self.month if m is None else m
+        geo_access = getattr(self, "_access", {})
+        hbm = self.hbm_price()
+        out = []
+        for d in self.designers.values():
+            c = d.current(m)
+            if c is None or not d.for_sale:
+                continue
+            allowed = self._may_sell(d, bloc, geo_access)
+            price = d.price(m, self.foundries, hbm)
+            out.append(dict(designer=d.name, chip=c.name, tflops=c.peak_tflops, watts=c.watts,
+                            hbm_gb=c.hbm_gb, price=price, lead_months=int(round(max(3.0, min(14.0, d.lead_months)))),
+                            perf_per_dollar=c.peak_tflops / max(price, 1.0), allowed=allowed,
+                            share=d.share, backlog=d.backlog))
+        out.sort(key=lambda o: -o["perf_per_dollar"])
+        return out
 
     def _may_sell(self, d, bloc, access):
         if d.sells_to is not None:

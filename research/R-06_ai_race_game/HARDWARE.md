@@ -10,8 +10,13 @@ the year's best from `constants.ACCELERATORS`, but its **price** is list
 × the incumbent's margin against its normal 60%, and its **lead time**
 is the incumbent's backlog (3-14 months) — `World.market_terms`. So the
 2024 crunch now reaches the labs: chips cost more and arrive later while
-the backlog runs. Steps 2-4 (choose a supplier; capacity from sector
-capex; in-house silicon) are not wired. The tier is fed the sim's real
+the backlog runs. Step 2 is wired for the player (v1.16): the compute panel's "buy from"
+lists every seller's current chip at its price and lead time, greyed
+where export controls forbid it; an order placed with a named seller
+lands in that designer's backlog (`Hardware.offers`, `buy_now` with a
+supplier). The strategy AIs still buy the year's best chip, so
+calibration is untouched. Steps 3-4 (capacity from sector capex;
+in-house silicon) are not wired. The tier is fed the sim's real
 order flow and checked against §6 (`results_hardware.txt`).
 
 ## 1. Three tiers, each with entities that have books

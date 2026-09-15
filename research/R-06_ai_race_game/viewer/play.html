@@ -312,7 +312,8 @@ function buildOrders() {
         const step = fld === 'buy_accels' ? 100 : fld === 'contract_mw' ? 5 : 0.01;
         const kind = {buy_accels: 'accels', contract_mw: 'power', raise_now: 'raise'}[fld];
         const verb = fld === 'buy_accels' ? 'Buy now' : fld === 'contract_mw' ? 'Contract now' : 'Raise now';
-        h += `<div class="order"><label>${label}</label><span class="buyrow"><input type="number" data-oneshot="${fld}" min="0" step="${step}" placeholder="0"><button class="primary buy" data-buy="${kind}" data-from="${fld}">${verb}</button></span>
+        const supplier = fld === 'buy_accels' ? `<div class="sizing" style="grid-column:1/-1"><label class="help">buy from <select id="supplier"><option value="">the year's best (${sh.accel}, $${n0(sh.accel_capex)}, ${sh.accel_lead_months} mo)</option>${(sh.offers||[]).map(o => `<option value="${o.designer}" ${o.allowed ? '' : 'disabled'}>${o.designer} \u2014 ${o.chip}, ${o.tflops >= 1000 ? (o.tflops/1000).toFixed(1)+' PF' : o.tflops.toFixed(0)+' TF'}, ${money(o.price)}, ${o.lead_months} mo${o.allowed ? '' : ' (export controls)'}</option>`).join('')}</select></label></div>` : '';
+        h += `<div class="order"><label>${label}</label><span class="buyrow"><input type="number" data-oneshot="${fld}" min="0" step="${step}" placeholder="0"><button class="primary buy" data-buy="${kind}" data-from="${fld}">${verb}</button></span>${supplier}
           <div class="sizing"><div id="est-${fld}" class="est"></div>${sizing}</div><div class="why">${ex[fld].replace(/Order this many accelerators now\. |Contract this many megawatts now\. |Raise a round now, /, m => m)} The cash leaves the moment you press it; the order is at this month's prices and caps.</div></div>`;
         continue;
       }
@@ -351,12 +352,13 @@ function buildOrders() {
     const amount = src === 'data-now' ? input.value : +input.value;
     if (!amount) return;
     el.disabled = true;
-    const j = await api('/api/buy', {kind: el.dataset.buy, amount});
+    const sup = el.dataset.buy === 'accels' && $('#supplier') ? $('#supplier').value : '';
+    const j = await api('/api/buy', {kind: el.dataset.buy, amount, supplier: sup || undefined});
     el.disabled = false;
     if (j.error) { setStatus(j.error, true); return; }
     const r = j.result;
     let msg = '';
-    if (r.kind === 'accels') msg = r.got > 0 ? `Bought ${n0(r.got)} × ${r.what} for ${money(r.cost)}, arriving in ~${r.lead} months.` : 'Nothing bought.';
+    if (r.kind === 'accels') msg = r.got > 0 ? `Bought ${n0(r.got)} × ${r.what}${r.supplier ? ' from ' + r.supplier : ''} for ${money(r.cost)}, arriving in ~${r.lead} months.` : 'Nothing bought.';
     if (r.kind === 'power') msg = r.got > 0 ? `Contracted ${f(r.got,0)} MW (${f(r.leased,0)} leased, ${f(r.built,0)} built) — ${money(r.cost)} up front.` : 'No power contracted.';
     if (r.kind === 'raise') msg = r.got > 0 ? `Raised ${money(-r.cost)} selling ${(r.got*100).toFixed(0)}%.` : 'No round raised.';
     if (r.kind === 'data') msg = r.got > 0 ? `Licensed ${r.what} for ${money(r.cost)}.` : 'Nothing licensed.';

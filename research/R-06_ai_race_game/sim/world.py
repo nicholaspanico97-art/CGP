@@ -710,12 +710,17 @@ class World:
         """
         m = self.month
         year = 2020 + m // 12
+        asked = amount                       # logged as given (a supplier order is a dict)
         month_now = getattr(lab, "bought_now_month", None)
         if month_now != m:
             lab.bought_now_month, lab.bought_now = m, 0
         out = dict(kind=kind, asked=amount, got=0, cost=0.0, notes=[])
         if kind == "accels":
             accel = E.best_available(m)
+            supplier = None
+            if isinstance(amount, dict):
+                supplier = amount.get("supplier")
+                amount = amount.get("count", 0)
             supply = K.FAB_OUTPUT_PER_MONTH.get(year, 3_800_000)
             fab = int(supply * lab.doctrine.get("supply_share", 0.2)) - lab.bought_now
             count = int(amount)
@@ -723,6 +728,17 @@ class World:
                 out["notes"].append(f"clipped to {max(fab,0):,} by fab supply this month")
                 count = max(fab, 0)
             price, lead = self.market_terms(accel)
+            if supplier:
+                # a named seller's chip, at its price and lead, if controls allow
+                bloc = GEO.bloc_of(lab)
+                offer = next((o for o in self.hardware.offers(bloc, m) if o["designer"] == supplier), None)
+                if offer is None:
+                    raise POL.IllegalAction(f"{supplier} has nothing for sale")
+                if not offer["allowed"]:
+                    raise POL.IllegalAction(f"{supplier} may not sell into {bloc} (export controls)")
+                chip = self.hardware.designers[supplier].current(m)
+                accel = chip.as_accelerator(offer["price"])
+                price, lead = offer["price"], offer["lead_months"]
             room = lab.headroom_accels(accel, m, lead_months=lead)
             if count > room:
                 out["notes"].append(f"clipped to {room:,}: no contracted power for more")
@@ -732,11 +748,16 @@ class World:
                 out["notes"].append(f"clipped to {bought:,} by cash")
             if bought > 0:
                 lab.bought_now += bought
-                lab.accels_bought_month = getattr(lab, "accels_bought_month", 0) + bought
+                if supplier:
+                    bf = getattr(lab, "bought_from_month", None) or {}
+                    bf[supplier] = bf.get(supplier, 0) + bought
+                    lab.bought_from_month = bf
+                else:
+                    lab.accels_bought_month = getattr(lab, "accels_bought_month", 0) + bought
                 lab.capex_by_year[year] = lab.capex_by_year.get(year, 0.0) + bought * price
                 lab.book(m, "capex_accelerators", -bought * price)
             out.update(got=bought, cost=bought * price, what=accel.name,
-                       arrives=m + lead, lead=lead, price=price)
+                       arrives=m + lead, lead=lead, price=price, supplier=supplier)
         elif kind == "power":
             lease_market = K.LEASE_MARKET_MW.get(year, 52_000)
             cap = lease_market * lab.doctrine.get("supply_share", 0.2)
@@ -802,7 +823,7 @@ class World:
                     out.update(got=1, cost=dollars, what=src["name"])
         else:
             raise POL.IllegalAction(f"unknown purchase {kind!r}")
-        self.action_log.append((m, lab.name, {"now": {"kind": kind, "amount": amount}}))
+        self.action_log.append((m, lab.name, {"now": {"kind": kind, "amount": asked}}))
         if out["notes"]:
             lab.notices.append((m, f"{kind} order: " + "; ".join(out["notes"])))
         return out

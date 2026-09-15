@@ -112,6 +112,8 @@ def check_game(seed=7, player=2, quarters=8):
         if q == 1:
             g.buy_now("power", 8)
             g.buy_now("accels", 600)
+        if q == 2:
+            g.buy_now("accels", {"count": 300, "supplier": "Aurex"})
         if q == 3:
             o = g.orders
             o.price_stance = 0.8

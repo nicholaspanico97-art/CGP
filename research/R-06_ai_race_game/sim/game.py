@@ -374,6 +374,7 @@ class Game:
             build_lead_months=(K.DC_LEAD_TIME_MONTHS
                                + (K.GRID_QUEUE_MONTHS if m >= 66 else 0)),
             accel_lead_months=mkt_lead,
+            offers=w.hardware.offers(GEO.bloc_of(me), m),
             cash_cap_power=me.cash * 0.45,
             months_since_raise=m - getattr(me, "last_raise", -99),
             can_raise=me.doctrine.get("can_raise", True),

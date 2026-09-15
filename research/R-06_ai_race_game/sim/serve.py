@@ -348,7 +348,10 @@ class Handler(BaseHTTPRequestHandler):
                 elif self.path == "/api/buy":
                     if SESSION.busy:
                         raise IllegalAction("wait for the turn to finish")
-                    res = SESSION.game.buy_now(str(body.get("kind")), body.get("amount"))
+                    amount = body.get("amount")
+                    if body.get("kind") == "accels" and body.get("supplier"):
+                        amount = {"count": amount, "supplier": str(body["supplier"])}
+                    res = SESSION.game.buy_now(str(body.get("kind")), amount)
                     SESSION.snapshot = SESSION.game.report()
                     return self._json({"ok": True, "result": _finite(res)})
                 elif self.path == "/api/preview":

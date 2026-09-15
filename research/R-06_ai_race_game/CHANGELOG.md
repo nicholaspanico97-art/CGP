@@ -3,6 +3,15 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.16 — choose your supplier (Sep 15 2026)
+HARDWARE.md 5, step 2, player side. "Buy from" on the compute panel:
+each seller's current chip, price, lead time; greyed under export
+controls (a China-bloc lab cannot buy from a US designer after Oct
+2022). The order joins that designer's backlog, so what you buy moves
+its lead time and margin. The AIs still buy the year's best chip -
+calibration untouched. Replay covers supplier orders. *Files:
+`Hardware.offers`, `Chip.as_accelerator`, `World.buy_now`.*
+
 ## v1.15.1 — a valuation ceiling; an instrument fix (Sep 15 2026)
 The narrative valuation had no ceiling: a lab at score 185 was "worth"
 $60T and a routine round raised trillions (Vantor's cash hit $21T in
