@@ -4,6 +4,8 @@ Written Sep 14 2026 (Nick's direction). `ROADMAP.md` thrust C, "the world
 reacts to AI". Four blocs: **US, EU, China, rest of world** (the Gulf
 stays a compute bloc in `geo.py`; for GDP it is part of RoW).
 
+**v1.21 status: acting.** `DEMAND_MODEL = "labour"`: sector spend is the four blocs' realised AI spend x the labs' share (`LAB_SHARE_2025`). A pilots term (firms paying to try what they cannot yet deploy) carries the 2021-22 API-era revenue. Sector timing 16/16, order 114; revenue magnitude 2.6x (2024 high, 2026 low). *Original status note follows.*
+
 **v1.11 status: observed, not acting.** `sim/econ.py` carries each bloc's
 economy, steps it monthly, reads the AI sector, and computes what the
 labour-market demand model *would* say — beside the capability curve

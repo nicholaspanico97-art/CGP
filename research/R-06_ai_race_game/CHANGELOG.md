@@ -3,6 +3,20 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.21 — demand comes from the labour markets (Sep 15 2026)
+`DEMAND_MODEL = "labour"`. Sector spend is now the four blocs' realised
+AI spend x the labs' share of what the world pays for AI, instead of the
+fitted capability curve (kept behind the switch, shown on the World tab
+for comparison). A pilots term - firms paying to try what they cannot
+yet deploy - carries the 2021-22 API-era revenue the deployment model
+had no source for. Timing: median -6 / mean 6.6 / worst -16 / 16 of 16
+/ order 114 (revenue milestones +5 / -6 / +3). Magnitude 2.27x (revenue
+2.6x: 2024 $17B vs $7B, 2026 $43B vs $62B; 2023 and 2025 on the
+record). Economy anchors 10 of 14 lines. The world is now one system:
+what the labs build changes what the world can automate, which changes
+what the labs are paid. *Files: `World._sector_spend`, `econ.py`
+(pilots), `constants.DEMAND_MODEL`.*
+
 ## v1.20 — the economy gets its instrument (Sep 15 2026)
 `sim/econ_checkpoints.py` scores the labour-market demand model against
 ECONOMY.md 5. Two of its parameters were wrong by the record and are
