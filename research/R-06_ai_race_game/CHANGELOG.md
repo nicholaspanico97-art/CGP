@@ -3,6 +3,18 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.24 — a market opens when it is worth something (Sep 15 2026)
+Two "market opens" checkpoints fired the month a lab first cleared the
+capability gate; they now ask for a market worth $250M/yr (the API
+"exists" check is unchanged). And the pie's split between consumer-type
+and enterprise-type segments follows the economy's realised
+consumer/enterprise spend instead of fixed shares - so enterprise agents
+get a market when firms have deployed, not when a model can. Enterprise
+agents -18 (inside the band for the first time in the model's life),
+consumer +1, 10 GW -2; timing mean 6.1 / worst -18 / 16 of 16 / order
+112; magnitude 2.03x. *Files: `checkpoints._seg_open`,
+`domains.segment_tam`, `World._enterprise_frac`.*
+
 ## v1.23 — the AI labs buy in the hardware market (Sep 15 2026)
 HARDWARE.md 5 step 2, for the AIs: each lab's standing capex rule now
 buys from the seller the market's own rule picks for its bloc (perf per

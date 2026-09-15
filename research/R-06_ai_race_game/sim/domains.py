@@ -256,9 +256,26 @@ SEGMENTS = {
 }
 
 
-def segment_tam(seg_key, sector_spend_month):
-    """This segment's share of the sector's realised monthly spend."""
-    return sector_spend_month * SEGMENTS[seg_key]["tam_share"]
+ENTERPRISE_SEGMENTS = ("enterprise_agents", "science", "robotics")
+
+
+def segment_tam(seg_key, sector_spend_month, enterprise_frac=None):
+    """
+    This segment's share of the sector's realised monthly spend. With
+    `enterprise_frac` (the economy's share of realised AI spend that is
+    enterprise-type, v1.24) the enterprise segments' shares are scaled to
+    it and the rest to the remainder - so enterprise agents get a market
+    when firms have actually deployed, not when a lab clears a gate.
+    """
+    share = SEGMENTS[seg_key]["tam_share"]
+    if enterprise_frac is not None:
+        ent = sum(SEGMENTS[k]["tam_share"] for k in ENTERPRISE_SEGMENTS)
+        con = 1.0 - ent
+        if seg_key in ENTERPRISE_SEGMENTS:
+            share = share / ent * enterprise_frac
+        else:
+            share = share / con * (1.0 - enterprise_frac)
+    return sector_spend_month * share
 
 
 class DataStock:

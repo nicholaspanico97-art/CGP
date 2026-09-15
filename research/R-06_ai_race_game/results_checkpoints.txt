@@ -4,26 +4,26 @@ CHECKPOINT TIMING  (5 seeds, band +/-18 months)
   A GPT-3-class model exists            2020-062020-08       +2        0
   A paid model API exists               2020-072020-08       +1        2
   Broad-knowledge score reaches 70      2022-042021-07       -9        7
-  A consumer assistant market opens     2022-112021-12      -11       17
+  A consumer assistant market opens     2022-112022-12       +1       17
   A 1e25 FLOP training run              2023-032022-10       -5       11
   Broad knowledge reaches 86            2023-032022-07       -8       24
-  Sector revenue passes $1B/yr          2023-062023-07       +1       13
+  Sector revenue passes $1B/yr          2023-062023-07       +1       15
   1 GW of AI load                       2023-122023-06       -6        6
   Software-issue solving reaches 25%    2024-062023-09       -9        2
   Graduate science reaches 78           2024-122024-04       -8        7
   A 1e26 FLOP training run              2024-122024-04       -8        6
-  Sector revenue passes $10B/yr         2025-032024-08       -7        7
+  Sector revenue passes $10B/yr         2025-032024-08       -7        6
   A 100k-accelerator coherent cluster   2025-032025-08       +5       12
-  An enterprise agent market opens      2025-062023-10      -20        3  <-- outside band
+  An enterprise agent market opens      2025-062023-12      -18        5
   10 GW of AI load                      2025-122025-10       -2       17
-  Sector revenue passes $60B/yr         2026-062027-05      +11       11
+  Sector revenue passes $60B/yr         2026-062027-02       +8       10
 
   median offset   -6 months   (positive = sim runs late)
-  mean |offset|   7.1 months
-  worst           -20 months
-  inside +/-18     15/16 checkpoints
+  mean |offset|   6.1 months
+  worst           -18 months
+  inside +/-18     16/16 checkpoints
 
-  ORDER: 114/120 pairs in the right sequence  (6 inversions)
+  ORDER: 112/120 pairs in the right sequence  (8 inversions)
   Order matters more than dates: a world where the milestones happen
   in the wrong sequence is a different world. One where they all happen
   a year late is the same world running slow.

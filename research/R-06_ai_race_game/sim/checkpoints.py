@@ -39,7 +39,7 @@ CHECKPOINTS = [
     ("mmlu70",    "Broad-knowledge score reaches 70",  (2022, 4),
      lambda w, m: _best_score(w, "MMLU") >= 70),
     ("assistant", "A consumer assistant market opens", (2022, 11),
-     lambda w, m: _seg_open(w, "consumer_chat")),
+     lambda w, m: _seg_open(w, "consumer_chat", 0.25e9)),
     ("flop1e25",  "A 1e25 FLOP training run",          (2023, 3),
      lambda w, m: _best_run(w) >= 1e25),
     ("mmlu86",    "Broad knowledge reaches 86",        (2023, 3),
@@ -59,7 +59,7 @@ CHECKPOINTS = [
     ("cluster100k", "A 100k-accelerator coherent cluster", (2025, 3),
      lambda w, m: _biggest_cluster(w) >= 100_000),
     ("agents",    "An enterprise agent market opens",  (2025, 6),
-     lambda w, m: _seg_open(w, "enterprise_agents")),
+     lambda w, m: _seg_open(w, "enterprise_agents", 0.25e9)),
     ("gw10",      "10 GW of AI load",                  (2025, 12),
      lambda w, m: _power(w) >= 10_000),
     ("rev60b",    "Sector revenue passes $60B/yr",     (2026, 6),
@@ -104,9 +104,11 @@ def _best_score(w, suite):
     return max((sc for sc in (w.scores.get(suite) or {}).values()), default=0.0)
 
 
-def _seg_open(w, seg):
+def _seg_open(w, seg, min_yr=0.0):
+    # a market has OPENED when it is worth something, not the month a lab
+    # first clears the capability gate (v1.24); "exists" checks pass 0
     st = getattr(w, "segment_state", {}).get(seg)
-    return bool(st and st[1])
+    return bool(st and st[1] and st[0] * 12.0 >= min_yr)
 
 
 def _revenue(w):

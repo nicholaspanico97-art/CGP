@@ -835,6 +835,18 @@ class World:
             lab.notices.append((m, f"{kind} order: " + "; ".join(out["notes"])))
         return out
 
+    def _enterprise_frac(self):
+        """The share of the world's realised AI spend that is enterprise-type,
+        from the economy; None on the capability curve."""
+        if K.DEMAND_MODEL != "labour" or not self.economy.last:
+            return None
+        pb = self.economy.last["per_bloc"]
+        ent = sum(v["realised_ent"] for v in pb.values())
+        tot = sum(v["realised"] for v in pb.values())
+        if tot <= 0:
+            return None
+        return max(0.02, min(0.6, ent / tot))
+
     def sector_mw(self):
         """All AI load: the labs' fleets plus the rest of the world's
         inference, derived from the AI spend the labs do not book (v1.22).
@@ -1063,7 +1075,7 @@ class World:
             # buyers pay for capability they can actually use
             gate = max(seg["gates"].values())
             fill = 1.0 / (1.0 + math.exp(-(best - gate) / 0.75))
-            tam = D.segment_tam(seg_key, sector_month) * fill
+            tam = D.segment_tam(seg_key, sector_month, self._enterprise_frac()) * fill
 
             scores = []
             for l in eligible:
