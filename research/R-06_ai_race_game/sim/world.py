@@ -1311,8 +1311,12 @@ class World:
         stock = getattr(self, "spend_stock", 0.0)
         k = 1 - 0.5 ** (1.0 / K.DIFFUSION_HALFLIFE_M)
         stock += (unlocked - stock) * k
-        self.spend_stock = stock
+        self.spend_stock = stock              # the curve, always computed (the tab compares)
         self.spend_unlocked = unlocked
+        if K.DEMAND_MODEL == "labour" and self.economy.last:
+            # the blocs' labour markets, as of last month's tick, times the
+            # share of the world's AI spend the labs themselves book
+            return self.economy.last["labour_spend"] * ECON.LAB_SHARE_2025 / 12.0
         return stock / 12.0
 
     def published_scores(self, lab):

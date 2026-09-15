@@ -42,6 +42,12 @@ CAPTURE_0, CAPTURE_1, CAPTURE_HALFLIFE_M = 0.06, 0.20, 36.0   # of value saved
 # a task the model can do acceptably is not a task a firm has deployed:
 # reliability, integration and liability gate it. Sigmoid in the score.
 DEPLOY_HALF, DEPLOY_WIDTH = 150.0, 12.0
+# ... and before a task is deployed, firms pay to try it: pilots and
+# developer API spend, a sliver of the wage bill behind the tasks the
+# model can do but nobody has put in production yet. This is the 2021-22
+# revenue - GPT-3-era API sales - that a pure deployment model misses.
+PILOT_RATE = 0.0012                # of the automatable-but-undeployed wage bill
+PILOT_HALFLIFE_M = 3.0
 PRODUCTIVITY_MULT = 1.0            # value created per dollar of AI bought;
                                    # growth comes from the INCREASE in it
 REEMPLOYMENT = 0.85                # share of displaced hours re-absorbed
@@ -97,6 +103,7 @@ class Bloc:
         self.con_halflife = p["con_halflife"]
         self.realised_con = 0.0        # $/yr realised, consumer-type
         self.realised_ent = 0.0        # $/yr realised, enterprise-type
+        self.realised_pilot = 0.0      # $/yr realised, pilots and developer spend
         self.displaced_hours = 0.0     # share of knowledge hours automated (lagged)
         self.displaced_queue = []
         self.productivity_lift = 0.0   # extra growth this year, from AI
@@ -123,7 +130,10 @@ class Bloc:
         ke = 1 - 0.5 ** (1.0 / self.ent_halflife)
         self.realised_con += (unl_con - self.realised_con) * kc
         self.realised_ent += (unl_ent - self.realised_ent) * ke
-        realised = self.realised_con + self.realised_ent
+        pilots = auto * (1.0 - dep) * self.wage_bill * PILOT_RATE
+        kp = 1 - 0.5 ** (1.0 / PILOT_HALFLIFE_M)
+        self.realised_pilot += (pilots - self.realised_pilot) * kp
+        realised = self.realised_con + self.realised_ent + self.realised_pilot
         # feedback: productivity (from the year-on-year increase in value
         # bought - a level of spend adds a level of output once),
         # displacement (lagged), the economy's trend
@@ -144,6 +154,7 @@ class Bloc:
         self.software_spend *= (1 + self.trend + 0.03) ** (1 / 12)
         return dict(automatable=auto, deployable=dep, unlocked=unlocked, realised=realised,
                     realised_con=self.realised_con, realised_ent=self.realised_ent,
+                    realised_pilot=self.realised_pilot,
                     capture=capture, expansion=expansion)
 
 
@@ -184,6 +195,6 @@ class Economy:
                                         unemployment=b.unemployment, unemployment_0=b.unemployment_0,
                                         displaced_hours=b.displaced_hours,
                                         productivity_lift=b.productivity_lift,
-                                        realised=b.realised_con + b.realised_ent,
-                                        ai_share_software=((b.realised_con + b.realised_ent) / b.software_spend))
+                                        realised=b.realised_con + b.realised_ent + b.realised_pilot,
+                                        ai_share_software=((b.realised_con + b.realised_ent + b.realised_pilot) / b.software_spend))
                            for b in self.blocs.values()})

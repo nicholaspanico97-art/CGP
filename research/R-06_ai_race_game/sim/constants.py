@@ -442,6 +442,15 @@ BRIDGE_DISCOUNT = 0.70          # a down round, at this fraction of the
                                 # narrative valuation; the hole must fit
                                 # under max dilution or nobody bites (MED)
 
+# Where the world's AI spend comes from (v1.21, ECONOMY.md 4).
+#   "capability": the fitted curve - $2B x 10^(0.45 x (C - 26.5)), adopted
+#                 with a 12-month half-life; one number for the world
+#   "labour":     the four blocs' labour markets - tasks the frontier can do
+#                 x what firms have deployed x the knowledge wage bill x
+#                 capture, adopted with each bloc's friction - times the
+#                 labs' share of what the world pays for AI
+DEMAND_MODEL = "labour"
+
 # Scenario dial. 1.0 is the historical-realism setting. Higher values widen
 # run variance and speed diffusion, producing a more contested race at some
 # cost in fidelity - the realism/fun trade, made explicit and tunable.
