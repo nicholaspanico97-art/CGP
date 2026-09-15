@@ -93,8 +93,12 @@ IDEA_DIFFICULTY = 0.6         # ideas get harder to find: each further
                               # doubling of efficiency costs more research
                               # than the last. Without this the loop has no
                               # damping and the frontier explodes in 2021.
-MAX_ALGO_ADVANTAGE = 7.0      # most a lab can privately be ahead of the
-                              # field on efficiency, as a multiple      (LOW)
+MAX_ALGO_ADVANTAGE = 3.0      # most a lab can privately be ahead of the
+                              # field's efficiency track. Was 7.0; the track
+                              # is fitted to the real LEADER, so the leader's
+                              # edge over it is small - at 7x the sim's
+                              # capability ran a year early (v1.18). Swept
+                              # 1, 2, 3, 7 on the checkpoint table.
 LEADER_EDGE_DECAY = 0.55      # how fast a private edge becomes common  (LOW)
 CAPABILITY_PERCEPTION_OOM = 1.4  # beyond this much of a capability gap,
                                  # buyers stop being able to tell       (LOW)

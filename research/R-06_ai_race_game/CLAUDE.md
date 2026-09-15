@@ -149,10 +149,11 @@ export.py      dump a run to JSON for the viewer
 
 ## Current state
 
-Timing 16/16 inside ±18 months, median offset −6, mean |offset| 7.9.
-Order 115/120. Magnitude 1.82x weighted. Eleven strategies score 50–93%
-on their own goals. ~71 lead changes per run, 0% runaways, 5.4 of 7 labs
-viable at 2030.
+Timing 16/16 inside ±18 months, median offset −2, mean |offset| 6.2.
+Order 113/120. Magnitude 1.83x weighted. Eleven strategies score 36–100%
+on their own goals. ~84 lead changes per run, 8% runaways, 5.5 of 7 labs
+viable at 2030; labs can die (0-2 acquisitions a decade). See
+`CHANGELOG.md` for the v1.12-1.18 batch.
 Safety incidents fire with the intended severity gradient: nothing severe is
 possible before agentic capability exists, and by 2028–30 severe is ~6% of
 incidents. Every decision goes through the seam; replay is bit-identical.

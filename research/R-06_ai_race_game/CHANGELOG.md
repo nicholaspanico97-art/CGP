@@ -3,6 +3,18 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.18 — the private algorithmic edge, bounded (Sep 15 2026)
+The last year of capability earliness. With runs on the record,
+capability per FLOP was still high; switching off the private
+algorithmic edge alone moved "knowledge 86" from -14 to -2 months. The
+cap on how far a lab can privately run ahead of the field's efficiency
+track was 7x - but the track is fitted to the real leader, so the
+leader's edge over it must be small. Set to 3x (swept 1, 2, 3, 7).
+Timing: median -2 / mean 6.2 / worst -17 / 16 of 16 / order 113 (from
+7.5 / -19 / 15 / 112); magnitude 1.83x. Balance 36-100% of goals, 5.5
+of 7 viable, 8% runaways, 84 lead changes. HYPERSCALER 36% - see v1.13.
+*File: `constants.MAX_ALGO_ADVANTAGE`.*
+
 ## v1.17 — the world's events are news; bloc power reaches the labs (Sep 15 2026)
 The dated world events (export controls, the AI Act, the assistant
 moment, the Gulf deals, the US order and its rescinding) now appear in
