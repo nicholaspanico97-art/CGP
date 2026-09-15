@@ -3,6 +3,19 @@
 Newest first. Each entry: what changed, why, what was measured. Details
 in the commit messages and the file each points to.
 
+## v1.27 — mood and regulation move on their own (Sep 15 2026)
+WORLD_STATE.md 4. Each bloc's public mood drifts with the sector's
+incidents (severe -0.06, minor -0.01), knowledge-work unemployment over
+trend (-0.15 a point) and how much of software spend AI has become
+(+0.004 a point), decaying toward neutral over two years; the dated
+events still land on top. Regulatory stance follows mood as a ratchet -
+quick to rise on a bad mood, six times slower to ease - so the EU holds
+~0.6 after the Act instead of decaying. Regulation per bloc already
+gates agentic products (v1.25), so this closes the loop the roadmap
+called "the world reacts to AI": what the labs ship changes mood,
+mood changes rules, rules change what the labs may sell. Sector
+instrument unchanged (mean 7.3, 16 of 16, 2.21x). *File: `geo._endogenous`.*
+
 ## v1.26 — in-house silicon (Sep 15 2026)
 HARDWARE.md 5 step 4. A lab can start a chip programme ($1.5B/yr for
 three years; a button on the compute panel) and then owns a designer in

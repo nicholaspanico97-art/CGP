@@ -56,6 +56,18 @@ WAFERS_K_PER_MONTH = {2020: 120, 2021: 150, 2022: 180, 2023: 210, 2024: 240, 202
 COWOS_K_PER_MONTH = {2020: 4, 2021: 6, 2022: 8, 2023: 15, 2024: 35, 2025: 75}
 AI_SHARE_OF_LEADING_EDGE = {2020: 0.08, 2021: 0.12, 2022: 0.18, 2023: 0.30, 2024: 0.45, 2025: 0.60}
 
+# Mood and regulation move on their own (v1.27, WORLD_STATE.md 4), on top
+# of the dated events: incidents and displacement push mood down, cheaper
+# and more capable services push it up; a bloc's regulatory stance
+# follows its mood with a lag. Gains are modest - the record's events
+# still dominate the 2020s.                                        (LOW)
+MOOD_PER_SEVERE_INCIDENT = -0.06
+MOOD_PER_MINOR_INCIDENT = -0.01
+MOOD_PER_PT_UNEMPLOYMENT = -0.15     # per percentage point over trend
+MOOD_PER_PT_AI_SPEND = 0.004         # per % of software spend that is AI
+MOOD_DECAY_M = 24.0                  # half-life back toward neutral
+REG_FOLLOWS_MOOD = 0.03              # per month, toward (0.3 - mood/2)
+
 # the strategy AIs' home blocs, until organisations carry their own
 BLOC_OF_STRATEGY = {"SOVEREIGN": "Gulf", "COST": "China", "OPEN": "EU"}
 
@@ -104,8 +116,31 @@ class Geo:
         self.wafers_k = _track(WAFERS_K_PER_MONTH, year, 0.12)
         self.cowos_k = _track(COWOS_K_PER_MONTH, year, 0.25)
         self.ai_share_fab = min(0.85, _track(AI_SHARE_OF_LEADING_EDGE, year, 0.08))
+        self._endogenous(world)
         self._derive(world)
         self.history.append(self.snapshot())
+
+    def _endogenous(self, world):
+        """Mood and regulation drift with what happened this month."""
+        m = world.month
+        log = getattr(world, "incident_log", []) or []
+        this = [x for x in log if x.get("month") == m]
+        severe = sum(1 for x in this if x.get("severity") == "severe")
+        minor = len(this) - severe
+        econ = getattr(world, "economy", None)
+        econ_blocs = econ.snapshot()["blocs"] if econ and econ.last else {}
+        k = 1 - 0.5 ** (1.0 / MOOD_DECAY_M)
+        for b, s in self.blocs.items():
+            e = econ_blocs.get("China" if b == "China" else ("EU" if b == "EU" else ("US" if b == "US" else "RoW")), {})
+            du = max(0.0, e.get("unemployment", 0.0) - e.get("unemployment_0", 0.0)) * 100.0
+            ai_sw = e.get("ai_share_software", 0.0) * 100.0
+            drift = (severe * MOOD_PER_SEVERE_INCIDENT + minor * MOOD_PER_MINOR_INCIDENT
+                     + du * MOOD_PER_PT_UNEMPLOYMENT / 12.0 + ai_sw * MOOD_PER_PT_AI_SPEND / 12.0)
+            s["mood"] = max(-1.0, min(1.0, s["mood"] + drift - s["mood"] * k * 0.5))
+            target = 0.3 - 0.5 * s["mood"]
+            # a ratchet: rules come quickly on a bad mood and ease slowly
+            rate = REG_FOLLOWS_MOOD if target > s["regulation"] else REG_FOLLOWS_MOOD / 6.0
+            s["regulation"] = max(0.0, min(1.0, s["regulation"] + (target - s["regulation"]) * rate))
 
     # ----------------------------------------------------------- derived
     def _derive(self, world):
